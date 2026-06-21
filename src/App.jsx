@@ -24,6 +24,7 @@ import MapScreen       from './screens/MapScreen.jsx'
 import DiaryScreen     from './screens/DiaryScreen.jsx'
 import InventoryScreen from './screens/InventoryScreen.jsx'
 import CreatureScreen  from './screens/CreatureScreen.jsx'
+import CodexScreen    from './screens/CodexScreen.jsx'
 
 const THRESHOLDS = [20, 40, 60, 80]
 
@@ -556,6 +557,14 @@ export default function App() {
       case 'diario':     return <DiaryScreen      diary={diary} />
       case 'inventario': return <InventoryScreen  inventory={inventory} />
       case 'criatura':   return <CreatureScreen   player={player} />
+      case 'codice':     return (
+        <CodexScreen
+          player={player}
+          sectors={sectors}
+          inventory={inventory}
+          diary={diary}
+        />
+      )
       default:           return null
     }
   }

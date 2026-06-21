@@ -2258,3 +2258,226 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   line-height: 1.6;
   opacity: 0.72;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   CÓDICE DEL ABISMO
+   ═══════════════════════════════════════════════════════════════════ */
+
+.codex-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+/* ── Cabecera ─────────────────────────────────────────────────────── */
+.codex-header {
+  padding: 14px 16px 10px;
+  background: var(--color-bg-warm);
+  border-bottom: 1px solid rgba(184,148,74,0.14);
+  flex-shrink: 0;
+}
+.codex-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-parchment);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.codex-subtitle {
+  font-size: 0.6rem;
+  color: var(--color-stone-light);
+  margin-top: 2px;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+.codex-progress-card {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-top: 8px;
+}
+.codex-progress-number {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-gold);
+  line-height: 1;
+}
+.codex-progress-sep {
+  font-size: 0.75rem;
+  color: var(--color-stone-light);
+  opacity: 0.5;
+}
+.codex-progress-total {
+  font-size: 0.75rem;
+  color: var(--color-stone-light);
+  opacity: 0.7;
+}
+.codex-progress-label {
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  margin-left: 4px;
+}
+
+/* ── Pestañas de categoría ───────────────────────────────────────── */
+.codex-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--color-bg-warm);
+  border-bottom: 1px solid rgba(184,148,74,0.1);
+  flex-shrink: 0;
+}
+.codex-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 8px 4px;
+  border: 1px solid rgba(98,107,111,0.25);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--color-stone-light);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.codex-tab:hover {
+  border-color: rgba(184,148,74,0.35);
+  color: var(--color-parchment);
+}
+.codex-tab.active {
+  border-color: rgba(184,148,74,0.7);
+  background: rgba(184,148,74,0.08);
+  color: var(--color-gold);
+}
+.codex-tab-label {
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.codex-tab-count {
+  font-size: 0.48rem;
+  opacity: 0.65;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* ── Lista de entradas ───────────────────────────────────────────── */
+.codex-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.codex-empty {
+  text-align: center;
+  font-size: 0.65rem;
+  color: var(--color-stone-light);
+  opacity: 0.5;
+  padding: 24px 0;
+  font-style: italic;
+}
+
+/* ── Entrada individual ──────────────────────────────────────────── */
+.codex-entry {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(98,107,111,0.18);
+  border-radius: 4px;
+  padding: 8px 10px;
+  background: var(--color-leather-dark);
+  cursor: default;
+  transition: border-color 0.15s, background 0.15s;
+}
+.codex-entry.discovered {
+  cursor: pointer;
+  border-color: rgba(98,107,111,0.28);
+}
+.codex-entry.discovered:hover {
+  border-color: rgba(184,148,74,0.35);
+  background: rgba(42,26,16,0.85);
+}
+.codex-entry.hidden {
+  opacity: 0.52;
+  cursor: default;
+}
+.codex-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.codex-entry-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-parchment);
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+.codex-entry-subtitle {
+  font-size: 0.56rem;
+  color: var(--color-stone-light);
+  margin-top: 1px;
+  opacity: 0.7;
+  line-height: 1.2;
+}
+.codex-entry-chevron {
+  font-size: 0.9rem;
+  color: var(--color-stone-light);
+  opacity: 0.55;
+  transition: transform 0.18s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.codex-entry-chevron.open {
+  transform: rotate(90deg);
+}
+.codex-hidden-mark {
+  font-size: 0.75rem;
+  color: var(--color-stone-light);
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+.codex-entry-body {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(98,107,111,0.15);
+}
+.codex-entry-description {
+  font-size: 0.62rem;
+  color: var(--color-stone-light);
+  line-height: 1.5;
+}
+.codex-entry-meta {
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.codex-entry-meta-item {
+  font-size: 0.56rem;
+  color: var(--color-stone-light);
+  opacity: 0.65;
+  line-height: 1.4;
+  padding-left: 6px;
+  border-left: 1px solid rgba(184,148,74,0.22);
+}
+
+/* Tighten bottom nav for 6-tab layout */
+.bottom-nav button {
+  padding: 6px 2px 8px;
+  font-size: 0.55rem;
+  letter-spacing: 0.03em;
+  gap: 2px;
+}
+

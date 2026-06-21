@@ -695,3 +695,19 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - 🔲 La Torre (postgame)
 - 🔲 Marcha Viva en tiempo real
 - 🔲 Modo cooperativo
+
+---
+
+## Modos de conteo de pasos (planificación futura)
+
+El juego contempla dos modos de avance por pasos:
+
+**Modo pasos reales (mercado final)**
+Lectura del sensor del teléfono mediante `DeviceMotionEvent`. El jugador
+avanza en la marcha caminando físicamente. Activado por el botón de podómetro
+experimental ya implementado en 8A.
+
+**Modo prototipo / desarrollo**
+Simulación de pasos mediante botón en pantalla (`+500 pasos`, `+1000 pasos`).
+Permite probar el loop completo en PC sin caminar. Es el modo activo por
+defecto durante el desarrollo. No debe eliminarse; coexiste con el podómetro.
