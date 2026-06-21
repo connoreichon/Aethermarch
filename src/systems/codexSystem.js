@@ -102,6 +102,7 @@ export function buildCodexEntries({ player, sectors, inventory, diary }) {
         ? (BIOME_NAMES[sector.biomeId] ?? sector.biomeId) + (sector.depthMeters ? ` · ${sector.depthMeters} m` : '')
         : FOG_SECTOR,
       meta: discovered ? [
+        ...(sector.secret            ? ['Secreto descubierto']                                                               : []),
         ...(sector.threat            ? [`Amenaza: ${THREAT_LABELS[sector.threat]  ?? sector.threat}`]                     : []),
         ...(sector.visits > 0        ? [`Visitas: ${sector.visits}`]                                                        : []),
         ...(sector.masteryLevel != null ? [`Dominio: ${MASTERY_LABELS[sector.masteryLevel] ?? '—'}`]                      : []),

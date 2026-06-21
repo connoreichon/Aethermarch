@@ -8,21 +8,25 @@ const THREAT_COLOR  = { low: 'var(--color-xp)', medium: 'var(--color-ember)', hi
 
 // Posiciones en espiral descendente (x%, y%)
 const ABYSS_NODE_POS = {
-  sector_aethel_edge:    { x: 50, y: 10 },
-  sector_mist_root:      { x: 26, y: 26 },
-  sector_salt_beacon:    { x: 74, y: 39 },
-  sector_tide_rock:      { x: 28, y: 54 },
-  sector_sleeping_forge: { x: 72, y: 69 },
-  sector_coal_bastion:   { x: 50, y: 83 },
+  sector_aethel_edge:         { x: 50, y: 10 },
+  sector_mist_root:           { x: 26, y: 26 },
+  sector_runic_guard_ruins:   { x: 20, y: 31 },
+  sector_hollow_mushroom_cave:{ x: 44, y: 35 },
+  sector_salt_beacon:         { x: 74, y: 39 },
+  sector_tide_rock:           { x: 28, y: 54 },
+  sector_sleeping_forge:      { x: 72, y: 69 },
+  sector_coal_bastion:        { x: 50, y: 83 },
 }
 
 const CONNECTIONS = [
-  ['sector_aethel_edge',    'sector_mist_root'],
-  ['sector_aethel_edge',    'sector_salt_beacon'],
-  ['sector_mist_root',      'sector_sleeping_forge'],
-  ['sector_salt_beacon',    'sector_tide_rock'],
-  ['sector_sleeping_forge', 'sector_coal_bastion'],
-  ['sector_tide_rock',      'sector_coal_bastion'],
+  ['sector_aethel_edge',        'sector_mist_root'],
+  ['sector_aethel_edge',        'sector_salt_beacon'],
+  ['sector_mist_root',          'sector_runic_guard_ruins'],
+  ['sector_mist_root',          'sector_sleeping_forge'],
+  ['sector_runic_guard_ruins',  'sector_hollow_mushroom_cave'],
+  ['sector_salt_beacon',        'sector_tide_rock'],
+  ['sector_sleeping_forge',     'sector_coal_bastion'],
+  ['sector_tide_rock',          'sector_coal_bastion'],
 ]
 
 // Bandas de estrato: y% de inicio/fin y metadatos
@@ -35,12 +39,14 @@ const STRATA_BANDS = [
 // Fallback para saves sin campos de Abismo (merge en handleContinue lo resuelve,
 // pero se mantiene por seguridad en renderizado).
 const STRATUM_FALLBACK = {
-  sector_aethel_edge:    { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 120, lootTier: 1 },
-  sector_mist_root:      { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 180, lootTier: 1 },
-  sector_salt_beacon:    { stratumId: 'stratum_02', stratumName: 'Estrato II · Cornisa Salina',   depth: 2, depthMeters: 340, lootTier: 2 },
-  sector_tide_rock:      { stratumId: 'stratum_02', stratumName: 'Estrato II · Cornisa Salina',   depth: 2, depthMeters: 410, lootTier: 2 },
-  sector_sleeping_forge: { stratumId: 'stratum_03', stratumName: 'Estrato III · Forjas Hundidas', depth: 3, depthMeters: 690, lootTier: 3 },
-  sector_coal_bastion:   { stratumId: 'stratum_03', stratumName: 'Estrato III · Forjas Hundidas', depth: 3, depthMeters: 760, lootTier: 3 },
+  sector_aethel_edge:          { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 120, lootTier: 1 },
+  sector_mist_root:            { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 180, lootTier: 1 },
+  sector_runic_guard_ruins:    { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 210, lootTier: 1 },
+  sector_hollow_mushroom_cave: { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 235, lootTier: 1 },
+  sector_salt_beacon:          { stratumId: 'stratum_02', stratumName: 'Estrato II · Cornisa Salina',   depth: 2, depthMeters: 340, lootTier: 2 },
+  sector_tide_rock:            { stratumId: 'stratum_02', stratumName: 'Estrato II · Cornisa Salina',   depth: 2, depthMeters: 410, lootTier: 2 },
+  sector_sleeping_forge:       { stratumId: 'stratum_03', stratumName: 'Estrato III · Forjas Hundidas', depth: 3, depthMeters: 690, lootTier: 3 },
+  sector_coal_bastion:         { stratumId: 'stratum_03', stratumName: 'Estrato III · Forjas Hundidas', depth: 3, depthMeters: 760, lootTier: 3 },
 }
 
 function withAbyssMeta(sector) {
@@ -181,6 +187,7 @@ export default function MapScreen({ sectors }) {
             s.discovered         ? 'discovered'          : 'hidden',
             isSelected           ? 'selected'            : '',
             s.recentlyDiscovered ? 'recently-discovered' : '',
+            (s.discovered && s.secret) ? 'secret-discovered' : '',
           ].filter(Boolean).join(' ')
 
           return (
@@ -195,6 +202,7 @@ export default function MapScreen({ sectors }) {
               onClick={() => handleSelect(s.id)}
             >
               {s.recentlyDiscovered && <div className="abyss-new-badge">Nuevo</div>}
+              {s.discovered && s.secret && <div className="abyss-node-secret-badge">Secreto</div>}
               <div className="abyss-node-circle">
                 {s.discovered ? (
                   <div className="abyss-node-icon" style={{ color: BIOME_ICON_COLOR[s.biomeId] ?? 'var(--color-parchment)' }}>
@@ -288,6 +296,11 @@ export default function MapScreen({ sectors }) {
                       return cs?.discovered ? cs.name : 'senda en bruma'
                     }).join(', ')}
                   </span>
+                </div>
+              )}
+              {selected.secret && (
+                <div className="secret-discovery-note">
+                  Zona secreta · acceso por senda oculta
                 </div>
               )}
               {biome?.description && (

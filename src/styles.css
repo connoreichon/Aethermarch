@@ -2733,3 +2733,33 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 .diary-contract-outcome.success { color: var(--color-xp); }
 .diary-contract-outcome.partial { color: var(--color-gold); }
 .diary-contract-outcome.failure { color: var(--color-hp); }
+
+/* ── 14A — Sectores secretos ── */
+.abyss-node.secret-discovered .abyss-node-circle {
+  border-color: rgba(184,148,74,0.55);
+  box-shadow: 0 0 10px rgba(184,148,74,0.18), 0 0 3px rgba(111,159,163,0.15);
+}
+.abyss-node-secret-badge {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.37rem;
+  color: var(--color-gold);
+  background: rgba(26,18,8,0.92);
+  border: 1px solid rgba(184,148,74,0.38);
+  border-radius: 3px;
+  padding: 1px 4px;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.secret-discovery-note {
+  font-size: 0.6rem;
+  color: var(--color-gold);
+  font-style: italic;
+  margin-top: 6px;
+  opacity: 0.8;
+  letter-spacing: 0.02em;
+}

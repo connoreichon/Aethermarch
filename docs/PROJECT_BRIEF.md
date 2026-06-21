@@ -675,6 +675,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 12A — Lugares seguros funcionales (descanso, rumores, feedback narrativo)
 - ✅ 13A — Contratos: encargos por lugar seguro, un activo, resolución manual, XP, recursos, diario
 - ✅ 13B — Contratos: probabilidad de éxito, resultados variables (éxito/parcial/fracaso), consecuencias, log enriquecido
+- ✅ 14A — Expansión Estrato I: Ruina de Guardia Rúnica y Cueva de Setas Huecas, primera zona secreta por criatura/dominio
 
 ### Próximo
 - 🔲 13A — Primer contratable encuentro simple

@@ -2370,164 +2370,6 @@ export function resolveCombatTurn({ combat, stanceId, player, enemies, auto = fa
 }
 </file>
 
-<file path="src/systems/contractSystem.js">
-export const CONTRACT_STATUS = {
-  AVAILABLE: 'available',
-  ACTIVE:    'active',
-  COMPLETED: 'completed',
-}
-
-const RISK_LABELS = { low: 'Bajo', medium: 'Medio', high: 'Alto' }
-
-const CONTRACT_TEMPLATES = {
-  shelter: {
-    id:             'shelter_repair_markers',
-    title:          'Reparar marcas de farol',
-    type:           'maintenance',
-    contractorName: 'Mira de las Cornisas',
-    durationLabel:  '45 min',
-    risk:           'low',
-    description:    'Mira revisa las marcas del sendero cercano para que otras caravanas no se pierdan entre raíces.',
-    rewards:        { xp: 4, resources: { runic_wood: 1 } },
-  },
-  trader: {
-    id:             'trader_courier',
-    title:          'Recado del mercader',
-    type:           'courier',
-    contractorName: 'Tolk el Salinero',
-    durationLabel:  '1 h',
-    risk:           'low',
-    description:    'Un mercader pide entregar un paquete sellado a otro grupo de paso. Dice que no pesa, pero no deja de mirarlo.',
-    rewards:        { xp: 3, resources: { aethel_root: 1 } },
-  },
-  inn: {
-    id:             'inn_scout_route',
-    title:          'Guía hasta una senda segura',
-    type:           'scout',
-    contractorName: 'Mira de las Cornisas',
-    durationLabel:  '2 h',
-    risk:           'medium',
-    description:    'Una guía acepta revisar una ruta lateral y marcar señales para futuras expediciones.',
-    rewards:        { xp: 6, resources: { arcane_salt: 1 } },
-  },
-  tavern: {
-    id:             'tavern_sealed_chamber',
-    title:          'Rumor de cámara sellada',
-    type:           'intel',
-    contractorName: 'Dos el Silencioso',
-    durationLabel:  '3 h',
-    risk:           'medium',
-    description:    'Entre murmullos, alguien menciona una cámara cerrada. Dos puede comprobar si la pista es real.',
-    rewards:        { xp: 7, resources: { tide_crystal: 1 } },
-  },
-  forge: {
-    id:             'forge_ember_survey',
-    title:          'Inspección de brasas antiguas',
-    type:           'forge_survey',
-    contractorName: 'Sala la Herrera',
-    durationLabel:  '2 h',
-    risk:           'medium',
-    description:    'Sala revisa restos de forja y busca metal aprovechable entre placas y carbón.',
-    rewards:        { xp: 5, resources: { forge_mineral: 1 } },
-  },
-  supply: {
-    id:             'supply_box_inventory',
-    title:          'Inventario de cajas viejas',
-    type:           'supply_check',
-    contractorName: 'Tolk el Salinero',
-    durationLabel:  '1 h',
-    risk:           'low',
-    description:    'Tolk revisa cajas antiguas del puesto y separa lo útil de lo podrido.',
-    rewards:        { xp: 4, resources: { resonant_coal: 1 } },
-  },
-}
-
-// ── Estado inicial ────────────────────────────────────────────────────────────
-
-export function createInitialContractState() {
-  return {
-    activeContract:       null,
-    completedContractIds: [],
-    contractLog:          [],
-  }
-}
-
-export function sanitizeContractState(raw) {
-  if (!raw || typeof raw !== 'object') return createInitialContractState()
-  return {
-    activeContract:       (raw.activeContract && typeof raw.activeContract === 'object')
-                            ? raw.activeContract
-                            : null,
-    completedContractIds: Array.isArray(raw.completedContractIds) ? raw.completedContractIds : [],
-    contractLog:          Array.isArray(raw.contractLog) ? raw.contractLog : [],
-  }
-}
-
-// ── Consultas ─────────────────────────────────────────────────────────────────
-
-export function getAvailableContracts({ sector, contractState }) {
-  if (!sector?.poiId) return []
-  const template = CONTRACT_TEMPLATES[sector.poiId]
-  if (!template) return []
-  if (contractState?.activeContract) return []
-  if ((contractState?.completedContractIds ?? []).includes(template.id)) return []
-  return [{
-    ...template,
-    riskLabel:        RISK_LABELS[template.risk] ?? template.risk,
-    sourcePoiId:      sector.poiId,
-    sourceSectorId:   sector.id,
-    sourceSectorName: sector.name,
-  }]
-}
-
-export function isSectorContractCompleted(poiId, contractState) {
-  const template = CONTRACT_TEMPLATES[poiId]
-  if (!template) return false
-  return (contractState?.completedContractIds ?? []).includes(template.id)
-}
-
-export function canStartContract({ contractState, expedition, combat }) {
-  if (contractState?.activeContract)
-    return { ok: false, reason: 'Ya hay un contrato activo.' }
-  if (expedition?.status === 'marching')
-    return { ok: false, reason: 'No puedes aceptar contratos mientras la caravana está en marcha.' }
-  if (expedition?.status === 'combat' || combat?.status === 'awaiting_choice')
-    return { ok: false, reason: 'No puedes aceptar contratos durante un combate.' }
-  return { ok: true }
-}
-
-// ── Acciones ──────────────────────────────────────────────────────────────────
-
-export function startContract({ contract, now }) {
-  return {
-    ...contract,
-    startedAt: now ?? new Date().toISOString(),
-    status:    CONTRACT_STATUS.ACTIVE,
-  }
-}
-
-export function resolveContract({ activeContract }) {
-  if (!activeContract) return null
-  const rewards = activeContract.rewards ?? { xp: 0, resources: {} }
-  return {
-    ...activeContract,
-    resolvedAt:  new Date().toISOString(),
-    status:      CONTRACT_STATUS.COMPLETED,
-    rewards,
-    summaryText: `${activeContract.contractorName} completó "${activeContract.title}". La caravana recibe la recompensa acordada.`,
-  }
-}
-
-export function getContractRewardText(rewards) {
-  const parts = []
-  if ((rewards?.xp ?? 0) > 0) parts.push(`+${rewards.xp} XP`)
-  for (const [id, qty] of Object.entries(rewards?.resources ?? {})) {
-    parts.push(`${id.replace(/_/g, ' ')} ×${qty}`)
-  }
-  return parts.join(' · ')
-}
-</file>
-
 <file path="src/systems/echoSystem.js">
 export const ECHO_MAX_STEPS   = 2000
 export const ECHO_MIN_STEPS   = 300
@@ -4051,6 +3893,246 @@ export function getCodexProgress(entries) {
 }
 </file>
 
+<file path="src/systems/contractSystem.js">
+import { RESOURCES } from '../data/gameData.js'
+
+export const CONTRACT_STATUS = {
+  AVAILABLE: 'available',
+  ACTIVE:    'active',
+  COMPLETED: 'completed',
+}
+
+export const CONTRACT_OUTCOMES = {
+  SUCCESS: 'success',
+  PARTIAL: 'partial',
+  FAILURE: 'failure',
+}
+
+const RISK_LABELS = { low: 'Bajo', medium: 'Medio', high: 'Alto' }
+
+const CONTRACT_TEMPLATES = {
+  shelter: {
+    id:             'shelter_repair_markers',
+    title:          'Reparar marcas de farol',
+    type:           'maintenance',
+    contractorName: 'Mira de las Cornisas',
+    durationLabel:  '45 min',
+    risk:           'low',
+    description:    'Mira revisa las marcas del sendero cercano para que otras caravanas no se pierdan entre raíces.',
+    rewards:        { xp: 4, resources: { runic_wood: 1 } },
+  },
+  trader: {
+    id:             'trader_courier',
+    title:          'Recado del mercader',
+    type:           'courier',
+    contractorName: 'Tolk el Salinero',
+    durationLabel:  '1 h',
+    risk:           'low',
+    description:    'Un mercader pide entregar un paquete sellado a otro grupo de paso. Dice que no pesa, pero no deja de mirarlo.',
+    rewards:        { xp: 3, resources: { aethel_root: 1 } },
+  },
+  inn: {
+    id:             'inn_scout_route',
+    title:          'Guía hasta una senda segura',
+    type:           'scout',
+    contractorName: 'Mira de las Cornisas',
+    durationLabel:  '2 h',
+    risk:           'medium',
+    description:    'Una guía acepta revisar una ruta lateral y marcar señales para futuras expediciones.',
+    rewards:        { xp: 6, resources: { arcane_salt: 1 } },
+  },
+  tavern: {
+    id:             'tavern_sealed_chamber',
+    title:          'Rumor de cámara sellada',
+    type:           'intel',
+    contractorName: 'Dos el Silencioso',
+    durationLabel:  '3 h',
+    risk:           'medium',
+    description:    'Entre murmullos, alguien menciona una cámara cerrada. Dos puede comprobar si la pista es real.',
+    rewards:        { xp: 7, resources: { tide_crystal: 1 } },
+  },
+  forge: {
+    id:             'forge_ember_survey',
+    title:          'Inspección de brasas antiguas',
+    type:           'forge_survey',
+    contractorName: 'Sala la Herrera',
+    durationLabel:  '2 h',
+    risk:           'medium',
+    description:    'Sala revisa restos de forja y busca metal aprovechable entre placas y carbón.',
+    rewards:        { xp: 5, resources: { forge_mineral: 1 } },
+  },
+  supply: {
+    id:             'supply_box_inventory',
+    title:          'Inventario de cajas viejas',
+    type:           'supply_check',
+    contractorName: 'Tolk el Salinero',
+    durationLabel:  '1 h',
+    risk:           'low',
+    description:    'Tolk revisa cajas antiguas del puesto y separa lo útil de lo podrido.',
+    rewards:        { xp: 4, resources: { resonant_coal: 1 } },
+  },
+}
+
+// ── Estado inicial ────────────────────────────────────────────────────────────
+
+export function createInitialContractState() {
+  return {
+    activeContract:       null,
+    completedContractIds: [],
+    contractLog:          [],
+  }
+}
+
+export function sanitizeContractState(raw) {
+  if (!raw || typeof raw !== 'object') return createInitialContractState()
+  return {
+    activeContract:       (raw.activeContract && typeof raw.activeContract === 'object')
+                            ? raw.activeContract
+                            : null,
+    completedContractIds: Array.isArray(raw.completedContractIds) ? raw.completedContractIds : [],
+    contractLog:          Array.isArray(raw.contractLog) ? raw.contractLog : [],
+  }
+}
+
+// ── Consultas ─────────────────────────────────────────────────────────────────
+
+export function getAvailableContracts({ sector, contractState }) {
+  if (!sector?.poiId) return []
+  const template = CONTRACT_TEMPLATES[sector.poiId]
+  if (!template) return []
+  if (contractState?.activeContract) return []
+  if ((contractState?.completedContractIds ?? []).includes(template.id)) return []
+  return [{
+    ...template,
+    riskLabel:        RISK_LABELS[template.risk] ?? template.risk,
+    sourcePoiId:      sector.poiId,
+    sourceSectorId:   sector.id,
+    sourceSectorName: sector.name,
+  }]
+}
+
+export function isSectorContractCompleted(poiId, contractState) {
+  const template = CONTRACT_TEMPLATES[poiId]
+  if (!template) return false
+  return (contractState?.completedContractIds ?? []).includes(template.id)
+}
+
+export function canStartContract({ contractState, expedition, combat }) {
+  if (contractState?.activeContract)
+    return { ok: false, reason: 'Ya hay un contrato activo.' }
+  if (expedition?.status === 'marching')
+    return { ok: false, reason: 'No puedes aceptar contratos mientras la caravana está en marcha.' }
+  if (expedition?.status === 'combat' || combat?.status === 'awaiting_choice')
+    return { ok: false, reason: 'No puedes aceptar contratos durante un combate.' }
+  return { ok: true }
+}
+
+// ── Probabilidad ──────────────────────────────────────────────────────────────
+
+export function getContractSuccessChance({ contract, player, sector }) {
+  const BASE = { low: 85, medium: 65, high: 45 }
+  let chance = BASE[contract.risk] ?? 65
+
+  if (player?.archetypeId === 'rastreador' && (contract.type === 'scout' || contract.type === 'intel')) chance += 10
+  if (player?.archetypeId === 'guardian'   && (contract.type === 'maintenance' || contract.type === 'courier')) chance += 5
+  if (player?.archetypeId === 'runario'    && (contract.type === 'intel' || contract.type === 'forge_survey')) chance += 8
+
+  if (player?.creatureId === 'velthar' && (contract.type === 'scout' || contract.type === 'intel')) chance += 8
+  if (player?.creatureId === 'brontik' && (contract.risk === 'medium' || contract.risk === 'high')) chance += 5
+  if (player?.creatureId === 'lumora'  && Object.keys(contract.rewards?.resources ?? {}).length > 0) chance += 5
+
+  if (sector?.threat === 'high')        chance -= 10
+  else if (sector?.threat === 'medium') chance -= 5
+  if (sector?.masteryLevel >= 3)        chance += 10
+  else if (sector?.masteryLevel >= 2)   chance += 5
+
+  return Math.min(95, Math.max(5, Math.round(chance)))
+}
+
+export function getContractOutcomeLabel(outcome) {
+  if (outcome === CONTRACT_OUTCOMES.SUCCESS) return 'Éxito'
+  if (outcome === CONTRACT_OUTCOMES.PARTIAL) return 'Éxito parcial'
+  if (outcome === CONTRACT_OUTCOMES.FAILURE) return 'Fracaso'
+  return '—'
+}
+
+const OUTCOME_TEXTS = {
+  [CONTRACT_OUTCOMES.SUCCESS]: 'El encargo se completó sin incidentes. La recompensa llega íntegra a la caravana.',
+  [CONTRACT_OUTCOMES.PARTIAL]: 'El encargo se completó con complicaciones. Parte del botín se perdió durante el regreso.',
+  [CONTRACT_OUTCOMES.FAILURE]: 'El encargo salió mal. No hubo pérdidas graves, pero el contratista volvió sin materiales útiles.',
+}
+
+// ── Acciones ──────────────────────────────────────────────────────────────────
+
+export function startContract({ contract, now }) {
+  return {
+    ...contract,
+    startedAt: now ?? new Date().toISOString(),
+    status:    CONTRACT_STATUS.ACTIVE,
+  }
+}
+
+export function resolveContract({ activeContract, player, sector, now, randomValue }) {
+  if (!activeContract) return null
+
+  const successChance = getContractSuccessChance({ contract: activeContract, player, sector })
+  const roll          = Math.round((randomValue !== undefined ? randomValue : Math.random()) * 100)
+
+  let outcome
+  if (roll <= successChance) {
+    outcome = CONTRACT_OUTCOMES.SUCCESS
+  } else if (roll - successChance <= 20) {
+    outcome = CONTRACT_OUTCOMES.PARTIAL
+  } else {
+    outcome = CONTRACT_OUTCOMES.FAILURE
+  }
+
+  const baseRewards = activeContract.rewards ?? { xp: 0, resources: {} }
+  let rewardsGranted
+
+  if (outcome === CONTRACT_OUTCOMES.SUCCESS) {
+    rewardsGranted = { xp: baseRewards.xp ?? 0, resources: { ...baseRewards.resources } }
+  } else if (outcome === CONTRACT_OUTCOMES.PARTIAL) {
+    const xp        = Math.ceil((baseRewards.xp ?? 0) / 2)
+    const resources = {}
+    for (const [id, qty] of Object.entries(baseRewards.resources ?? {})) {
+      resources[id] = Math.max(1, Math.ceil(qty / 2))
+    }
+    rewardsGranted = { xp, resources }
+  } else {
+    rewardsGranted = { xp: 1, resources: {} }
+  }
+
+  const consequence = outcome === CONTRACT_OUTCOMES.FAILURE
+    ? { type: 'delay', text: 'El encargo no salió bien. La caravana gana experiencia, pero no obtiene materiales.' }
+    : null
+
+  return {
+    ...activeContract,
+    resolvedAt:    now ?? new Date().toISOString(),
+    status:        CONTRACT_STATUS.COMPLETED,
+    successChance,
+    roll,
+    outcome,
+    outcomeLabel:  getContractOutcomeLabel(outcome),
+    baseRewards,
+    rewardsGranted,
+    summaryText:   OUTCOME_TEXTS[outcome],
+    consequence,
+  }
+}
+
+export function getContractRewardText(rewards) {
+  const parts = []
+  if ((rewards?.xp ?? 0) > 0) parts.push(`+${rewards.xp} XP`)
+  for (const [id, qty] of Object.entries(rewards?.resources ?? {})) {
+    const name = RESOURCES[id]?.name ?? id.replace(/_/g, ' ')
+    parts.push(`${name} ×${qty}`)
+  }
+  return parts.join(' · ')
+}
+</file>
+
 <file path="src/systems/expeditionSystem.js">
 import { BIOMES, RESOURCES } from '../data/gameData.js'
 
@@ -5192,6 +5274,18 @@ export default function DiaryScreen({ diary }) {
                   </div>
                 )}
 
+                {/* Resultado del contrato */}
+                {isContract && entry.outcomeLabel && (
+                  <div className={`diary-contract-outcome ${entry.outcome ?? ''}`}>
+                    {entry.outcomeLabel}
+                    {entry.successChance != null && (
+                      <span style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginLeft:6, fontWeight:400 }}>
+                        Prob. estimada: {entry.successChance}%
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* Meta */}
                 <div className="diary-entry-meta">
                   {!isEcho && !isPoi && !isContract && (
@@ -5232,6 +5326,14 @@ export default function DiaryScreen({ diary }) {
 
                 {/* Resumen narrativo */}
                 <p className="diary-entry-summary">{entry.summaryText}</p>
+
+                {/* Consecuencia de contrato fallido */}
+                {isContract && entry.consequence && (
+                  <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', fontStyle:'italic',
+                                marginTop:4, paddingTop:4, borderTop:'1px solid rgba(98,107,111,0.18)' }}>
+                    {entry.consequence.text}
+                  </div>
+                )}
 
                 {/* HP recuperado en POI */}
                 {isPoi && (entry.hpGain ?? 0) > 0 && (
@@ -5303,7 +5405,7 @@ export default function DiaryScreen({ diary }) {
 import { useState, useEffect, useRef } from 'react'
 import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS } from '../data/gameData.js'
 import { canUsePoiAction, getPoiActionLabel, getPoiFlavorText } from '../systems/poiSystem.js'
-import { getAvailableContracts, canStartContract, isSectorContractCompleted } from '../systems/contractSystem.js'
+import { getAvailableContracts, canStartContract, isSectorContractCompleted, getContractSuccessChance, getContractRewardText } from '../systems/contractSystem.js'
 import { getAvailableEchoSteps } from '../systems/stepSourceSystem.js'
 import { getAvailableStances } from '../systems/combatSystem.js'
 import { getExpeditionPreparation, getRiskLevel, getPreparationWarnings } from '../systems/preparationSystem.js'
@@ -6058,7 +6160,7 @@ function PoiPanel({ sector, player, expedition, combat, lastPoiResult, onUsePoiA
 
 // ── Panel de contratos ────────────────────────────────────────────────────────
 
-function ContractsPanel({ sector, contractState, expedition, combat, lastContractResult, onStartContract, onResolveActiveContract }) {
+function ContractsPanel({ sector, player, contractState, expedition, combat, lastContractResult, onStartContract, onResolveActiveContract }) {
   if (!sector) return null
 
   const available      = getAvailableContracts({ sector, contractState })
@@ -6078,13 +6180,18 @@ function ContractsPanel({ sector, contractState, expedition, combat, lastContrac
           <div className="contract-empty">No hay encargos disponibles en este sector.</div>
         )}
 
-        {/* Contrato activo (visible en cualquier sector) */}
+        {/* Contrato activo */}
         {sector.poiId && active && (
           <div className="contract-card">
             <div className="contract-active-badge">Contrato activo</div>
             <div className="contract-title">{active.title}</div>
             <div className="contract-contractor">{active.contractorName}</div>
-            <div className="contract-meta">Duración estimada: {active.durationLabel}</div>
+            <div className="contract-meta">
+              Riesgo: {active.riskLabel ?? active.risk}
+              {active.successChance != null && (
+                <> · <span className="contract-chance">Prob. éxito: {active.successChance}%</span></>
+              )}
+            </div>
             <div className="contract-description" style={{ marginTop:5 }}>
               En esta versión de prototipo puedes resolverlo manualmente.
             </div>
@@ -6104,39 +6211,35 @@ function ContractsPanel({ sector, contractState, expedition, combat, lastContrac
         )}
 
         {/* Contrato disponible */}
-        {sector.poiId && !active && available.length > 0 && available.map(contract => (
-          <div key={contract.id} className="contract-card">
-            <div className="contract-title">{contract.title}</div>
-            <div className="contract-contractor">{contract.contractorName}</div>
-            <div className="contract-meta">
-              Riesgo: {contract.riskLabel} · Duración estimada: {contract.durationLabel}
-            </div>
-            <div className="contract-description">{contract.description}</div>
-            <div className="contract-rewards">
-              Recompensa:{' '}
-              {(contract.rewards?.xp ?? 0) > 0 && (
-                <span style={{ color:'var(--color-xp)' }}>+{contract.rewards.xp} XP</span>
-              )}
-              {Object.entries(contract.rewards?.resources ?? {}).map(([id, qty]) => (
-                <span key={id} style={{ color:'var(--color-gold)', marginLeft:5 }}>
-                  · {RESOURCES[id]?.name ?? id.replace(/_/g,' ')} ×{qty}
-                </span>
-              ))}
-            </div>
-            {!canAcceptCheck.ok && (
-              <div className="contract-empty" style={{ marginBottom:5 }}>
-                {canAcceptCheck.reason}
+        {sector.poiId && !active && available.length > 0 && available.map(contract => {
+          const chance = getContractSuccessChance({ contract, player, sector })
+          return (
+            <div key={contract.id} className="contract-card">
+              <div className="contract-title">{contract.title}</div>
+              <div className="contract-contractor">{contract.contractorName}</div>
+              <div className="contract-meta">
+                Riesgo: {contract.riskLabel} · Duración estimada: {contract.durationLabel}
               </div>
-            )}
-            <button
-              className="contract-action-button"
-              onClick={() => onStartContract(contract)}
-              disabled={!canAcceptCheck.ok}
-            >
-              Aceptar contrato
-            </button>
-          </div>
-        ))}
+              <div className="contract-chance">Probabilidad estimada: {chance}%</div>
+              <div className="contract-description">{contract.description}</div>
+              <div className="contract-rewards">
+                Recompensa base: {getContractRewardText(contract.rewards)}
+              </div>
+              {!canAcceptCheck.ok && (
+                <div className="contract-empty" style={{ marginBottom:5 }}>
+                  {canAcceptCheck.reason}
+                </div>
+              )}
+              <button
+                className="contract-action-button"
+                onClick={() => onStartContract(contract)}
+                disabled={!canAcceptCheck.ok}
+              >
+                Aceptar contrato
+              </button>
+            </div>
+          )
+        })}
 
         {/* Completado */}
         {sector.poiId && !active && available.length === 0 && completed && (
@@ -6147,19 +6250,21 @@ function ContractsPanel({ sector, contractState, expedition, combat, lastContrac
             {lastContractResult?.sourceSectorId === sector.id && (
               <div className="contract-result-box">
                 <div className="contract-result-title">{lastContractResult.title}</div>
-                <div className="contract-result-text">{lastContractResult.summaryText}</div>
-                <div style={{ marginTop:5, display:'flex', flexWrap:'wrap', gap:6 }}>
-                  {(lastContractResult.rewards?.xp ?? 0) > 0 && (
-                    <span style={{ fontSize:'0.6rem', color:'var(--color-xp)' }}>
-                      +{lastContractResult.rewards.xp} XP
-                    </span>
-                  )}
-                  {Object.entries(lastContractResult.rewards?.resources ?? {}).map(([id, qty]) => (
-                    <span key={id} style={{ fontSize:'0.6rem', color:'var(--color-gold)' }}>
-                      +{qty}× {RESOURCES[id]?.name ?? id.replace(/_/g,' ')}
-                    </span>
-                  ))}
+                {lastContractResult.outcomeLabel && (
+                  <div className={`contract-outcome ${lastContractResult.outcome ?? ''}`}>
+                    Resultado: {lastContractResult.outcomeLabel}
+                  </div>
+                )}
+                <div className="contract-result-text" style={{ marginTop:4 }}>{lastContractResult.summaryText}</div>
+                <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', marginTop:5 }}>
+                  Recompensa obtenida:{' '}
+                  <span style={{ color:'var(--color-parchment)' }}>
+                    {getContractRewardText(lastContractResult.rewardsGranted ?? lastContractResult.rewards)}
+                  </span>
                 </div>
+                {lastContractResult.consequence && (
+                  <div className="contract-consequence">{lastContractResult.consequence.text}</div>
+                )}
               </div>
             )}
           </div>
@@ -6625,6 +6730,7 @@ export default function CaravanScreen({
       {activeSector && (
         <ContractsPanel
           sector={activeSector}
+          player={player}
           contractState={contractState}
           expedition={expedition}
           combat={combat}
@@ -6863,7 +6969,7 @@ import {
 import { canUsePoiAction, resolvePoiAction } from './systems/poiSystem.js'
 import {
   createInitialContractState, sanitizeContractState,
-  canStartContract, startContract, resolveContract,
+  canStartContract, startContract, resolveContract, getContractSuccessChance,
 } from './systems/contractSystem.js'
 import AppShell        from './components/AppShell.jsx'
 import StartScreen     from './screens/StartScreen.jsx'
@@ -7251,7 +7357,9 @@ export default function App() {
   function handleStartContract(contract) {
     const check = canStartContract({ contractState, expedition, combat })
     if (!check.ok) return
-    const active = startContract({ contract, now: new Date().toISOString() })
+    const sector        = sectors.find(s => s.id === expedition?.sectorId)
+    const successChance = getContractSuccessChance({ contract, player, sector })
+    const active        = startContract({ contract: { ...contract, successChance }, now: new Date().toISOString() })
     setContractState(prev => ({ ...prev, activeContract: active }))
     setLastContractResult(null)
   }
@@ -7261,10 +7369,11 @@ export default function App() {
     if (expedition?.status === 'combat' || combat?.status === 'awaiting_choice') return
     if (expedition?.status === 'marching') return
 
-    const resolved = resolveContract({ activeContract: contractState.activeContract })
+    const sector   = sectors.find(s => s.id === expedition?.sectorId)
+    const resolved = resolveContract({ activeContract: contractState.activeContract, player, sector })
     if (!resolved) return
 
-    const { xp = 0, resources = {} } = resolved.rewards ?? {}
+    const { xp = 0, resources = {} } = resolved.rewardsGranted ?? {}
 
     if (xp > 0) {
       setPlayer(prev => ({ ...prev, xp: Math.min(prev.xpToNext, prev.xp + xp) }))
@@ -7273,11 +7382,30 @@ export default function App() {
       setInventory(prev => addResources(prev, resources))
     }
 
+    const logEntry = {
+      id:               resolved.id,
+      title:            resolved.title,
+      contractorName:   resolved.contractorName,
+      sourcePoiId:      resolved.sourcePoiId,
+      sourceSectorId:   resolved.sourceSectorId,
+      sourceSectorName: resolved.sourceSectorName,
+      risk:             resolved.risk,
+      successChance:    resolved.successChance,
+      outcome:          resolved.outcome,
+      outcomeLabel:     resolved.outcomeLabel,
+      startedAt:        resolved.startedAt,
+      resolvedAt:       resolved.resolvedAt,
+      rewardsGranted:   resolved.rewardsGranted,
+      baseRewards:      resolved.baseRewards,
+      summaryText:      resolved.summaryText,
+      consequence:      resolved.consequence,
+    }
+
     setContractState(prev => ({
       ...prev,
       activeContract:       null,
       completedContractIds: [...prev.completedContractIds, resolved.id],
-      contractLog:          [...prev.contractLog, { id: resolved.id, resolvedAt: resolved.resolvedAt }],
+      contractLog:          [...prev.contractLog, logEntry].slice(-50),
     }))
 
     const entry = {
@@ -7289,8 +7417,13 @@ export default function App() {
       sectorId:       resolved.sourceSectorId,
       sectorName:     resolved.sourceSectorName,
       poiId:          resolved.sourcePoiId,
+      outcome:        resolved.outcome,
+      outcomeLabel:   resolved.outcomeLabel,
+      successChance:  resolved.successChance,
       summaryText:    resolved.summaryText,
       rewards:        { xp, resources },
+      baseRewards:    resolved.baseRewards,
+      consequence:    resolved.consequence,
       completedAt:    new Date().toISOString(),
       steps:          0,
     }
@@ -10239,6 +10372,39 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   letter-spacing: 0.05em;
   margin-bottom: 4px;
 }
+
+
+/* ── CONTRATOS 13B — probabilidad y resultado ── */
+.contract-chance {
+  font-size: 0.6rem;
+  color: var(--color-magic);
+  margin-bottom: 6px;
+}
+.contract-outcome {
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.contract-outcome.success { color: var(--color-xp); }
+.contract-outcome.partial { color: var(--color-gold); }
+.contract-outcome.failure { color: var(--color-hp); }
+.contract-consequence {
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  font-style: italic;
+  margin-top: 7px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(98,107,111,0.18);
+}
+.diary-contract-outcome {
+  font-size: 0.65rem;
+  font-weight: 600;
+  margin-bottom: 3px;
+  margin-top: 2px;
+}
+.diary-contract-outcome.success { color: var(--color-xp); }
+.diary-contract-outcome.partial { color: var(--color-gold); }
+.diary-contract-outcome.failure { color: var(--color-hp); }
 </file>
 
 <file path="docs/PROJECT_BRIEF.md">
@@ -10918,7 +11084,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 ### Inmediato
 - ✅ 12A — Lugares seguros funcionales (descanso, rumores, feedback narrativo)
 - ✅ 13A — Contratos: encargos por lugar seguro, un activo, resolución manual, XP, recursos, diario
-- 🔲 13B — Progresión del jugador: XP visible, subida de nivel, HP como barra real
+- ✅ 13B — Contratos: probabilidad de éxito, resultados variables (éxito/parcial/fracaso), consecuencias, log enriquecido
 
 ### Próximo
 - 🔲 13A — Primer contratable encuentro simple

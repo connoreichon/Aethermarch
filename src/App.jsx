@@ -589,6 +589,7 @@ export default function App() {
       modeId:          expedition.modeId,
       events:          expedition.events,
       masteryGain,
+      player,
     })
 
     // Apply mastery/visits update on top of any discovery update
