@@ -83,6 +83,13 @@ export default function DiaryScreen({ diary }) {
                     </>
                   )}
                 </div>
+                {/* Estrato y profundidad (guardado desde 9B en adelante) */}
+                {entry.stratumName && (
+                  <div style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginTop:2, opacity:0.62 }}>
+                    {entry.stratumName.split('·')[0].trim()}
+                    {entry.depthMeters ? ` · ${entry.depthMeters} m` : ''}
+                  </div>
+                )}
 
                 {/* Resumen narrativo */}
                 <p className="diary-entry-summary">{entry.summaryText}</p>

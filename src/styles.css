@@ -1946,3 +1946,315 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   font-size: 0.6rem;
   cursor: pointer;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ABISMO 9A — MAPA VISUAL DEL ABISMO
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Pantalla principal ─────────────────────────────────────────────────── */
+.abyss-map-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* ── Cabecera ────────────────────────────────────────────────────────────── */
+.abyss-header {
+  flex-shrink: 0;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid rgba(184,148,74,0.12);
+  background: var(--color-bg-warm);
+}
+.abyss-title {
+  font-size: 1.05rem;
+  color: var(--color-gold);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 10px rgba(184,148,74,0.25);
+}
+.abyss-subtitle {
+  font-size: 0.57rem;
+  color: var(--color-stone-light);
+  margin-top: 2px;
+  opacity: 0.65;
+  letter-spacing: 0.04em;
+}
+
+/* ── Banner de descubrimiento ────────────────────────────────────────────── */
+.abyss-discovery-banner {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  background: rgba(184,148,74,0.07);
+  border-bottom: 1px solid rgba(184,148,74,0.22);
+}
+.abyss-discovery-label {
+  font-size: 0.5rem;
+  color: var(--color-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 2px;
+}
+.abyss-discovery-name {
+  font-size: 0.82rem;
+  color: var(--color-parchment);
+  font-weight: 500;
+}
+.abyss-discovery-meta {
+  font-size: 0.56rem;
+  color: var(--color-stone-light);
+  margin-top: 1px;
+  opacity: 0.75;
+}
+
+/* ── Tablero del Abismo ──────────────────────────────────────────────────── */
+.abyss-board {
+  position: relative;
+  height: clamp(300px, 56vh, 410px);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--color-bg);
+}
+
+/* ── Bandas de estrato ───────────────────────────────────────────────────── */
+.abyss-stratum-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.abyss-stratum-band.stratum-1 {
+  top: 0;
+  height: 33.33%;
+  background: linear-gradient(to bottom,
+    rgba(63,163,77,0.05) 0%,
+    rgba(63,163,77,0.02) 100%
+  );
+  border-bottom: 1px solid rgba(63,163,77,0.1);
+}
+.abyss-stratum-band.stratum-2 {
+  top: 33.33%;
+  height: 33.33%;
+  background: linear-gradient(to bottom,
+    rgba(79,143,149,0.04) 0%,
+    rgba(79,143,149,0.02) 100%
+  );
+  border-bottom: 1px solid rgba(79,143,149,0.1);
+}
+.abyss-stratum-band.stratum-3 {
+  top: 66.66%;
+  height: 33.34%;
+  background: linear-gradient(to bottom,
+    rgba(212,106,45,0.04) 0%,
+    rgba(212,106,45,0.07) 100%
+  );
+}
+
+/* ── Etiquetas de estrato (flotan a la derecha) ─────────────────────────── */
+.abyss-stratum-label {
+  position: absolute;
+  right: 5px;
+  transform: translateY(-50%);
+  z-index: 3;
+  pointer-events: none;
+  text-align: right;
+  line-height: 1.3;
+}
+.abyss-stratum-label-name {
+  font-size: 0.46rem;
+  color: var(--color-stone-light);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.5;
+}
+.abyss-stratum-label-depth {
+  font-size: 0.42rem;
+  color: var(--color-stone-light);
+  opacity: 0.35;
+}
+
+/* ── Núcleo central ──────────────────────────────────────────────────────── */
+.abyss-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(109,90,156,0.07) 0%,
+    rgba(109,90,156,0.02) 50%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Línea de profundidad ────────────────────────────────────────────────── */
+.abyss-depth-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-0.5px);
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    rgba(184,148,74,0.15) 12%,
+    rgba(184,148,74,0.1) 88%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Conexiones SVG ──────────────────────────────────────────────────────── */
+.abyss-connections {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Nodos ───────────────────────────────────────────────────────────────── */
+.abyss-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 2;
+  /* top/left/transform set inline */
+}
+.abyss-node-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  border: 1.5px solid rgba(98,107,111,0.28);
+  transition: border-color 0.18s, box-shadow 0.18s;
+  flex-shrink: 0;
+}
+.abyss-node.discovered .abyss-node-circle {
+  border-color: rgba(184,148,74,0.45);
+  background: var(--color-leather-dark);
+}
+.abyss-node.selected .abyss-node-circle {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 10px rgba(184,148,74,0.28), 0 0 4px rgba(184,148,74,0.18);
+}
+.abyss-node.recently-discovered .abyss-node-circle {
+  border-color: var(--color-gold);
+  animation: abyss-node-pulse 2.2s ease-in-out infinite;
+}
+.abyss-node-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.abyss-node-fog {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-stone-light);
+}
+.abyss-node-name {
+  font-size: 0.53rem;
+  color: var(--color-parchment);
+  text-align: center;
+  width: 68px;
+  line-height: 1.2;
+  opacity: 0.85;
+  white-space: normal;
+}
+.abyss-node.hidden .abyss-node-name {
+  color: var(--color-stone-light);
+  opacity: 0.4;
+}
+.abyss-node-depth {
+  font-size: 0.44rem;
+  color: var(--color-stone-light);
+  opacity: 0.5;
+}
+
+/* ── Badge "Nuevo" ───────────────────────────────────────────────────────── */
+.abyss-new-badge {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.44rem;
+  background: var(--color-gold);
+  color: var(--color-leather-dark);
+  border-radius: 2px;
+  padding: 1px 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+@keyframes abyss-node-pulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(184,148,74,0.25); }
+  50%       { box-shadow: 0 0 14px rgba(184,148,74,0.55); }
+}
+
+/* ── Panel de detalle seleccionado ───────────────────────────────────────── */
+.abyss-selected-panel {
+  flex-shrink: 0;
+  padding: 12px 14px 16px;
+  background: var(--color-leather-dark);
+  border-top: 1px solid rgba(184,148,74,0.14);
+}
+.abyss-detail-title {
+  font-size: 0.84rem;
+  color: var(--color-parchment);
+  font-weight: 600;
+  margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.02em;
+}
+.abyss-detail-row {
+  display: flex;
+  gap: 8px;
+  font-size: 0.63rem;
+  color: var(--color-parchment);
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(98,107,111,0.1);
+  align-items: baseline;
+}
+.abyss-detail-row:last-child {
+  border-bottom: none;
+}
+.abyss-detail-key {
+  color: var(--color-stone-light);
+  min-width: 72px;
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.abyss-fog-text {
+  text-align: center;
+  padding: 12px 0 4px;
+  font-size: 0.68rem;
+  color: var(--color-stone-light);
+  font-style: italic;
+  line-height: 1.6;
+  opacity: 0.72;
+}

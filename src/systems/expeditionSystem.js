@@ -129,7 +129,8 @@ function pickFromList(list) {
 }
 
 // ── Generador de eventos ──────────────────────────────────────────────────────
-export function generateEvent(modeId, creatureId, threshold, biomeId) {
+// sector es opcional — si se pasa, se usa su enemyPool y resources para mayor coherencia
+export function generateEvent(modeId, creatureId, threshold, biomeId, sector) {
   const type  = pickEventType(modeId)
   const id    = `evt-${threshold}-${Date.now()}`
   const title = EVENT_TITLES[type] ?? type
@@ -144,7 +145,7 @@ export function generateEvent(modeId, creatureId, threshold, biomeId) {
 
   if (type === 'resource') {
     text = pickFromPool(RESOURCE_TEXTS, biomeId)
-    const rids = BIOMES[biomeId]?.resourceIds ?? []
+    const rids = sector?.resources?.length ? sector.resources : (BIOMES[biomeId]?.resourceIds ?? [])
     resourceId = rids.length ? rids[Math.floor(Math.random() * rids.length)] : null
     if (resourceId) resourceGain = { [resourceId]: 1 }
     xpGain      = 1
@@ -166,7 +167,7 @@ export function generateEvent(modeId, creatureId, threshold, biomeId) {
 
   } else if (type === 'threat') {
     text = pickFromPool(THREAT_TEXTS, biomeId)
-    const eids = BIOMES[biomeId]?.enemyIds ?? []
+    const eids = sector?.enemyPool?.length ? sector.enemyPool : (BIOMES[biomeId]?.enemyIds ?? [])
     enemyId     = eids.length ? eids[Math.floor(Math.random() * eids.length)] : null
     xpGain      = 4
     masteryGain = 1
@@ -210,7 +211,8 @@ export function calculateRewards(events) {
 }
 
 // ── Constructor de entrada del diario ─────────────────────────────────────────
-export function buildDiaryEntry(expedition, sectorName, discovery = null) {
+// sector opcional — si se pasa, guarda metadatos de Abismo en la entrada
+export function buildDiaryEntry(expedition, sectorName, discovery = null, sector = null) {
   const rewards       = expedition.rewards ?? {}
   const combatResults = expedition.combatResults ?? []
   const sName         = sectorName ?? expedition.sectorId ?? '—'
@@ -256,5 +258,8 @@ export function buildDiaryEntry(expedition, sectorName, discovery = null) {
     combatResults,
     summaryText,
     discovery:     discovery ?? null,
+    stratumName:   sector?.stratumName  ?? null,
+    depthMeters:   sector?.depthMeters  ?? null,
+    lootTier:      sector?.lootTier     ?? null,
   }
 }

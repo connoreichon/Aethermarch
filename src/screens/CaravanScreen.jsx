@@ -9,6 +9,9 @@ import EnemyToken     from '../components/tokens/EnemyToken.jsx'
 import ResourceNode   from '../components/tokens/ResourceNode.jsx'
 import StatBar        from '../components/StatBar.jsx'
 
+const DANGER_RANK_LABELS = { low: 'bajo', medium: 'medio', high: 'alto', extreme: 'extremo' }
+const DANGER_RANK_COLORS = { low: 'var(--color-xp)', medium: 'var(--color-ember)', high: 'var(--color-hp)', extreme: 'var(--color-hp)' }
+
 const MODE_LABELS = {
   free_march: 'Marcha Libre',
   hunt:       'Caza',
@@ -354,6 +357,17 @@ function SectorDestCard({ sector, isActive, onSelect }) {
       <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', marginTop:2 }}>
         {biome?.name} · {sector.visits} visita{sector.visits !== 1 ? 's' : ''} · {MASTERY_LABEL[sector.masteryLevel ?? 0]}
       </div>
+      {sector.depthMeters && (
+        <div style={{ fontSize:'0.56rem', color:'var(--color-stone-light)', marginTop:1, opacity:0.68 }}>
+          {sector.stratumName ? sector.stratumName.split('·')[0].trim() : `Estrato ${sector.depth ?? '?'}`}
+          {' · '}{sector.depthMeters} m · Loot T{sector.lootTier ?? 1}
+          {sector.dangerRank ? (
+            <span style={{ color: DANGER_RANK_COLORS[sector.dangerRank] }}>
+              {' · Peligro '}{DANGER_RANK_LABELS[sector.dangerRank]}
+            </span>
+          ) : null}
+        </div>
+      )}
       {isActive && (
         <div style={{ marginTop:5, fontSize:'0.58rem', color:'var(--color-stone-light)', lineHeight:1.55 }}>
           {poi && (
@@ -1146,6 +1160,38 @@ export default function CaravanScreen({
       {activeSector && (
         <div className="panel prep-section">
           <div className="panel-title">Previsión de jornada</div>
+
+          {prep.stratumInfo && (
+            <div className="prep-card prep-abyss-info">
+              <div style={{ fontSize:'0.68rem', color:'var(--color-gold)', fontWeight:600, marginBottom:4 }}>
+                {prep.stratumInfo.stratumName.split('·')[0].trim()}
+                {prep.stratumInfo.depthMeters ? ` · ${prep.stratumInfo.depthMeters} m` : ''}
+                {' · Loot T'}{prep.stratumInfo.lootTier}
+              </div>
+              <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', marginBottom:3 }}>
+                Peligro del estrato:{' '}
+                <span style={{ color: DANGER_RANK_COLORS[prep.stratumInfo.dangerRank] }}>
+                  {prep.stratumInfo.dangerLabel}
+                </span>
+              </div>
+              {prep.stratumInfo.resourceNames.length > 0 && (
+                <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', marginBottom:2 }}>
+                  Recursos probables:{' '}
+                  <span style={{ color:'var(--color-parchment)' }}>
+                    {prep.stratumInfo.resourceNames.join(', ')}
+                  </span>
+                </div>
+              )}
+              {prep.stratumInfo.enemyNames.length > 0 && (
+                <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)' }}>
+                  Amenazas probables:{' '}
+                  <span style={{ color:'var(--color-ember)' }}>
+                    {prep.stratumInfo.enemyNames.join(', ')}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="prep-card">
             <div className={`prep-risk ${prep.risk.level}`} style={{ marginBottom:5 }}>

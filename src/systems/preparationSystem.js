@@ -1,3 +1,7 @@
+import { ENEMIES, RESOURCES } from '../data/gameData.js'
+
+const DANGER_LABELS = { low: 'bajo', medium: 'medio', high: 'alto', extreme: 'extremo' }
+
 // ── Riesgo base por modo ──────────────────────────────────────────────────────
 
 const MODE_RISK = {
@@ -128,6 +132,19 @@ export function getExpeditionPreparation({ modeId, sector, biome, creature, arch
     ? `${sector.name} · ${biome?.name ?? sector.biomeId}`
     : 'Destino desconocido'
 
+  const enemyNames    = (sector?.enemyPool ?? []).map(id => ENEMIES[id]?.name).filter(Boolean)
+  const resourceNames = (sector?.resources ?? biome?.resourceIds ?? []).map(id => RESOURCES[id]?.name).filter(Boolean)
+
+  const stratumInfo = sector?.stratumName ? {
+    stratumName:   sector.stratumName,
+    depthMeters:   sector.depthMeters  ?? null,
+    lootTier:      sector.lootTier     ?? 1,
+    dangerRank:    sector.dangerRank   ?? 'low',
+    dangerLabel:   DANGER_LABELS[sector.dangerRank] ?? 'bajo',
+    enemyNames,
+    resourceNames,
+  } : null
+
   return {
     routeLabel,
     modeLabel:     MODE_LABELS_PREP[modeId] ?? 'Marcha Libre',
@@ -135,5 +152,6 @@ export function getExpeditionPreparation({ modeId, sector, biome, creature, arch
     expected,
     creatureHint:  CREATURE_HINTS[creature?.id]   ?? creature?.passiveDescription ?? '',
     archetypeHint: ARCHETYPE_HINTS[archetype?.id] ?? archetype?.passiveDescription ?? '',
+    stratumInfo,
   }
 }

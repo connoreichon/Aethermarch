@@ -412,10 +412,11 @@ export default function App() {
         const newProgress  = Math.round((newSteps / prev.targetSteps) * 100)
         const prevProgress = prev.progress
 
-        const triggered = THRESHOLDS.filter(t => prevProgress < t && newProgress >= t)
-        const newEvents  = [...prev.events]
+        const triggered     = THRESHOLDS.filter(t => prevProgress < t && newProgress >= t)
+        const newEvents     = [...prev.events]
+        const currentSector = sectors.find(s => s.id === prev.sectorId)
         for (const t of triggered) {
-          newEvents.push(generateEvent(prev.modeId, player.creatureId, t, prev.biomeId))
+          newEvents.push(generateEvent(prev.modeId, player.creatureId, t, prev.biomeId, currentSector))
         }
 
         if (newSteps >= prev.targetSteps) {
@@ -454,7 +455,8 @@ export default function App() {
     if (expedition.status !== 'completed' || completionDone.current || !player) return
     completionDone.current = true
 
-    const sectorName  = sectors.find(s => s.id === expedition.sectorId)?.name
+    const completedSector = sectors.find(s => s.id === expedition.sectorId)
+    const sectorName      = completedSector?.name
     const masteryGain = expedition.rewards?.masteryGain ?? 2
 
     // Resolve discovery (uses sectors before mastery update)
@@ -474,7 +476,7 @@ export default function App() {
     })
     setSectors(finalSectors)
 
-    const entry = buildDiaryEntry(expedition, sectorName, discovery)
+    const entry = buildDiaryEntry(expedition, sectorName, discovery, completedSector)
     setDiary(prev => [...prev, entry])
 
     if (expedition.rewards?.resources) {

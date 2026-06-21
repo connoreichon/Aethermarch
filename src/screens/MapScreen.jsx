@@ -1,21 +1,18 @@
 import { useState } from 'react'
-import { BIOMES, POIS, RESOURCES } from '../data/gameData.js'
+import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA } from '../data/gameData.js'
+import { getStratumProgress } from '../systems/abyssSystem.js'
 
 const THREAT_LABEL  = { low: 'Baja', medium: 'Media', high: 'Alta' }
 const MASTERY_LABEL = ['Sin rastro', 'Conocido', 'Familiar', 'Dominado', 'Legendario']
+const THREAT_COLOR  = { low: 'var(--color-xp)', medium: 'var(--color-ember)', high: 'var(--color-hp)' }
 
-const THREAT_COLOR = {
-  low:    'var(--color-xp)',
-  medium: 'var(--color-ember)',
-  high:   'var(--color-hp)',
-}
-
-const NODE_POS = {
-  sector_aethel_edge:    { x: 50, y: 12 },
-  sector_mist_root:      { x: 15, y: 45 },
-  sector_salt_beacon:    { x: 85, y: 45 },
-  sector_sleeping_forge: { x: 12, y: 80 },
-  sector_tide_rock:      { x: 88, y: 80 },
+// Posiciones en espiral descendente (x%, y%)
+const ABYSS_NODE_POS = {
+  sector_aethel_edge:    { x: 50, y: 10 },
+  sector_mist_root:      { x: 26, y: 26 },
+  sector_salt_beacon:    { x: 74, y: 39 },
+  sector_tide_rock:      { x: 28, y: 54 },
+  sector_sleeping_forge: { x: 72, y: 69 },
   sector_coal_bastion:   { x: 50, y: 83 },
 }
 
@@ -28,31 +25,54 @@ const CONNECTIONS = [
   ['sector_tide_rock',      'sector_coal_bastion'],
 ]
 
+// Bandas de estrato: y% de inicio/fin y metadatos
+const STRATA_BANDS = [
+  { id: 'stratum_01', cssClass: 'stratum-1', label: 'Estrato I',   depth: '120 m',  yMid: 18 },
+  { id: 'stratum_02', cssClass: 'stratum-2', label: 'Estrato II',  depth: '340 m',  yMid: 50 },
+  { id: 'stratum_03', cssClass: 'stratum-3', label: 'Estrato III', depth: '690 m',  yMid: 82 },
+]
+
+// Fallback para saves sin campos de Abismo (merge en handleContinue lo resuelve,
+// pero se mantiene por seguridad en renderizado).
+const STRATUM_FALLBACK = {
+  sector_aethel_edge:    { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 120, lootTier: 1 },
+  sector_mist_root:      { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 180, lootTier: 1 },
+  sector_salt_beacon:    { stratumId: 'stratum_02', stratumName: 'Estrato II · Cornisa Salina',   depth: 2, depthMeters: 340, lootTier: 2 },
+  sector_tide_rock:      { stratumId: 'stratum_02', stratumName: 'Estrato II · Cornisa Salina',   depth: 2, depthMeters: 410, lootTier: 2 },
+  sector_sleeping_forge: { stratumId: 'stratum_03', stratumName: 'Estrato III · Forjas Hundidas', depth: 3, depthMeters: 690, lootTier: 3 },
+  sector_coal_bastion:   { stratumId: 'stratum_03', stratumName: 'Estrato III · Forjas Hundidas', depth: 3, depthMeters: 760, lootTier: 3 },
+}
+
+function withAbyssMeta(sector) {
+  if (sector.stratumId) return sector
+  return { ...sector, ...(STRATUM_FALLBACK[sector.id] ?? { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz', depth: 1, depthMeters: 120, lootTier: 1 }) }
+}
+
 function BiomeIcon({ biomeId }) {
   if (biomeId === 'coast') return (
-    <svg width="16" height="16" viewBox="0 0 16 16">
+    <svg width="14" height="14" viewBox="0 0 16 16">
       <path d="M2 7 Q5 4 8 7 Q11 10 14 7" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
       <path d="M2 11 Q5 8 8 11 Q11 14 14 11" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.6"/>
     </svg>
   )
   if (biomeId === 'forge') return (
-    <svg width="16" height="16" viewBox="0 0 16 16">
+    <svg width="14" height="14" viewBox="0 0 16 16">
       <path d="M5 14 V8 L3 5 H13 L11 8 V14 Z" fill="currentColor" opacity="0.55"/>
       <path d="M8 4 Q7.5 2 8 0.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.75"/>
     </svg>
   )
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16">
+    <svg width="14" height="14" viewBox="0 0 16 16">
       <path d="M8 2 L10.5 8 H9 L11.5 13 H4.5 L7 8 H5.5 Z" fill="currentColor" opacity="0.6"/>
     </svg>
   )
 }
 
-function NodeFogIcon() {
+function FogIcon() {
   return (
-    <svg width="18" height="14" viewBox="0 0 18 14" style={{ opacity:0.45 }}>
+    <svg width="16" height="12" viewBox="0 0 18 14" style={{ opacity: 0.4 }}>
       <path d="M1 4 Q5 1 9 4 Q13 7 17 4" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
-      <path d="M2 9 Q6 6 9 9 Q12 12 16 9"  stroke="currentColor" strokeWidth="0.8" fill="none" strokeLinecap="round"/>
+      <path d="M2 9 Q6 6 9 9 Q12 12 16 9" stroke="currentColor" strokeWidth="0.8" fill="none" strokeLinecap="round"/>
     </svg>
   )
 }
@@ -66,167 +86,222 @@ const BIOME_ICON_COLOR = {
 export default function MapScreen({ sectors }) {
   const [selectedId, setSelectedId] = useState(null)
 
-  const selected      = sectors.find(s => s.id === selectedId)
+  const rawSelected   = sectors.find(s => s.id === selectedId)
+  const selected      = rawSelected ? withAbyssMeta(rawSelected) : null
   const biome         = selected ? BIOMES[selected.biomeId] : null
   const poi           = selected ? POIS[selected.poiId]     : null
   const recentlyFound = sectors.filter(s => s.recentlyDiscovered)
+  const discoveredCount = sectors.filter(s => s.discovered).length
+
+  // Progreso por estrato para el subtítulo
+  const strataProgress = ABYSS_STRATA.map(st => {
+    const prog = getStratumProgress(sectors, st.id)
+    return `${st.shortName} ${prog.discovered}/${prog.total}`
+  }).join(' · ')
 
   function handleSelect(id) {
     setSelectedId(prev => prev === id ? null : id)
   }
 
   return (
-    <div className="atlas-screen">
+    <div className="abyss-map-screen">
 
-      {recentlyFound.map(s => (
-        <div key={s.id} className="atlas-discovery-banner">
-          <div style={{ fontSize:'0.56rem', color:'var(--color-gold)', textTransform:'uppercase',
-                        letterSpacing:'0.09em', marginBottom:2 }}>
-            Nueva senda cartografiada
+      {/* Banners de descubrimiento */}
+      {recentlyFound.map(s => {
+        const meta = withAbyssMeta(s)
+        return (
+          <div key={s.id} className="abyss-discovery-banner">
+            <div className="abyss-discovery-label">Nueva senda cartografiada</div>
+            <div className="abyss-discovery-name">{s.name}</div>
+            <div className="abyss-discovery-meta">{meta.stratumName} · {meta.depthMeters} m</div>
           </div>
-          <div style={{ fontSize:'0.82rem', color:'var(--color-parchment)', fontWeight:500 }}>
-            {s.name}
-          </div>
-          <div style={{ fontSize:'0.6rem', color:'var(--color-mist)', marginTop:2 }}>
-            {BIOMES[s.biomeId]?.name ?? '—'}
-          </div>
-        </div>
-      ))}
+        )
+      })}
 
-      <div className="atlas-wrapper">
-        <div className="atlas-panel-title">Atlas de la senda</div>
-
-        <div className="atlas-board">
-          <svg className="atlas-connections" viewBox="0 0 100 100" preserveAspectRatio="none">
-            {CONNECTIONS.map(([aId, bId]) => {
-              const aPos = NODE_POS[aId]
-              const bPos = NODE_POS[bId]
-              if (!aPos || !bPos) return null
-              const aSec = sectors.find(s => s.id === aId)
-              const bSec = sectors.find(s => s.id === bId)
-              const both = aSec?.discovered && bSec?.discovered
-              return (
-                <line
-                  key={`${aId}-${bId}`}
-                  x1={aPos.x} y1={aPos.y}
-                  x2={bPos.x} y2={bPos.y}
-                  stroke={both ? 'rgba(184,148,74,0.4)' : 'rgba(98,107,111,0.2)'}
-                  strokeWidth="0.9"
-                  strokeDasharray={both ? undefined : '2 2'}
-                />
-              )
-            })}
-          </svg>
-
-          {sectors.map(s => {
-            const pos = NODE_POS[s.id]
-            if (!pos) return null
-            const isSelected = s.id === selectedId
-            const nodeClass = [
-              'atlas-sector-node',
-              s.discovered ? 'discovered' : 'hidden',
-              isSelected            ? 'selected'            : '',
-              s.recentlyDiscovered  ? 'recently-discovered' : '',
-            ].filter(Boolean).join(' ')
-
-            return (
-              <button
-                key={s.id}
-                className={nodeClass}
-                style={{ top: `calc(${pos.y}% - 23px)`, left: `calc(${pos.x}% - 23px)` }}
-                onClick={() => handleSelect(s.id)}
-              >
-                <div className="atlas-node-circle">
-                  {s.discovered ? (
-                    <div className="atlas-node-icon" style={{ color: BIOME_ICON_COLOR[s.biomeId] ?? 'var(--color-parchment)' }}>
-                      <BiomeIcon biomeId={s.biomeId} />
-                    </div>
-                  ) : (
-                    <div className="atlas-node-fog"><NodeFogIcon /></div>
-                  )}
-                </div>
-                {s.recentlyDiscovered && (
-                  <div className="atlas-node-new-badge">Nuevo</div>
-                )}
-                <div className="atlas-node-label">
-                  {s.discovered ? s.name : '???'}
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="atlas-footer">
-          {sectors.filter(s => s.discovered).length} / {sectors.length} sendas
-          <span style={{ opacity:0.45, marginLeft:6 }}>· La bruma cede con cada tramo</span>
+      {/* Cabecera */}
+      <div className="abyss-header">
+        <div className="abyss-title">El Abismo</div>
+        <div className="abyss-subtitle">
+          {discoveredCount} / {sectors.length} zonas · {strataProgress}
         </div>
       </div>
 
+      {/* Tablero */}
+      <div className="abyss-board">
+
+        {/* Bandas de estrato */}
+        {STRATA_BANDS.map(st => (
+          <div key={st.id} className={`abyss-stratum-band ${st.cssClass}`} />
+        ))}
+
+        {/* Etiquetas de estrato (derecha) */}
+        {STRATA_BANDS.map(st => (
+          <div key={st.id + '-label'} className="abyss-stratum-label" style={{ top: `${st.yMid}%` }}>
+            <div className="abyss-stratum-label-name">{st.label}</div>
+            <div className="abyss-stratum-label-depth">{st.depth}</div>
+          </div>
+        ))}
+
+        {/* Núcleo central (glow sutil) */}
+        <div className="abyss-core" />
+
+        {/* Línea de profundidad */}
+        <div className="abyss-depth-line" />
+
+        {/* Conexiones SVG */}
+        <svg className="abyss-connections" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {CONNECTIONS.map(([aId, bId]) => {
+            const aPos = ABYSS_NODE_POS[aId]
+            const bPos = ABYSS_NODE_POS[bId]
+            if (!aPos || !bPos) return null
+            const aSec = sectors.find(s => s.id === aId)
+            const bSec = sectors.find(s => s.id === bId)
+            const both = aSec?.discovered && bSec?.discovered
+            return (
+              <line
+                key={`${aId}-${bId}`}
+                x1={aPos.x} y1={aPos.y}
+                x2={bPos.x} y2={bPos.y}
+                stroke={both ? 'rgba(184,148,74,0.38)' : 'rgba(98,107,111,0.18)'}
+                strokeWidth="0.75"
+                strokeDasharray={both ? undefined : '1.8 2.2'}
+              />
+            )
+          })}
+        </svg>
+
+        {/* Nodos */}
+        {sectors.map(s => {
+          const pos = ABYSS_NODE_POS[s.id]
+          if (!pos) return null
+          const meta = withAbyssMeta(s)
+          const isSelected = s.id === selectedId
+          const nodeClass = [
+            'abyss-node',
+            s.discovered         ? 'discovered'          : 'hidden',
+            isSelected           ? 'selected'            : '',
+            s.recentlyDiscovered ? 'recently-discovered' : '',
+          ].filter(Boolean).join(' ')
+
+          return (
+            <button
+              key={s.id}
+              className={nodeClass}
+              style={{
+                top:  `calc(${pos.y}% - 22px)`,
+                left: `${pos.x}%`,
+                transform: 'translateX(-50%)',
+              }}
+              onClick={() => handleSelect(s.id)}
+            >
+              {s.recentlyDiscovered && <div className="abyss-new-badge">Nuevo</div>}
+              <div className="abyss-node-circle">
+                {s.discovered ? (
+                  <div className="abyss-node-icon" style={{ color: BIOME_ICON_COLOR[s.biomeId] ?? 'var(--color-parchment)' }}>
+                    <BiomeIcon biomeId={s.biomeId} />
+                  </div>
+                ) : (
+                  <div className="abyss-node-fog"><FogIcon /></div>
+                )}
+              </div>
+              <div className="abyss-node-name">
+                {s.discovered ? s.name : '???'}
+              </div>
+              {s.discovered && (
+                <div className="abyss-node-depth">{meta.depthMeters} m</div>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Panel de detalle */}
       {selected && (
-        <div className="sector-detail">
+        <div className="abyss-selected-panel">
           {selected.discovered ? (
             <>
-              <div className="sector-detail-title">
+              <div className="abyss-detail-title">
                 {selected.recentlyDiscovered && (
-                  <span className="map-sector-new-badge" style={{ marginRight:8 }}>Nuevo</span>
+                  <span className="abyss-new-badge" style={{ position: 'static', transform: 'none', marginRight: 8, fontSize: '0.48rem' }}>Nuevo</span>
                 )}
                 {selected.name}
               </div>
-              <div className="sector-detail-row">
-                <span className="sector-detail-key">Bioma</span>
-                <span>{biome?.name}</span>
+
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Estrato</span>
+                <span>{selected.stratumName ?? '—'}</span>
               </div>
-              <div className="sector-detail-row">
-                <span className="sector-detail-key">Visitas</span>
-                <span>{selected.visits}</span>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Profundidad</span>
+                <span>{selected.depthMeters ?? '—'} m</span>
               </div>
-              <div className="sector-detail-row">
-                <span className="sector-detail-key">Dominio</span>
-                <span>{selected.mastery} · {MASTERY_LABEL[selected.masteryLevel ?? 0]}</span>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Loot</span>
+                <span>Tier {selected.lootTier ?? 1}</span>
               </div>
-              <div className="sector-detail-row">
-                <span className="sector-detail-key">Amenaza</span>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Bioma</span>
+                <span>{biome?.name ?? '—'}</span>
+              </div>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Amenaza</span>
                 <span style={{ color: THREAT_COLOR[selected.threat] ?? 'var(--color-stone-light)' }}>
                   {THREAT_LABEL[selected.threat] ?? '—'}
                 </span>
               </div>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Dominio</span>
+                <span>{MASTERY_LABEL[selected.masteryLevel ?? 0]}</span>
+              </div>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Visitas</span>
+                <span>{selected.visits}</span>
+              </div>
               {poi && (
-                <div className="sector-detail-row">
-                  <span className="sector-detail-key">Lugar</span>
+                <div className="abyss-detail-row">
+                  <span className="abyss-detail-key">Lugar</span>
                   <span>{poi.name}</span>
                 </div>
               )}
-              <div className="sector-detail-row">
-                <span className="sector-detail-key">Recursos</span>
-                <span style={{ fontSize:'0.65rem' }}>
-                  {(selected.resources ?? []).map(r => RESOURCES[r]?.name).filter(Boolean).join(', ')}
-                </span>
-              </div>
+              {(selected.resources ?? []).length > 0 && (
+                <div className="abyss-detail-row">
+                  <span className="abyss-detail-key">Recursos</span>
+                  <span style={{ fontSize: '0.62rem' }}>
+                    {(selected.resources ?? []).map(r => RESOURCES[r]?.name).filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              )}
+              {(selected.enemyPool ?? []).length > 0 && (
+                <div className="abyss-detail-row">
+                  <span className="abyss-detail-key">Amenazas</span>
+                  <span style={{ fontSize: '0.62rem', color: 'var(--color-ember)' }}>
+                    {(selected.enemyPool ?? []).map(id => ENEMIES[id]?.name).filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              )}
               {(selected.connections ?? []).length > 0 && (
-                <div className="sector-detail-row">
-                  <span className="sector-detail-key">Sendas hacia</span>
-                  <span style={{ fontSize:'0.63rem' }}>
+                <div className="abyss-detail-row">
+                  <span className="abyss-detail-key">Sendas</span>
+                  <span style={{ fontSize: '0.62rem' }}>
                     {(selected.connections ?? []).map(cid => {
                       const cs = sectors.find(s => s.id === cid)
-                      return cs?.discovered ? cs.name : 'senda oculta'
+                      return cs?.discovered ? cs.name : 'senda en bruma'
                     }).join(', ')}
                   </span>
                 </div>
               )}
               {biome?.description && (
-                <div style={{ marginTop:8, fontSize:'0.63rem', color:'var(--color-stone-light)',
-                              fontStyle:'italic', lineHeight:1.45 }}>
+                <div style={{ marginTop: 8, fontSize: '0.6rem', color: 'var(--color-stone-light)', fontStyle: 'italic', lineHeight: 1.45, opacity: 0.75 }}>
                   {biome.description}
                 </div>
               )}
             </>
           ) : (
-            <div style={{ textAlign:'center', padding:'10px 0' }}>
-              <NodeFogIcon />
-              <div style={{ marginTop:8, fontSize:'0.7rem', color:'var(--color-stone-light)',
-                            fontStyle:'italic', lineHeight:1.5 }}>
-                Este lugar no ha sido cartografiado.<br />
-                Explora el camino para revelar su senda.
+            <div className="abyss-fog-text">
+              <FogIcon />
+              <div style={{ marginTop: 8 }}>
+                Senda cubierta por la bruma.<br />
+                Desciende y explora estratos conectados para revelar este lugar.
               </div>
             </div>
           )}
