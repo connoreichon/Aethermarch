@@ -1,6 +1,7 @@
 # Aethermarch — Project Brief
 
 > Documento de referencia maestro. No es una lista de tareas. Es la memoria del proyecto.
+> Para diseño de mundo, estratos, facciones, lugares, NPCs y reglas de contenido, ver `docs/WORLD_BIBLE.md`.
 
 ---
 

@@ -1,6 +1,7 @@
 # El Abismo — Diseño Expandido
 
 > Documento complementario al PROJECT_BRIEF. Profundiza en el diseño del mundo, los estratos y los sistemas de exploración.
+> Para la biblia de mundo completa (estratos, facciones, lugares, NPCs, zonas secretas, reglas de contenido), ver `docs/WORLD_BIBLE.md`.
 
 ---
 
