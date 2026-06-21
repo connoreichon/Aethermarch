@@ -1,0 +1,341 @@
+// ── ARQUETIPOS ──────────────────────────────────────────────────────────────
+export const ARCHETYPES = [
+  {
+    id: 'guardian',
+    name: 'Guardián del Camino',
+    role: 'Defensa y resistencia',
+    passiveName: 'Paso Firme',
+    passiveDescription: 'Resiste mejor los peligros del camino.',
+    visualSummary: 'Capa pesada, hierro viejo, cuero oscuro, escudo abollado y farol cálido.',
+    hpBonus: 5,
+  },
+  {
+    id: 'runario',
+    name: 'Runario Errante',
+    role: 'Magia antigua y secretos',
+    passiveName: 'Lectura de Sellos',
+    passiveDescription: 'Percibe marcas antiguas, ruinas y señales ocultas.',
+    visualSummary: 'Capucha profunda, bastón, talismán, pergaminos y runas tenues.',
+    hpBonus: 0,
+  },
+  {
+    id: 'rastreador',
+    name: 'Rastreador de Bruma',
+    role: 'Exploración y rutas',
+    passiveName: 'Senda Oculta',
+    passiveDescription: 'Encuentra pasos, rastros y caminos que otros no ven.',
+    visualSummary: 'Capa larga, botas de marcha, cuerda, mapa enrollado y cuchillo corto.',
+    hpBonus: 0,
+  },
+]
+
+// ── CRIATURAS ────────────────────────────────────────────────────────────────
+export const CREATURES = [
+  {
+    id: 'velthar',
+    name: 'Velthar',
+    role: 'Exploración',
+    passiveName: 'Instinto de Niebla',
+    passiveDescription: 'Mejora la detección de rutas, secretos y señales del bosque.',
+    description: 'Pequeño ciervo rúnico de bosque y niebla. Intuitivo, noble, silencioso.',
+  },
+  {
+    id: 'brontik',
+    name: 'Brontik',
+    role: 'Defensa',
+    passiveName: 'Coraza de Ruta',
+    passiveDescription: 'Reduce ligeramente el daño recibido.',
+    description: 'Bestia acorazada de camino: jabalí, armadillo y draco terrestre. Protector, testarudo, firme.',
+  },
+  {
+    id: 'lumora',
+    name: 'Lúmora',
+    role: 'Recolección',
+    passiveName: 'Eco de Cristal',
+    passiveDescription: 'Mejora la obtención de materiales y recursos.',
+    description: 'Familiar cristalino de luz antigua. Curioso, sensible, luminoso.',
+  },
+]
+
+// ── BIOMAS ───────────────────────────────────────────────────────────────────
+export const BIOMES = {
+  forest: {
+    id: 'forest',
+    name: 'Bosque Rúnico',
+    description: 'Bosque nocturno antiguo. Camino estrecho, raíces, niebla baja, piedras rúnicas, árboles altos.',
+    palette: { bg: '#0B0F09', mid: '#1A2A14', accent: '#3FA34D' },
+    resourceIds: ['runic_wood', 'aethel_root', 'lumi_leaf'],
+    enemyIds: ['runic_raider', 'fracture_beast'],
+  },
+  coast: {
+    id: 'coast',
+    name: 'Costa Arcana',
+    description: 'Costa nocturna fría. Rocas, agua oscura, bruma marina, cristales naturales apagados.',
+    palette: { bg: '#090B10', mid: '#0F1A24', accent: '#4F8F95' },
+    resourceIds: ['arcane_salt', 'tide_crystal', 'nacre_scale'],
+    enemyIds: ['fracture_beast', 'fracture_guardian'],
+  },
+  forge: {
+    id: 'forge',
+    name: 'Forja Arcanista',
+    description: 'Ruinas de forja medieval. Piedra, hierro viejo, brasas, humo, columnas rotas.',
+    palette: { bg: '#0F0B07', mid: '#1A1208', accent: '#D46A2D' },
+    resourceIds: ['forge_mineral', 'ancient_plate', 'resonant_coal'],
+    enemyIds: ['sleeping_golem', 'fracture_guardian'],
+  },
+}
+
+// ── RECURSOS ─────────────────────────────────────────────────────────────────
+export const RESOURCES = {
+  runic_wood: {
+    id: 'runic_wood',
+    name: 'Madera Rúnica',
+    biomeId: 'forest',
+    rarity: 'comun',
+    type: 'material',
+    utility: 'Mejoras de refugios, bastones y estructuras de madera.',
+    visualDescription: 'Rama curva con runa dorada tallada en la corteza.',
+  },
+  aethel_root: {
+    id: 'aethel_root',
+    name: 'Raíz de Aethel',
+    biomeId: 'forest',
+    rarity: 'comun',
+    type: 'natural',
+    utility: 'Curación, vínculo de criatura y tónicos.',
+    visualDescription: 'Raíz en forma de S con punta de brillo mágico apagado.',
+  },
+  lumi_leaf: {
+    id: 'lumi_leaf',
+    name: 'Hoja Luminaria',
+    biomeId: 'forest',
+    rarity: 'comun',
+    type: 'natural',
+    utility: 'Recetas, rastreo y consumibles.',
+    visualDescription: 'Hoja lanceolada con borde dorado apagado.',
+  },
+  arcane_salt: {
+    id: 'arcane_salt',
+    name: 'Sal Arcana',
+    biomeId: 'coast',
+    rarity: 'comun',
+    type: 'mineral',
+    utility: 'Conservación, rituales y mejoras de posadas costeras.',
+    visualDescription: 'Pequeño depósito de sal con cristales bajos, color marfil.',
+  },
+  tide_crystal: {
+    id: 'tide_crystal',
+    name: 'Cristal de Marea',
+    biomeId: 'coast',
+    rarity: 'poco_comun',
+    type: 'cristal',
+    utility: 'Mejoras mágicas, reliquias y rutas costeras.',
+    visualDescription: 'Cristal triangular natural, azul grisáceo con base de roca.',
+  },
+  nacre_scale: {
+    id: 'nacre_scale',
+    name: 'Escama Nácar',
+    biomeId: 'coast',
+    rarity: 'poco_comun',
+    type: 'organico',
+    utility: 'Armaduras ligeras y reliquias.',
+    visualDescription: 'Forma de gota curva, marfil con interior azul grisáceo.',
+  },
+  forge_mineral: {
+    id: 'forge_mineral',
+    name: 'Mineral de Forja',
+    biomeId: 'forge',
+    rarity: 'comun',
+    type: 'mineral',
+    utility: 'Armas, armaduras y forjas.',
+    visualDescription: 'Roca angular con veta metálica y grieta naranja de brasa.',
+  },
+  ancient_plate: {
+    id: 'ancient_plate',
+    name: 'Placa Antigua',
+    biomeId: 'forge',
+    rarity: 'poco_comun',
+    type: 'metal',
+    utility: 'Armaduras y reparación de estructuras.',
+    visualDescription: 'Placa de metal oxidada con remaches y arañazo.',
+  },
+  resonant_coal: {
+    id: 'resonant_coal',
+    name: 'Carbón Resonante',
+    biomeId: 'forge',
+    rarity: 'comun',
+    type: 'mineral',
+    utility: 'Forja, calor y producción.',
+    visualDescription: 'Roca negra irregular con grieta naranja y humo sutil.',
+  },
+}
+
+// ── ENEMIGOS ──────────────────────────────────────────────────────────────────
+export const ENEMIES = {
+  runic_raider: {
+    id: 'runic_raider',
+    name: 'Saqueador Rúnico',
+    concept: 'Bandido de caminos que saquea ruinas y marcas antiguas.',
+    biomeIds: ['forest'],
+    visualDescription: 'Humanoide delgado con capucha rota, capa rasgada, daga corta y runa roja apagada.',
+    attacks: [
+      { id: 'quick_stab', name: 'Estocada rápida', baseDamage: 6, bestStance: 'prudente', description: 'Ataque rápido con daga corta.' },
+      { id: 'rune_trap',  name: 'Trampa rúnica',   baseDamage: 8, bestStance: 'equilibrada', description: 'Marca rúnica rota bajo la party.' },
+    ],
+  },
+  fracture_beast: {
+    id: 'fracture_beast',
+    name: 'Bestia de Fractura',
+    concept: 'Criatura salvaje deformada por magia antigua.',
+    biomeIds: ['forest', 'coast'],
+    visualDescription: 'Cuerpo bajo, lomo arqueado, garras, placas irregulares y grietas violeta/rojo apagado.',
+    attacks: [
+      { id: 'slash',    name: 'Zarpazo',          baseDamage: 8,  bestStance: 'equilibrada', description: 'Zarpazo con garras.' },
+      { id: 'charge',   name: 'Embestida salvaje', baseDamage: 10, bestStance: 'prudente',    description: 'Carga con polvo e impacto.' },
+    ],
+  },
+  sleeping_golem: {
+    id: 'sleeping_golem',
+    name: 'Gólem Dormido',
+    concept: 'Constructo de piedra y hierro. Estatua de forja abandonada que despierta.',
+    biomeIds: ['forge'],
+    visualDescription: 'Hombros anchos, torso-bloque, brazos como pilares, grietas de brasa.',
+    attacks: [
+      { id: 'heavy_blow', name: 'Golpe pesado',    baseDamage: 12, bestStance: 'prudente', description: 'Levanta brazo-pilar.' },
+      { id: 'stomp',      name: 'Pisotón sísmico', baseDamage: 13, bestStance: 'audaz',    description: 'Onda de grietas bajo los pies.' },
+    ],
+  },
+  fracture_guardian: {
+    id: 'fracture_guardian',
+    name: 'Guardián de Fractura',
+    concept: 'Reliquia o estatua cristalina rota.',
+    biomeIds: ['coast', 'forge'],
+    visualDescription: 'Torso vertical, núcleo fracturado, corona rota, cristales en hombros y fragmentos flotantes.',
+    attacks: [
+      { id: 'fracture_ray',  name: 'Rayo de fractura',  baseDamage: 14, bestStance: 'equilibrada', description: 'Grieta mágica irregular.' },
+      { id: 'crystal_pulse', name: 'Pulso cristalino',   baseDamage: 15, bestStance: 'prudente',    description: 'Anillo irregular de cristal.' },
+    ],
+  },
+}
+
+// ── MODOS DE EXPEDICIÓN ───────────────────────────────────────────────────────
+export const EXPEDITION_MODES = [
+  {
+    id: 'free_march',
+    name: 'Marcha Libre',
+    description: 'Equilibrado. Mezcla exploración, recursos, amenazas y micros.',
+  },
+  {
+    id: 'hunt',
+    name: 'Caza',
+    description: 'Más amenazas y combates. Más XP y botín de combate.',
+  },
+  {
+    id: 'gather',
+    name: 'Recolección',
+    description: 'Más nodos de recurso. Menos combates. Más materiales.',
+  },
+  {
+    id: 'explore',
+    name: 'Exploración',
+    description: 'Más rutas, niebla, sectores y secretos.',
+  },
+  {
+    id: 'custom',
+    name: 'Personalizada',
+    description: '(Próximamente) Ajusta los pesos de cada tipo de evento.',
+    locked: true,
+  },
+]
+
+// ── POIS ─────────────────────────────────────────────────────────────────────
+export const POIS = {
+  inn:     { id: 'inn',     name: 'Posada',               icon: '🏚', description: 'Descanso, recuperación y buffs temporales.' },
+  forge:   { id: 'forge',   name: 'Forja',                icon: '⚒',  description: 'Mejora armas, armaduras y equipamiento.' },
+  shelter: { id: 'shelter', name: 'Refugio',               icon: '⛺', description: 'Seguridad y descanso básico.' },
+  trader:  { id: 'trader',  name: 'Mercader',              icon: '🎒', description: 'Compra y venta de materiales.' },
+  tavern:  { id: 'tavern',  name: 'Taberna',               icon: '🍺', description: 'Rumores y encargos.' },
+  supply:  { id: 'supply',  name: 'Puesto de suministros', icon: '📦', description: 'Consumibles y preparación de expedición.' },
+}
+
+// ── SECTORES INICIALES ────────────────────────────────────────────────────────
+export const INITIAL_SECTORS = [
+  {
+    id: 'sector_aethel_edge',
+    name: 'Linde de Aethel',
+    biomeId: 'forest',
+    discovered: true,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['runic_wood', 'aethel_root'],
+    threat: 'low',
+    poiId: 'shelter',
+    connections: ['sector_mist_root', 'sector_salt_beacon'],
+  },
+  {
+    id: 'sector_mist_root',
+    name: 'Raíz de Niebla',
+    biomeId: 'forest',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['aethel_root', 'lumi_leaf'],
+    threat: 'medium',
+    poiId: 'trader',
+    connections: ['sector_aethel_edge', 'sector_sleeping_forge'],
+  },
+  {
+    id: 'sector_salt_beacon',
+    name: 'Faro de Sal',
+    biomeId: 'coast',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['arcane_salt', 'tide_crystal'],
+    threat: 'low',
+    poiId: 'inn',
+    connections: ['sector_aethel_edge', 'sector_tide_rock'],
+  },
+  {
+    id: 'sector_tide_rock',
+    name: 'Roca de Marea',
+    biomeId: 'coast',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['tide_crystal', 'nacre_scale'],
+    threat: 'high',
+    poiId: 'tavern',
+    connections: ['sector_salt_beacon', 'sector_coal_bastion'],
+  },
+  {
+    id: 'sector_sleeping_forge',
+    name: 'Fragua Dormida',
+    biomeId: 'forge',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['forge_mineral', 'ancient_plate'],
+    threat: 'high',
+    poiId: 'forge',
+    connections: ['sector_mist_root', 'sector_coal_bastion'],
+  },
+  {
+    id: 'sector_coal_bastion',
+    name: 'Bastión de Carbón',
+    biomeId: 'forge',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['resonant_coal', 'forge_mineral'],
+    threat: 'medium',
+    poiId: 'supply',
+    connections: ['sector_sleeping_forge', 'sector_tide_rock'],
+  },
+]
