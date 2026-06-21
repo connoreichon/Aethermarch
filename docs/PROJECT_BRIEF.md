@@ -672,7 +672,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 11A — World Bible: biblia base del mundo del Abismo (`docs/WORLD_BIBLE.md`)
 
 ### Inmediato
-- 🔲 12A — Primer lugar seguro funcional (posada/refugio con descanso básico)
+- ✅ 12A — Lugares seguros funcionales (descanso, rumores, feedback narrativo)
 - 🔲 12B — Progresión del jugador: XP visible, subida de nivel, HP como barra real
 
 ### Próximo

@@ -17,6 +17,7 @@ import {
   isMotionSupported, needsMotionPermission, requestMotionPermission,
   createPedometerState, processMotionSample,
 } from './systems/pedometerSystem.js'
+import { canUsePoiAction, resolvePoiAction } from './systems/poiSystem.js'
 import AppShell        from './components/AppShell.jsx'
 import StartScreen     from './screens/StartScreen.jsx'
 import CaravanScreen   from './screens/CaravanScreen.jsx'
@@ -102,6 +103,7 @@ export default function App() {
   const [lastDiscovery,             setLastDiscovery]             = useState(null)
   const [stepSource,                setStepSource]                = useState(createInitialStepSource)
   const [pedometer,                 setPedometer]                 = useState(createPedometerState)
+  const [lastPoiResult,             setLastPoiResult]             = useState(null)
 
   const completionDone   = useRef(false)
   const combatTriggered  = useRef(new Set())
@@ -175,6 +177,7 @@ export default function App() {
     setEchoMessage(null)
     setLastEchoResult(null)
     setLastDiscovery(null)
+    setLastPoiResult(null)
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
     if (motionHandlerRef.current) {
@@ -391,6 +394,37 @@ export default function App() {
     setEchoMessage(null)
   }
 
+  // ── Acción de lugar seguro ───────────────────────────────────────────────────
+  function handleUsePoiAction() {
+    const sector = sectors.find(s => s.id === expedition?.sectorId)
+    if (!sector?.poiId) return
+    const check = canUsePoiAction({ poiId: sector.poiId, player, expedition, combat })
+    if (!check.ok) return
+    const result = resolvePoiAction({ poiId: sector.poiId, player, sector })
+    if (!result) return
+
+    if (result.hpGain > 0) {
+      setPlayer(prev => ({ ...prev, hp: Math.min(prev.maxHp, prev.hp + result.hpGain) }))
+    }
+
+    const entry = {
+      id:          `poi-${Date.now()}`,
+      type:        'poi',
+      title:       `${result.poiName} · ${result.sectorName}`,
+      sectorId:    result.sectorId,
+      sectorName:  result.sectorName,
+      poiId:       result.poiId,
+      poiName:     result.poiName,
+      hpGain:      result.hpGain,
+      summaryText: result.summaryText,
+      completedAt: new Date().toISOString(),
+      steps:       0,
+      rewards:     { xp: 0, resources: {} },
+    }
+    setDiary(prev => [...prev, entry])
+    setLastPoiResult(result)
+  }
+
   // ── Cleanup del listener de movimiento al desmontar ─────────────────────────
   useEffect(() => {
     return () => {
@@ -551,6 +585,8 @@ export default function App() {
             onStartPedometer={handleStartPedometer}
             onStopPedometer={handleStopPedometer}
             onAddPrototypeSteps={handleAddPrototypeSteps}
+            lastPoiResult={lastPoiResult}
+            onUsePoiAction={handleUsePoiAction}
           />
         )
       case 'mapa':       return <MapScreen       sectors={sectors} />

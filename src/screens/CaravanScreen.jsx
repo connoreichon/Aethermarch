@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS } from '../data/gameData.js'
+import { canUsePoiAction, getPoiActionLabel, getPoiFlavorText } from '../systems/poiSystem.js'
 import { getAvailableEchoSteps } from '../systems/stepSourceSystem.js'
 import { getAvailableStances } from '../systems/combatSystem.js'
 import { getExpeditionPreparation, getRiskLevel, getPreparationWarnings } from '../systems/preparationSystem.js'
@@ -693,6 +694,65 @@ function EchoPanel({
   )
 }
 
+// ── Panel de lugar seguro ─────────────────────────────────────────────────────
+
+function PoiPanel({ sector, player, expedition, combat, lastPoiResult, onUsePoiAction }) {
+  if (!sector) return null
+
+  if (!sector.poiId) {
+    return (
+      <div className="panel">
+        <div className="panel-title">Lugar del sector</div>
+        <div className="poi-empty">No hay ningún lugar seguro registrado en este sector.</div>
+      </div>
+    )
+  }
+
+  const poi         = POIS[sector.poiId]
+  const check       = canUsePoiAction({ poiId: sector.poiId, player, expedition, combat })
+  const actionLabel = getPoiActionLabel(sector.poiId)
+  const flavorText  = getPoiFlavorText(sector.poiId, sector)
+  const showResult  = lastPoiResult?.sectorId === sector.id
+
+  return (
+    <div className="panel">
+      <div className="panel-title">Lugar del sector</div>
+      <div className="poi-panel">
+        <div className="poi-panel-header">
+          <span className="poi-type-label">{poi?.icon} {poi?.name}</span>
+        </div>
+        <div className="poi-meta">
+          {sector.name}
+          {sector.stratumName ? ` · ${sector.stratumName.split('·')[0].trim()}` : ''}
+          {sector.depthMeters ? ` · ${sector.depthMeters} m` : ''}
+        </div>
+        <div className="poi-description">{flavorText}</div>
+        {!check.ok && (
+          <div className="poi-blocked-text">{check.reason}</div>
+        )}
+        <button
+          className="poi-action-button"
+          onClick={onUsePoiAction}
+          disabled={!check.ok}
+        >
+          {actionLabel}
+        </button>
+        {showResult && (
+          <div className="poi-result-box">
+            <div className="poi-result-title">{lastPoiResult.poiName}</div>
+            <div className="poi-result-text">{lastPoiResult.summaryText}</div>
+            {lastPoiResult.hpGain > 0 && (
+              <div style={{ fontSize:'0.6rem', color:'var(--color-xp)', marginTop:4 }}>
+                +{lastPoiResult.hpGain} HP recuperados
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function CaravanScreen({
@@ -705,6 +765,7 @@ export default function CaravanScreen({
   lastDiscovery,
   stepSource, pedometer,
   onStartPedometer, onStopPedometer, onAddPrototypeSteps,
+  lastPoiResult, onUsePoiAction,
 }) {
   const archetype = ARCHETYPES.find(a => a.id === player?.archetypeId)
   const creature  = CREATURES.find(c => c.id === player?.creatureId)
@@ -1124,6 +1185,18 @@ export default function CaravanScreen({
           ))
         )}
       </div>
+
+      {/* Lugar del sector */}
+      {activeSector && (
+        <PoiPanel
+          sector={activeSector}
+          player={player}
+          expedition={expedition}
+          combat={combat}
+          lastPoiResult={lastPoiResult}
+          onUsePoiAction={onUsePoiAction}
+        />
+      )}
 
       {/* Tipo de marcha */}
       <div className="panel prep-section">

@@ -57,6 +57,7 @@ export default function DiaryScreen({ diary }) {
             const xp         = entry.rewards?.xp ?? 0
             const biomeTag   = BIOME_TAG[entry.biomeId]
             const isEcho     = entry.type === 'march_echo'
+            const isPoi      = entry.type === 'poi'
 
             return (
               <div key={entry.id} className={`diary-entry-card${idx === 0 ? ' latest' : ''}`}>
@@ -64,19 +65,24 @@ export default function DiaryScreen({ diary }) {
                 {/* Título */}
                 <div className="diary-entry-title">
                   {isEcho && <span className="diary-echo-badge">Eco</span>}
+                  {isPoi  && <span className="diary-poi-badge">Lugar</span>}
                   {entry.title ?? `Tramo ${entry.tramoNumber}`}
                 </div>
 
                 {/* Meta */}
                 <div className="diary-entry-meta">
-                  {!isEcho && (
+                  {!isEcho && !isPoi && (
                     <>
                       <span>{MODE_LABELS[entry.modeId] ?? entry.modeId}</span>
                       <span className="diary-entry-meta-sep">·</span>
                     </>
                   )}
-                  <span>{entry.steps} pasos</span>
-                  {biomeTag && (
+                  {isPoi ? (
+                    <span>{entry.sectorName ?? '—'}</span>
+                  ) : (
+                    <span>{entry.steps} pasos</span>
+                  )}
+                  {!isPoi && biomeTag && (
                     <>
                       <span className="diary-entry-meta-sep">·</span>
                       <span style={{ color: biomeTag.color }}>{biomeTag.label}</span>
@@ -84,7 +90,7 @@ export default function DiaryScreen({ diary }) {
                   )}
                 </div>
                 {/* Estrato y profundidad (guardado desde 9B en adelante) */}
-                {entry.stratumName && (
+                {entry.stratumName && !isPoi && (
                   <div style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginTop:2, opacity:0.62 }}>
                     {entry.stratumName.split('·')[0].trim()}
                     {entry.depthMeters ? ` · ${entry.depthMeters} m` : ''}
@@ -93,6 +99,13 @@ export default function DiaryScreen({ diary }) {
 
                 {/* Resumen narrativo */}
                 <p className="diary-entry-summary">{entry.summaryText}</p>
+
+                {/* HP recuperado en POI */}
+                {isPoi && (entry.hpGain ?? 0) > 0 && (
+                  <div style={{ fontSize:'0.6rem', color:'var(--color-xp)', marginBottom:5 }}>
+                    +{entry.hpGain} HP recuperados
+                  </div>
+                )}
 
                 {/* Flavor de eco */}
                 {isEcho && entry.events?.length > 0 && (
@@ -104,7 +117,7 @@ export default function DiaryScreen({ diary }) {
                 )}
 
                 {/* Combates */}
-                {!isEcho && entry.combatResults?.length > 0 && (
+                {!isEcho && !isPoi && entry.combatResults?.length > 0 && (
                   <div className="diary-entry-combat">
                     {entry.combatResults.map((cr, ci) => (
                       <span key={ci}>
