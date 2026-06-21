@@ -476,12 +476,13 @@ No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y
 | Guardado local | Implementado |
 | Eco de Marcha | Implementado |
 | Mapa del Abismo | Implementado en versión visual inicial (9A) |
-| Estratos del Abismo (datos base) | Implementado en base inicial — 3 estratos, 6 sectores (9B) |
+| Estratos del Abismo (datos base) | Implementado — 3 estratos, 8 sectores, incluida expansión Estrato I (14A) |
 | Loot por profundidad | Implementado en base inicial (9B) |
 | Enemigos por estrato (enemyPool) | Implementado en base inicial (9B) |
 | Códice del Abismo | Implementado en primera versión — 6 categorías (10A) |
-| Zonas secretas funcionales | No implementado |
-| Subordinados y contratos | No implementado |
+| Zonas secretas funcionales | Primera versión implementada: Cueva de Setas Huecas (Estrato I), acceso por Velthar/Exploración o dominio de la Ruina (14A) |
+| Contratos básicos | Implementados: encargos por lugar seguro, un contrato activo, resultado variable y diario (13A–13B) |
+| Subordinados y contratos complejos | No implementado |
 | Rangos | No implementado |
 | Mascotas con habilidades activas | No implementado |
 | Sistema de equipo mecánico | No implementado |

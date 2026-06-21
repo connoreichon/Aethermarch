@@ -35,6 +35,21 @@ const DISCOVERY_TEXTS = {
   hunt:       name => `La persecución de rastros llevó a la caravana hasta ${name}.`,
 }
 
+// ── Prioridad de descubrimiento normal ────────────────────────────────────────
+// Desde sector_mist_root, la Ruina de Guardia Rúnica debe descubrirse antes
+// que la Fragua Dormida (que aparece antes en el array de sectores globales).
+
+function pickNextNormalDiscovery(normalHidden, currentSectorId) {
+  if (!normalHidden.length) return null
+  if (currentSectorId === 'sector_mist_root') {
+    return (
+      normalHidden.find(s => s.id === 'sector_runic_guard_ruins') ??
+      normalHidden[0]
+    )
+  }
+  return normalHidden[0]
+}
+
 // ── Resolver descubrimiento ───────────────────────────────────────────────────
 
 export function resolveSectorDiscovery({ sectors, currentSectorId, modeId, events, masteryGain, player }) {
@@ -59,7 +74,8 @@ export function resolveSectorDiscovery({ sectors, currentSectorId, modeId, event
     if (crossedMastery)                                   shouldDiscover = true
 
     if (shouldDiscover) {
-      const target     = normalHidden[0]
+      const target = pickNextNormalDiscovery(normalHidden, currentSectorId)
+      if (!target) return { sectors, discovery: null }
       const newSectors = revealSector(sectors, target.id)
       const textFn     = DISCOVERY_TEXTS[modeId] ?? (name => `La caravana encontró el acceso a ${name} al final del tramo.`)
       const text       = crossedMastery && !DISCOVERY_TEXTS[modeId]

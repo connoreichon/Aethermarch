@@ -678,10 +678,10 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 14A — Expansión Estrato I: Ruina de Guardia Rúnica y Cueva de Setas Huecas, primera zona secreta por criatura/dominio
 
 ### Próximo
-- 🔲 13A — Primer contratable encuentro simple
-- 🔲 13B — Primer estrato completo con contenido funcional diferenciado
-- 🔲 14A — Zonas secretas simples (acceso por mascota o equipo)
-- 🔲 14B — Sistema de rangos básico
+- 🔲 14B — Códice de secretos y lore de ruinas
+- 🔲 15A — Primer contratable encontrado en el mundo
+- 🔲 15B — Primer estrato completo con contenido funcional diferenciado
+- 🔲 16A — Sistema de rangos básico
 
 ### Largo Plazo
 - 🔲 Múltiples estratos con biomas propios
