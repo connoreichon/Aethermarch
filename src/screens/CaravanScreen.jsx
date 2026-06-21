@@ -10,7 +10,8 @@ import ArchetypeToken from '../components/tokens/ArchetypeToken.jsx'
 import CreatureToken  from '../components/tokens/CreatureToken.jsx'
 import EnemyToken     from '../components/tokens/EnemyToken.jsx'
 import ResourceNode   from '../components/tokens/ResourceNode.jsx'
-import StatBar        from '../components/StatBar.jsx'
+import StatBar           from '../components/StatBar.jsx'
+import CollapsiblePanel  from '../components/CollapsiblePanel.jsx'
 
 const DANGER_RANK_LABELS = { low: 'bajo', medium: 'medio', high: 'alto', extreme: 'extremo' }
 const DANGER_RANK_COLORS = { low: 'var(--color-xp)', medium: 'var(--color-ember)', high: 'var(--color-hp)', extreme: 'var(--color-hp)' }
@@ -419,6 +420,7 @@ function CombatScene({ combat, player, expedition, sectors, onResolveCombat, onC
     combat.status === 'awaiting_choice' ? decisionSeconds : 0
   )
   const autoResolvedRef = useRef(false)
+  const autoResumeRef   = useRef(false)
 
   // Countdown tick
   useEffect(() => {
@@ -441,6 +443,16 @@ function CombatScene({ combat, player, expedition, sectors, onResolveCombat, onC
     onResolveCombat('equilibrada', { auto: true })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remainingSeconds, combat.status])
+
+  // Auto-retomar marcha tras resolución (1200 ms)
+  useEffect(() => {
+    if (!resolved) { autoResumeRef.current = false; return }
+    if (autoResumeRef.current) return
+    autoResumeRef.current = true
+    const id = setTimeout(onContinueMarch, 1200)
+    return () => clearTimeout(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolved])
 
   const bgTop = biome?.id === 'coast'
     ? 'linear-gradient(to bottom, #060810, #0A0F1A)'
@@ -572,11 +584,16 @@ function CombatScene({ combat, player, expedition, sectors, onResolveCombat, onC
         ))}
       </div>
 
-      {/* Continuar */}
+      {/* Auto-retorno */}
       {resolved && (
         <div className="combat-continue">
-          <button className="btn btn-primary" onClick={onContinueMarch}>
-            Continuar la marcha
+          <div className="auto-resume-note">La caravana recupera el paso...</div>
+          <button
+            className="btn btn-secondary"
+            style={{ marginTop:4, opacity:0.35, fontSize:'0.58rem' }}
+            onClick={onContinueMarch}
+          >
+            Retomar manualmente
           </button>
         </div>
       )}
@@ -606,7 +623,6 @@ function EchoPanel({
 
   return (
     <div className="echo-panel">
-      <div className="echo-title">Eco de Marcha</div>
       <div className="echo-desc">
         Pasos recientes registrados alimentan la reconstrucción del eco. Mín. 300 · Máx. 2000 · Una vez por minuto.
       </div>
@@ -725,8 +741,7 @@ function RankCard({ rank, nextReq }) {
 
 function MercenaryGateCard({ canUseMercenaries }) {
   return (
-    <div className="panel mercenary-gate-card">
-      <div className="panel-title">Exploradores contratables</div>
+    <div className="mercenary-gate-card">
       {!canUseMercenaries ? (
         <div className="mercenary-locked">
           <div style={{ fontSize:'0.68rem', color:'var(--color-stone-light)' }}>
@@ -760,10 +775,7 @@ function PoiPanel({ sector, player, expedition, combat, lastPoiResult, onUsePoiA
 
   if (!sector.poiId) {
     return (
-      <div className="panel">
-        <div className="panel-title">Lugar del sector</div>
-        <div className="poi-empty">No hay ningún lugar seguro registrado en este sector.</div>
-      </div>
+      <div className="poi-empty">No hay ningún lugar seguro registrado en este sector.</div>
     )
   }
 
@@ -774,40 +786,37 @@ function PoiPanel({ sector, player, expedition, combat, lastPoiResult, onUsePoiA
   const showResult  = lastPoiResult?.sectorId === sector.id
 
   return (
-    <div className="panel">
-      <div className="panel-title">Lugar del sector</div>
-      <div className="poi-panel">
-        <div className="poi-panel-header">
-          <span className="poi-type-label">{poi?.icon} {poi?.name}</span>
-        </div>
-        <div className="poi-meta">
-          {sector.name}
-          {sector.stratumName ? ` · ${sector.stratumName.split('·')[0].trim()}` : ''}
-          {sector.depthMeters ? ` · ${sector.depthMeters} m` : ''}
-        </div>
-        <div className="poi-description">{flavorText}</div>
-        {!check.ok && (
-          <div className="poi-blocked-text">{check.reason}</div>
-        )}
-        <button
-          className="poi-action-button"
-          onClick={onUsePoiAction}
-          disabled={!check.ok}
-        >
-          {actionLabel}
-        </button>
-        {showResult && (
-          <div className="poi-result-box">
-            <div className="poi-result-title">{lastPoiResult.poiName}</div>
-            <div className="poi-result-text">{lastPoiResult.summaryText}</div>
-            {lastPoiResult.hpGain > 0 && (
-              <div style={{ fontSize:'0.6rem', color:'var(--color-xp)', marginTop:4 }}>
-                +{lastPoiResult.hpGain} HP recuperados
-              </div>
-            )}
-          </div>
-        )}
+    <div className="poi-panel">
+      <div className="poi-panel-header">
+        <span className="poi-type-label">{poi?.icon} {poi?.name}</span>
       </div>
+      <div className="poi-meta">
+        {sector.name}
+        {sector.stratumName ? ` · ${sector.stratumName.split('·')[0].trim()}` : ''}
+        {sector.depthMeters ? ` · ${sector.depthMeters} m` : ''}
+      </div>
+      <div className="poi-description">{flavorText}</div>
+      {!check.ok && (
+        <div className="poi-blocked-text">{check.reason}</div>
+      )}
+      <button
+        className="poi-action-button"
+        onClick={onUsePoiAction}
+        disabled={!check.ok}
+      >
+        {actionLabel}
+      </button>
+      {showResult && (
+        <div className="poi-result-box">
+          <div className="poi-result-title">{lastPoiResult.poiName}</div>
+          <div className="poi-result-text">{lastPoiResult.summaryText}</div>
+          {lastPoiResult.hpGain > 0 && (
+            <div style={{ fontSize:'0.6rem', color:'var(--color-xp)', marginTop:4 }}>
+              +{lastPoiResult.hpGain} HP recuperados
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -825,9 +834,7 @@ function ContractsPanel({ sector, player, contractState, expedition, combat, las
   const inMarch        = expedition?.status === 'marching'
 
   return (
-    <div className="panel">
-      <div className="panel-title">Encargos del lugar</div>
-      <div className="contract-panel">
+    <div className="contract-panel">
 
         {/* Sin POI */}
         {!sector.poiId && (
@@ -929,7 +936,6 @@ function ContractsPanel({ sector, player, contractState, expedition, combat, las
           <div className="contract-empty">Este lugar no ofrece encargos por ahora.</div>
         )}
 
-      </div>
     </div>
   )
 }
@@ -1292,6 +1298,7 @@ export default function CaravanScreen({
   const rank     = getPlayerRank({ player, sectors, contractState })
   const nextReq  = getNextRankRequirement({ player, sectors, contractState })
   const canMercs = canUseMercenaryContracts({ player, sectors, contractState })
+  const poiName  = activeSector?.poiId ? (POIS[activeSector.poiId]?.name ?? 'Lugar del sector') : 'Lugar del sector'
 
   return (
     <div className="screen-scroll">
@@ -1335,68 +1342,60 @@ export default function CaravanScreen({
         </div>
       )}
 
-      {/* Estado compacto */}
-      <div className="panel">
+      {/* Estado compacto: HP + XP + rango */}
+      <div className="caravan-main-compact">
         <div className="stat-bar-wrap">
           <StatBar label="HP" value={player.hp} max={player.maxHp} type="hp" />
           <StatBar label="XP" value={player.xp} max={player.xpToNext} type="xp" />
         </div>
-        <div className="compact-info-grid">
-          <span style={{ fontSize:'0.62rem', color:'var(--color-stone-light)' }}>
-            Nv. <span style={{ color:'var(--color-gold)' }}>{player.level}</span>
-          </span>
-          <span style={{ fontSize:'0.62rem', color:'var(--color-parchment)' }}>{archetype?.name}</span>
-          <span style={{ fontSize:'0.62rem', color:'var(--color-magic)' }}>{archetype?.passiveName}</span>
+        <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginTop:6 }}>
+          <span className="caravan-status-pill">{archetype?.name}</span>
+          <span className="caravan-status-pill rank">{rank.label}</span>
+          {nextReq && (
+            <span className="caravan-status-pill muted">
+              → {nextReq.nextRank.name}: {nextReq.metCount}/{nextReq.totalRequired}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Rango de expedición */}
-      <RankCard rank={rank} nextReq={nextReq} />
-
-      {/* Destino del tramo */}
-      <div className="panel prep-section">
-        <div className="panel-title">Destino del tramo</div>
-        {discoveredSectors.length === 0 ? (
-          <div className="empty-state">La caravana no encuentra una senda segura.</div>
-        ) : (
-          discoveredSectors.map(s => (
-            <SectorDestCard
-              key={s.id}
-              sector={s}
-              isActive={expedition?.sectorId === s.id}
-              onSelect={onSelectSector}
-            />
-          ))
-        )}
-      </div>
-
-      {/* Modo de marcha compacto */}
-      <div className="panel prep-section">
-        <div className="panel-title">Modo de marcha</div>
-        <div className="prep-modes-compact">
-          {EXPEDITION_MODES.map(m => {
-            const mRisk    = getRiskLevel({ modeId: m.id, sector: activeSector })
-            const isActive = expedition?.modeId === m.id
-            return (
-              <div
-                key={m.id}
-                className={`mode-compact-card${isActive ? ' selected' : ''}${m.locked ? ' locked' : ''}`}
-                onClick={() => !m.locked && onSelectMode(m.id)}
-              >
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span className="mode-compact-name">{m.name}</span>
-                  {m.locked
-                    ? <span style={{ fontSize:'0.52rem', color:'var(--color-stone-light)', opacity:0.45 }}>Próximamente</span>
-                    : <span className={`prep-risk ${mRisk.level}`}>{mRisk.label}</span>
-                  }
-                </div>
-                <div className="mode-compact-desc">
-                  {MODE_SHORT[m.id] ?? m.description}
-                </div>
-              </div>
-            )
-          })}
+      {/* Ruta actual */}
+      {activeSector ? (
+        <div className="route-summary-card">
+          <div className="route-summary-row">
+            <span className="route-sector-name">{activeSector.name}</span>
+            <span style={{ fontSize:'0.6rem', color: DANGER_RANK_COLORS[activeSector.dangerRank] ?? 'var(--color-stone-light)' }}>
+              Amenaza {DANGER_RANK_LABELS[activeSector.dangerRank] ?? '—'}
+            </span>
+          </div>
+          {activeSector.stratumName && (
+            <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', marginTop:3 }}>
+              {activeSector.stratumName.split('·')[0].trim()} · {activeSector.depthMeters} m
+              {activeSector.lootTier && (
+                <span style={{ color:'var(--color-gold)', marginLeft:6, opacity:0.7 }}>Loot T{activeSector.lootTier}</span>
+              )}
+            </div>
+          )}
         </div>
+      ) : (
+        <div className="route-summary-card empty">
+          Sin sector seleccionado — elige un destino abajo.
+        </div>
+      )}
+
+      {/* Strip de modos */}
+      <div className="mode-strip">
+        {EXPEDITION_MODES.map(m => (
+          <button
+            key={m.id}
+            className={`mode-pill${expedition?.modeId === m.id ? ' selected' : ''}${m.locked ? ' locked' : ''}`}
+            onClick={() => !m.locked && onSelectMode(m.id)}
+            disabled={m.locked}
+            title={MODE_SHORT[m.id] ?? m.description}
+          >
+            {m.name}
+          </button>
+        ))}
       </div>
 
       {/* Iniciar la marcha */}
@@ -1406,7 +1405,7 @@ export default function CaravanScreen({
           onClick={canAlzar ? onAlzar : undefined}
           disabled={!canAlzar}
         >
-          {canAlzar ? 'Iniciar la marcha' : 'No se puede iniciar ahora'}
+          {canAlzar ? 'Iniciar la marcha' : 'Elige un destino'}
         </button>
         {canAlzar ? (
           <p className="alzar-caravana-summary">
@@ -1422,10 +1421,25 @@ export default function CaravanScreen({
         )}
       </div>
 
-      {/* Previsión compacta */}
+      {/* Cambiar destino */}
+      <CollapsiblePanel title="Cambiar destino" defaultOpen={!activeSector}>
+        {discoveredSectors.length === 0 ? (
+          <div className="empty-state">La caravana no encuentra una senda segura.</div>
+        ) : (
+          discoveredSectors.map(s => (
+            <SectorDestCard
+              key={s.id}
+              sector={s}
+              isActive={expedition?.sectorId === s.id}
+              onSelect={onSelectSector}
+            />
+          ))
+        )}
+      </CollapsiblePanel>
+
+      {/* Previsión del tramo */}
       {activeSector && (
-        <div className="panel preparation-compact">
-          <div className="panel-title">Previsión del tramo</div>
+        <CollapsiblePanel title="Previsión del tramo" defaultOpen={false}>
           <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:7 }}>
             <span className={`compact-chip risk-${prep.risk.level}`}>{prep.risk.label}</span>
             {prep.expected.events.map((ev, i) => (
@@ -1465,40 +1479,46 @@ export default function CaravanScreen({
           {warnings.map((w, i) => (
             <div key={i} className="prep-warning">{w}</div>
           ))}
-        </div>
+        </CollapsiblePanel>
       )}
 
       {/* Lugar del sector */}
       {activeSector && (
-        <PoiPanel
-          sector={activeSector}
-          player={player}
-          expedition={expedition}
-          combat={combat}
-          lastPoiResult={lastPoiResult}
-          onUsePoiAction={onUsePoiAction}
-        />
+        <CollapsiblePanel title={poiName} defaultOpen={false}>
+          <PoiPanel
+            sector={activeSector}
+            player={player}
+            expedition={expedition}
+            combat={combat}
+            lastPoiResult={lastPoiResult}
+            onUsePoiAction={onUsePoiAction}
+          />
+        </CollapsiblePanel>
       )}
 
       {/* Encargos del lugar */}
       {activeSector && (
-        <ContractsPanel
-          sector={activeSector}
-          player={player}
-          contractState={contractState}
-          expedition={expedition}
-          combat={combat}
-          lastContractResult={lastContractResult}
-          onStartContract={onStartContract}
-          onResolveActiveContract={onResolveActiveContract}
-        />
+        <CollapsiblePanel title="Encargos del lugar" defaultOpen={false}>
+          <ContractsPanel
+            sector={activeSector}
+            player={player}
+            contractState={contractState}
+            expedition={expedition}
+            combat={combat}
+            lastContractResult={lastContractResult}
+            onStartContract={onStartContract}
+            onResolveActiveContract={onResolveActiveContract}
+          />
+        </CollapsiblePanel>
       )}
 
       {/* Exploradores contratables */}
-      <MercenaryGateCard canUseMercenaries={canMercs} />
+      <CollapsiblePanel title="Exploradores contratables" defaultOpen={false}>
+        <MercenaryGateCard canUseMercenaries={canMercs} />
+      </CollapsiblePanel>
 
       {/* Eco de Marcha */}
-      <div className="echo-panel-secondary">
+      <CollapsiblePanel title="Eco de Marcha" defaultOpen={false}>
         <EchoPanel
           stepSource={stepSource}
           pedometer={pedometer}
@@ -1509,25 +1529,20 @@ export default function CaravanScreen({
           echoMessage={echoMessage}
           lastEchoResult={lastEchoResult}
         />
-      </div>
+      </CollapsiblePanel>
 
-      {/* Criatura compañera */}
-      <div className="panel">
-        <div className="panel-title">Criatura compañera</div>
-        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-          <CreatureToken creatureId={player.creatureId} size={56} />
+      {/* Criatura compañera — compacta */}
+      <div className="panel" style={{ margin:'0 0 2px' }}>
+        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+          <CreatureToken creatureId={player.creatureId} size={44} />
           <div>
-            <div style={{ fontSize:'0.85rem', color:'var(--color-parchment)', marginBottom:2 }}>
+            <div style={{ fontSize:'0.75rem', color:'var(--color-parchment)', marginBottom:1 }}>
               {creature?.name}
             </div>
-            <div style={{ fontSize:'0.65rem', color:'var(--color-ember)', textTransform:'uppercase',
-                          letterSpacing:'0.06em', marginBottom:4 }}>
-              {creature?.role}
-            </div>
-            <div style={{ fontSize:'0.65rem', color:'var(--color-magic)', marginBottom:2 }}>
+            <div style={{ fontSize:'0.6rem', color:'var(--color-magic)' }}>
               {creature?.passiveName}
             </div>
-            <div style={{ fontSize:'0.65rem', color:'var(--color-stone-light)' }}>
+            <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', marginTop:1, lineHeight:1.35 }}>
               {creature?.passiveDescription}
             </div>
           </div>

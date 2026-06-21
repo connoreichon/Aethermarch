@@ -677,12 +677,12 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 13B — Contratos: probabilidad de éxito, resultados variables (éxito/parcial/fracaso), consecuencias, log enriquecido
 - ✅ 14A — Expansión Estrato I: Ruina de Guardia Rúnica y Cueva de Setas Huecas, primera zona secreta por criatura/dominio
 - ✅ 15A — Pulido de Caravana, CTA "Iniciar la marcha", base de rangos y bloqueo visual de exploradores contratables
+- ✅ 16A — Marcha fluida: auto-retorno tras combate (1200 ms), paneles plegables, ruta compacta, strip de modos
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
-- 🔲 15A — Primer contratable encontrado en el mundo
 - 🔲 15B — Primer estrato completo con contenido funcional diferenciado
-- 🔲 16A — Sistema de rangos básico
+- 🔲 17A — Primer NPC contratable funcional
 
 ### Largo Plazo
 - 🔲 Múltiples estratos con biomas propios
