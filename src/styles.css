@@ -1841,3 +1841,108 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   font-style: italic;
   line-height: 1.45;
 }
+
+/* ── ECHO AVAILABLE CARD ─────────────────────────────────────────────────── */
+.echo-available-card {
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(79,143,149,0.24);
+  border-radius: var(--radius-sm);
+  padding: 9px;
+  text-align: center;
+}
+.echo-available-number {
+  font-size: 1.1rem;
+  color: var(--color-mist);
+  font-weight: 500;
+}
+.echo-available-label {
+  font-size: 0.62rem;
+  color: var(--color-stone-light);
+  margin-top: 2px;
+}
+
+/* ── PEDOMETER PANEL ─────────────────────────────────────────────────────── */
+.pedometer-panel {
+  border-top: 1px solid rgba(98,107,111,0.16);
+  padding-top: 8px;
+  margin-top: 10px;
+}
+.pedometer-title {
+  font-size: 0.58rem;
+  color: var(--color-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+.pedometer-desc {
+  font-size: 0.6rem;
+  color: var(--color-stone-light);
+  line-height: 1.4;
+  opacity: 0.8;
+  margin-bottom: 7px;
+}
+.pedometer-status {
+  font-size: 0.62rem;
+  color: var(--color-mist);
+  margin-bottom: 7px;
+}
+.pedometer-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pedometer-button {
+  flex: 1;
+  min-width: 120px;
+  background: rgba(42,26,16,0.6);
+  border: 1px solid rgba(184,148,74,0.28);
+  color: var(--color-parchment);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  font-family: inherit;
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+.pedometer-button.active {
+  border-color: rgba(79,143,149,0.45);
+  color: var(--color-mist);
+}
+
+/* ── PROTOTYPE SIMULATOR ─────────────────────────────────────────────────── */
+.echo-prototype-tools {
+  border-top: 1px solid rgba(98,107,111,0.16);
+  padding-top: 8px;
+  margin-top: 10px;
+}
+.echo-prototype-title {
+  font-size: 0.56rem;
+  color: var(--color-stone-light);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+  opacity: 0.7;
+}
+.echo-prototype-desc {
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  line-height: 1.35;
+  opacity: 0.65;
+  margin-bottom: 6px;
+}
+.echo-prototype-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.echo-prototype-button {
+  flex: 1;
+  min-width: 80px;
+  background: transparent;
+  border: 1px solid rgba(98,107,111,0.24);
+  color: var(--color-stone-light);
+  border-radius: var(--radius-sm);
+  padding: 7px 8px;
+  font-family: inherit;
+  font-size: 0.6rem;
+  cursor: pointer;
+}

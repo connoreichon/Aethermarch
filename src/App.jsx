@@ -9,6 +9,14 @@ import {
   loadSave, writeSave, clearSave,
   createSaveSnapshot, sanitizeLoadedSave,
 } from './systems/saveSystem.js'
+import {
+  createInitialStepSource, sanitizeStepSource,
+  addPrototypeSteps, addPedometerSteps, consumeRecentSteps, getAvailableEchoSteps,
+} from './systems/stepSourceSystem.js'
+import {
+  isMotionSupported, needsMotionPermission, requestMotionPermission,
+  createPedometerState, processMotionSample,
+} from './systems/pedometerSystem.js'
 import AppShell        from './components/AppShell.jsx'
 import StartScreen     from './screens/StartScreen.jsx'
 import CaravanScreen   from './screens/CaravanScreen.jsx'
@@ -91,9 +99,13 @@ export default function App() {
   const [echoMessage,               setEchoMessage]               = useState(null)
   const [lastEchoResult,            setLastEchoResult]            = useState(null)
   const [lastDiscovery,             setLastDiscovery]             = useState(null)
+  const [stepSource,                setStepSource]                = useState(createInitialStepSource)
+  const [pedometer,                 setPedometer]                 = useState(createPedometerState)
 
-  const completionDone  = useRef(false)
-  const combatTriggered = useRef(new Set())
+  const completionDone   = useRef(false)
+  const combatTriggered  = useRef(new Set())
+  const pedStateRef      = useRef(createPedometerState())
+  const motionHandlerRef = useRef(null)
 
   // ── Nueva partida ────────────────────────────────────────────────────────────
   function handleStart({ archetypeId, creatureId }) {
@@ -136,6 +148,8 @@ export default function App() {
       setRecoveredFromInterruption(true)
     }
     setLastEchoClaimAt(save.lastEchoClaimAt ?? null)
+    setStepSource(sanitizeStepSource(save.stepSource))
+    setPedometer(createPedometerState())  // pedometer always starts idle after reload
 
     completionDone.current  = false
     combatTriggered.current = new Set()
@@ -160,10 +174,70 @@ export default function App() {
     setEchoMessage(null)
     setLastEchoResult(null)
     setLastDiscovery(null)
+    setStepSource(createInitialStepSource())
+    setPedometer(createPedometerState())
+    if (motionHandlerRef.current) {
+      window.removeEventListener('devicemotion', motionHandlerRef.current)
+      motionHandlerRef.current = null
+    }
+    pedStateRef.current = createPedometerState()
     setHasSaveFlag(false)
     completionDone.current  = false
     combatTriggered.current = new Set()
     setHasStarted(false)
+  }
+
+  // ── Podómetro experimental ───────────────────────────────────────────────────
+  async function handleStartPedometer() {
+    if (motionHandlerRef.current) return  // ya running
+
+    if (!isMotionSupported()) {
+      setPedometer(prev => ({ ...prev, status: 'unsupported' }))
+      return
+    }
+    if (!window.isSecureContext) {
+      setPedometer(prev => ({ ...prev, status: 'insecure' }))
+      return
+    }
+    if (needsMotionPermission()) {
+      const granted = await requestMotionPermission()
+      if (!granted) {
+        setPedometer(prev => ({ ...prev, status: 'denied' }))
+        return
+      }
+    }
+    if (motionHandlerRef.current) return  // por si se llamó dos veces durante el await
+
+    const fresh = { ...createPedometerState(), status: 'running' }
+    pedStateRef.current = fresh
+    setPedometer(fresh)
+
+    const handler = (event) => {
+      const prev = pedStateRef.current
+      const next = processMotionSample(prev, event)
+      pedStateRef.current = next
+      if (next.steps !== prev.steps) {
+        const gained = next.steps - prev.steps
+        setPedometer({ ...next, status: 'running' })
+        setStepSource(s => addPedometerSteps(s, gained))
+      }
+    }
+
+    window.addEventListener('devicemotion', handler)
+    motionHandlerRef.current = handler
+  }
+
+  function handleStopPedometer() {
+    if (motionHandlerRef.current) {
+      window.removeEventListener('devicemotion', motionHandlerRef.current)
+      motionHandlerRef.current = null
+    }
+    pedStateRef.current = { ...pedStateRef.current, status: 'paused' }
+    setPedometer(prev => ({ ...prev, status: 'paused' }))
+  }
+
+  function handleAddPrototypeSteps(amount) {
+    setStepSource(prev => addPrototypeSteps(prev, amount))
   }
 
   // ── Handlers de caravana ─────────────────────────────────────────────────────
@@ -257,10 +331,11 @@ export default function App() {
   }
 
   // ── Eco de Marcha ────────────────────────────────────────────────────────────
-  function handleClaimMarchEcho(rawSteps) {
+  function handleClaimMarchEcho() {
     if (!player || !selectedArchetypeId || !selectedCreatureId) return
 
-    const validation = canClaimEcho({ rawSteps, expedition, combat, lastEchoClaimAt })
+    const availableSteps = getAvailableEchoSteps(stepSource)
+    const validation = canClaimEcho({ rawSteps: availableSteps, expedition, combat, lastEchoClaimAt })
 
     if (!validation.ok) {
       setEchoMessage({ type: 'error', text: validation.reason })
@@ -307,12 +382,23 @@ export default function App() {
       summaryText: echo.summaryText,
     }
     setDiary(prev => [...prev, diaryEntry])
+    setStepSource(prev => consumeRecentSteps(prev, validation.steps))
 
     const now = new Date().toISOString()
     setLastEchoClaimAt(now)
     setLastEchoResult({ ...echo, sectorName: sector?.name ?? '—' })
     setEchoMessage(null)
   }
+
+  // ── Cleanup del listener de movimiento al desmontar ─────────────────────────
+  useEffect(() => {
+    return () => {
+      if (motionHandlerRef.current) {
+        window.removeEventListener('devicemotion', motionHandlerRef.current)
+        motionHandlerRef.current = null
+      }
+    }
+  }, [])
 
   // ── Simulación de marcha ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -416,6 +502,7 @@ export default function App() {
       sectors,
       expedition,
       lastEchoClaimAt,
+      stepSource,
     })
     writeSave(snapshot)
     setLastSaved(new Date())
@@ -456,6 +543,11 @@ export default function App() {
             echoMessage={echoMessage}
             lastEchoResult={lastEchoResult}
             lastDiscovery={lastDiscovery}
+            stepSource={stepSource}
+            pedometer={pedometer}
+            onStartPedometer={handleStartPedometer}
+            onStopPedometer={handleStopPedometer}
+            onAddPrototypeSteps={handleAddPrototypeSteps}
           />
         )
       case 'mapa':       return <MapScreen       sectors={sectors} />

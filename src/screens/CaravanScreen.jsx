@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS } from '../data/gameData.js'
+import { getAvailableEchoSteps } from '../systems/stepSourceSystem.js'
 import { getAvailableStances } from '../systems/combatSystem.js'
 import { getExpeditionPreparation, getRiskLevel, getPreparationWarnings } from '../systems/preparationSystem.js'
 import ArchetypeToken from '../components/tokens/ArchetypeToken.jsx'
@@ -561,39 +562,46 @@ function CombatScene({ combat, player, expedition, sectors, onResolveCombat, onC
 
 // ── EchoPanel ─────────────────────────────────────────────────────────────────
 
-function EchoPanel({ onClaimEcho, echoMessage, lastEchoResult }) {
-  const [inputValue, setInputValue] = useState('')
+const PEDOMETER_STATUS_TEXT = {
+  idle:        'Podómetro detenido.',
+  running:     'Escuchando pasos del móvil.',
+  paused:      'Podómetro detenido.',
+  denied:      'Permiso de movimiento denegado.',
+  unsupported: 'Este navegador no permite leer movimiento del dispositivo.',
+  insecure:    'El podómetro necesita abrirse desde una página segura.',
+}
 
-  useEffect(() => {
-    if (lastEchoResult) setInputValue('')
-  }, [lastEchoResult])
-
-  function handleSubmit(e) {
-    e.preventDefault()
-    onClaimEcho(inputValue)
-  }
+function EchoPanel({
+  stepSource, pedometer,
+  onClaimEcho, onStartPedometer, onStopPedometer, onAddPrototypeSteps,
+  echoMessage, lastEchoResult,
+}) {
+  const available = getAvailableEchoSteps(stepSource)
+  const isRunning = pedometer?.status === 'running'
+  const canClaim  = available >= 300
 
   return (
     <div className="echo-panel">
       <div className="echo-title">Eco de Marcha</div>
       <div className="echo-desc">
-        ¿Caminaste sin iniciar la expedición? Reconstruye el rastro de esos pasos olvidados en la bruma.
+        Pasos recientes registrados alimentan la reconstrucción del eco. Mín. 300 · Máx. 2000 · Una vez por minuto.
       </div>
-      <form className="echo-form" onSubmit={handleSubmit}>
-        <input
-          className="echo-input"
-          type="number"
-          min="0"
-          max="2000"
-          placeholder="Pasos olvidados…"
-          value={inputValue}
-          onChange={e => setInputValue(e.target.value)}
-        />
-        <button className="btn btn-secondary" type="submit">
-          Reconstruir
-        </button>
-      </form>
-      <div className="echo-help">Mín. 300 pasos · Máx. 2000 pasos · Solo una vez por minuto</div>
+
+      {/* Pasos disponibles */}
+      <div className="echo-available-card">
+        <div className="echo-available-number">{available}</div>
+        <div className="echo-available-label">rastro reciente disponible</div>
+      </div>
+
+      {/* Botón reclamar */}
+      <button
+        className="btn btn-secondary"
+        style={{ width:'100%', marginTop:8, marginBottom:4 }}
+        onClick={onClaimEcho}
+        disabled={!canClaim}
+      >
+        Reconstruir eco
+      </button>
 
       {echoMessage?.type === 'error' && (
         <div className="echo-error">{echoMessage.text}</div>
@@ -627,6 +635,46 @@ function EchoPanel({ onClaimEcho, echoMessage, lastEchoResult }) {
           </div>
         </div>
       )}
+
+      {/* Podómetro experimental */}
+      <div className="pedometer-panel">
+        <div className="pedometer-title">Podómetro experimental</div>
+        <p className="pedometer-desc">
+          Prueba pasos reales del móvil para alimentar el Eco de Marcha. Es una lectura provisional y puede no ser exacta.
+        </p>
+        <div className="pedometer-status">
+          {PEDOMETER_STATUS_TEXT[pedometer?.status] ?? 'Podómetro detenido.'}
+        </div>
+        {isRunning && (
+          <div style={{ fontSize:'0.62rem', color:'var(--color-mist)', marginBottom:7 }}>
+            Pasos detectados esta sesión: {pedometer.steps}
+          </div>
+        )}
+        <div className="pedometer-actions">
+          {!isRunning ? (
+            <button className="pedometer-button" onClick={onStartPedometer}>
+              Activar podómetro
+            </button>
+          ) : (
+            <button className="pedometer-button active" onClick={onStopPedometer}>
+              Detener podómetro
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Simulador del prototipo */}
+      <div className="echo-prototype-tools">
+        <div className="echo-prototype-title">Simulador del prototipo</div>
+        <p className="echo-prototype-desc">
+          Añade pasos ficticios para probar el Eco de Marcha sin caminar.
+        </p>
+        <div className="echo-prototype-actions">
+          <button className="echo-prototype-button" onClick={() => onAddPrototypeSteps(500)}>+500</button>
+          <button className="echo-prototype-button" onClick={() => onAddPrototypeSteps(1500)}>+1500</button>
+          <button className="echo-prototype-button" onClick={() => onAddPrototypeSteps(2000)}>Llenar 2000</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -641,6 +689,8 @@ export default function CaravanScreen({
   onResetGame,
   onClaimEcho, echoMessage, lastEchoResult,
   lastDiscovery,
+  stepSource, pedometer,
+  onStartPedometer, onStopPedometer, onAddPrototypeSteps,
 }) {
   const archetype = ARCHETYPES.find(a => a.id === player?.archetypeId)
   const creature  = CREATURES.find(c => c.id === player?.creatureId)
@@ -1182,7 +1232,12 @@ export default function CaravanScreen({
       {/* Eco de Marcha */}
       <div className="echo-panel-secondary">
         <EchoPanel
+          stepSource={stepSource}
+          pedometer={pedometer}
           onClaimEcho={onClaimEcho}
+          onStartPedometer={onStartPedometer}
+          onStopPedometer={onStopPedometer}
+          onAddPrototypeSteps={onAddPrototypeSteps}
           echoMessage={echoMessage}
           lastEchoResult={lastEchoResult}
         />

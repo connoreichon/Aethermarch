@@ -38,6 +38,7 @@ export function createSaveSnapshot({
   sectors,
   expedition,
   lastEchoClaimAt,
+  stepSource,
 }) {
   // Track whether the save was created while a run was active
   const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
@@ -63,6 +64,7 @@ export function createSaveSnapshot({
     sectors,
     expedition:       safeExp,
     lastEchoClaimAt:  lastEchoClaimAt ?? null,
+    stepSource:       stepSource ?? null,
     meta: {
       recoveredFromInterruptedRun: wasActive,
     },
