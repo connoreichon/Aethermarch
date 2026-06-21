@@ -353,31 +353,20 @@ Cada contratable puede tener: nombre, rango, clase, especialidad, coste, rasgo, 
 
 ## Enciclopedia del Abismo
 
-El jugador tendrá una enciclopedia o códice donde se registran descubrimientos.
+El **Códice del Abismo** está implementado en primera versión (10A). Registra descubrimientos derivados del estado del juego sin coste de guardado extra.
 
-### Categorías
+### Categorías implementadas
 
-- recursos (plantas, hongos, minerales, fluidos)
-- piezas de equipo
-- enemigos y jefes
-- biomas
-- estratos
-- zonas secretas
-- mascotas
-- contratables
-- reliquias
-- recetas futuras
-- eventos especiales
+- Estratos — desbloqueados al visitar un sector del estrato
+- Sectores — desbloqueados al descubrir la zona
+- Recursos — desbloqueados al tener qty > 0 en inventario o aparecer en el diario
+- Amenazas — desbloqueadas al encontrar al enemigo en combate o como evento de amenaza
+- Criaturas — la criatura del jugador siempre descubierta; el resto permanece oculto
+- Lugares (POIs) — desbloqueados al descubrir el sector que los contiene
 
-### Función
+### Categorías futuras
 
-- coleccionismo y progreso visual
-- lore del mundo
-- objetivos secundarios
-- recompensas por completar entradas
-- guía para localizar materiales
-
-**Sistema no implementado todavía.**
+- Contratables, reliquias, eventos especiales, lore del Abismo, zonas secretas visitadas
 
 ---
 
@@ -525,11 +514,11 @@ No es modal encima de la ruta. Es una escena propia.
 
 ## Mapa — Hacia el Abismo en Espiral
 
-### Estado actual (prototipo)
-Atlas plano con sectores descubribles. Funcional para pruebas.
+### Estado actual
+Mapa visual del Abismo implementado en versión inicial (9A): tablero vertical con bandas de estrato, nodos en espiral, panel de detalle, niebla para zonas no descubiertas. Los 6 sectores actuales están distribuidos en 3 estratos.
 
 ### Dirección futura
-El mapa evolucionará hacia una representación visual del Abismo en espiral:
+El mapa evolucionará conforme se añadan estratos y sectores:
 
 - **Eje vertical** — profundidad como eje principal
 - **Estratos** — capas horizontales dentro del eje vertical
@@ -675,12 +664,14 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 6A — Sistema de descubrimiento de sectores
 - ✅ 7A — Pulido visual (escena de campamento, atlas, crónica)
 - ✅ 8A — Podómetro web experimental (DeviceMotionEvent)
+- ✅ 9A — Mapa visual del Abismo en espiral con bandas de estrato
+- ✅ 9B — Datos de estratos (ABYSS_STRATA), enemyPool, lootTier, abyssSystem.js
+- ✅ 10A — Códice del Abismo: enciclopedia derivada de estado, 6 categorías
+- ✅ 10B — Saneo y coherencia: inventario plano, entradas ocultas corregidas, docs actualizados
 
 ### Inmediato
-- 🔲 9A — Mock visual del Abismo en lugar del atlas plano
-- 🔲 9B — Primer estrato implementado (Linde de Raíz)
-- 🔲 10A — Progresión del jugador (nivel, XP, HP)
-- 🔲 10B — Loot por profundidad (loot tier por estrato)
+- 🔲 11A — Primer nivel de progresión del jugador (XP, nivel, HP visible)
+- 🔲 11B — Primer estrato completo con contenido funcional diferenciado
 
 ### Próximo
 - 🔲 11A — Enciclopedia básica (registro de recursos y enemigos)
@@ -698,16 +689,45 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 
 ---
 
-## Modos de conteo de pasos (planificación futura)
+## Modos de conteo de pasos
 
-El juego contempla dos modos de avance por pasos:
+### Estado actual
+
+| Modo | Estado |
+|---|---|
+| Modo prototipo (botones +500 / +1000 pasos) | Implementado — predeterminado durante desarrollo |
+| stepSource (base técnica unificada) | Implementado — abstrae origen de los pasos |
+| Podómetro web (DeviceMotionEvent) | Experimental — aparcado temporalmente por fiabilidad variable en dispositivos |
+
+### Planificación futura
 
 **Modo pasos reales (mercado final)**
-Lectura del sensor del teléfono mediante `DeviceMotionEvent`. El jugador
-avanza en la marcha caminando físicamente. Activado por el botón de podómetro
-experimental ya implementado en 8A.
+Lectura del sensor del teléfono mediante `DeviceMotionEvent`. El jugador avanza en la marcha caminando físicamente. La infraestructura está en `pedometerSystem.js` y `stepSourceSystem.js`, pero la fiabilidad entre dispositivos móviles es variable. Se retomará cuando el loop de contenido esté estable.
 
 **Modo prototipo / desarrollo**
-Simulación de pasos mediante botón en pantalla (`+500 pasos`, `+1000 pasos`).
-Permite probar el loop completo en PC sin caminar. Es el modo activo por
-defecto durante el desarrollo. No debe eliminarse; coexiste con el podómetro.
+Simulación de pasos mediante botón en pantalla. Permite probar el loop completo en PC sin caminar. Debe seguir existiendo durante todo el desarrollo; no se elimina cuando se reactive el podómetro.
+
+Regla: **ambos modos coexisten siempre**. El selector de modo de pasos se implementará más adelante, cuando el loop de contenido sea estable.
+
+---
+
+## Equipo mecánico vs skins visuales
+
+### Regla de separación
+
+El equipo no define la apariencia del personaje. Las skins sí.
+
+| Sistema | Función |
+|---|---|
+| **Equipo** (armas, armaduras, reliquias, herramientas) | Stats, resistencias, acceso a zonas, bonus de combate y exploración, requisitos de ruta |
+| **Skins** (trajes, variantes visuales, cosméticos) | Apariencia visual del personaje en escena |
+
+### Por qué esta separación
+
+- El equipo puede cambiar con frecuencia. Redibujarlo cada vez sería un coste de producción inasumible en prototipo.
+- Las skins son un sistema cosmético independiente que se puede implementar más adelante sin afectar la mecánica.
+- Un jugador puede llevar la mejor armadura del juego y seguir viendo la silueta base del personaje.
+
+### Estado
+
+Ni equipo mecánico completo ni skins están implementados todavía. Esta sección documenta la decisión de diseño para que no se mezclen los dos sistemas en el futuro.

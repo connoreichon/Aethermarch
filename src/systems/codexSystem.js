@@ -10,6 +10,18 @@ const FOG_DESC   = 'La expedición no ha registrado datos suficientes.'
 const FOG_SECTOR = 'La expedición no ha cartografiado esta zona.'
 const FOG_ENEMY  = 'La expedición no ha registrado datos de esta amenaza.'
 const FOG_RES    = 'Aún no hay datos suficientes en el códice.'
+const FOG_POI    = 'La expedición no ha registrado este lugar.'
+const FOG_CREATURE = 'Esta criatura aún no ha sido observada.'
+
+// ── Helper de inventario ──────────────────────────────────────────────────────
+// Soporta inventario plano { runic_wood: 2 } e inventario con items { items: { runic_wood: 2 } }
+
+function getInventoryQty(inventory, resourceId) {
+  if (!inventory) return 0
+  if (typeof inventory[resourceId] === 'number') return inventory[resourceId]
+  if (typeof inventory.items?.[resourceId] === 'number') return inventory.items[resourceId]
+  return 0
+}
 
 // ── Predicados de descubrimiento ─────────────────────────────────────────────
 
@@ -22,7 +34,7 @@ export function isSectorDiscovered(sectorId, sectors) {
 }
 
 export function isResourceDiscovered(resourceId, inventory, diary) {
-  if ((inventory?.items?.[resourceId] ?? 0) > 0) return true
+  if (getInventoryQty(inventory, resourceId) > 0) return true
   for (const entry of (diary ?? [])) {
     if (entry.rewards?.resources?.[resourceId]) return true
     for (const ev of (entry.events ?? [])) {
@@ -101,7 +113,7 @@ export function buildCodexEntries({ player, sectors, inventory, diary }) {
   // ─ Recursos ──────────────────────────────────────────────────────────────────
   for (const [rid, res] of Object.entries(RESOURCES)) {
     const discovered = isResourceDiscovered(rid, inventory, diary)
-    const qty        = inventory?.items?.[rid] ?? 0
+    const qty        = getInventoryQty(inventory, rid)
     entries.push({
       id:          `resource_${rid}`,
       category:    'resources',
@@ -142,10 +154,10 @@ export function buildCodexEntries({ player, sectors, inventory, diary }) {
     entries.push({
       id:          `creature_${creature.id}`,
       category:    'creatures',
-      name:        creature.name,
+      name:        discovered ? creature.name : '????',
       discovered,
       subtitle:    discovered ? creature.role : 'Criatura no registrada',
-      description: discovered ? creature.description : 'Esta criatura aún no ha sido observada.',
+      description: discovered ? creature.description : FOG_CREATURE,
       meta:        discovered ? [
         `Pasiva: ${creature.passiveName}`,
         creature.passiveDescription,
@@ -164,12 +176,12 @@ export function buildCodexEntries({ player, sectors, inventory, diary }) {
     entries.push({
       id:          `poi_${poiId}`,
       category:    'pois',
-      name:        poi.name,
+      name:        discovered ? poi.name : '????',
       discovered,
       subtitle:    discovered
         ? (sectorWithPoi ? `En ${sectorWithPoi.name}` : 'Localización conocida')
         : 'Lugar no cartografiado',
-      description: poi.description,
+      description: discovered ? poi.description : FOG_POI,
       meta:        discovered && sectorWithPoi ? [
         sectorWithPoi.stratumName ?? '—',
       ] : [],

@@ -467,19 +467,24 @@ No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y
 
 | Sistema | Estado |
 |---|---|
-| Loop de marcha | Implementado (simulado con pasos manuales/podómetro) |
-| Sistema de pasos (stepSource) | Implementado (8A) |
-| Podómetro web | Implementado (8A) |
+| Loop de marcha | Implementado |
+| Modo prototipo de pasos (botones) | Implementado |
+| Sistema de pasos stepSource | Implementado como base técnica |
+| Podómetro web (DeviceMotionEvent) | Experimental, aparcado temporalmente por fiabilidad |
 | Combate con posturas | Implementado |
 | Guardado local | Implementado |
-| Sistema de eco de marcha | Implementado |
-| Atlas plano (mapa prototipo) | Implementado |
-| Estratos del Abismo | No implementado |
-| Zonas secretas | No implementado |
+| Eco de Marcha | Implementado |
+| Mapa del Abismo | Implementado en versión visual inicial (9A) |
+| Estratos del Abismo (datos base) | Implementado en base inicial — 3 estratos, 6 sectores (9B) |
+| Loot por profundidad | Implementado en base inicial (9B) |
+| Enemigos por estrato (enemyPool) | Implementado en base inicial (9B) |
+| Códice del Abismo | Implementado en primera versión — 6 categorías (10A) |
+| Zonas secretas funcionales | No implementado |
 | Subordinados y contratos | No implementado |
 | Rangos | No implementado |
-| Enciclopedia | No implementado |
-| Mascotas (habilidades activas) | No implementado |
+| Mascotas con habilidades activas | No implementado |
+| Sistema de equipo mecánico | No implementado |
+| Skins visuales | No implementado |
 | La Torre | No implementado |
 
 ---
