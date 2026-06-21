@@ -673,7 +673,8 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 
 ### Inmediato
 - ✅ 12A — Lugares seguros funcionales (descanso, rumores, feedback narrativo)
-- 🔲 12B — Progresión del jugador: XP visible, subida de nivel, HP como barra real
+- ✅ 13A — Contratos: encargos por lugar seguro, un activo, resolución manual, XP, recursos, diario
+- 🔲 13B — Progresión del jugador: XP visible, subida de nivel, HP como barra real
 
 ### Próximo
 - 🔲 13A — Primer contratable encuentro simple

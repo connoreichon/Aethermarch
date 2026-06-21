@@ -58,39 +58,58 @@ export default function DiaryScreen({ diary }) {
             const biomeTag   = BIOME_TAG[entry.biomeId]
             const isEcho     = entry.type === 'march_echo'
             const isPoi      = entry.type === 'poi'
+            const isContract = entry.type === 'contract'
 
             return (
               <div key={entry.id} className={`diary-entry-card${idx === 0 ? ' latest' : ''}`}>
 
                 {/* Título */}
                 <div className="diary-entry-title">
-                  {isEcho && <span className="diary-echo-badge">Eco</span>}
-                  {isPoi  && <span className="diary-poi-badge">Lugar</span>}
+                  {isEcho     && <span className="diary-echo-badge">Eco</span>}
+                  {isPoi      && <span className="diary-poi-badge">Lugar</span>}
+                  {isContract && <span className="diary-contract-badge">Contrato</span>}
                   {entry.title ?? `Tramo ${entry.tramoNumber}`}
                 </div>
 
+                {/* Nombre del contrato */}
+                {isContract && entry.contractTitle && (
+                  <div style={{ fontSize:'0.65rem', color:'var(--color-parchment)', fontStyle:'italic', marginBottom:3 }}>
+                    {entry.contractTitle}
+                  </div>
+                )}
+
                 {/* Meta */}
                 <div className="diary-entry-meta">
-                  {!isEcho && !isPoi && (
+                  {!isEcho && !isPoi && !isContract && (
                     <>
                       <span>{MODE_LABELS[entry.modeId] ?? entry.modeId}</span>
                       <span className="diary-entry-meta-sep">·</span>
                     </>
                   )}
-                  {isPoi ? (
+                  {isContract ? (
+                    <>
+                      <span>{entry.contractorName ?? '—'}</span>
+                      {entry.sectorName && (
+                        <>
+                          <span className="diary-entry-meta-sep">·</span>
+                          <span>{entry.sectorName}</span>
+                        </>
+                      )}
+                    </>
+                  ) : isPoi ? (
                     <span>{entry.sectorName ?? '—'}</span>
                   ) : (
                     <span>{entry.steps} pasos</span>
                   )}
-                  {!isPoi && biomeTag && (
+                  {!isPoi && !isContract && biomeTag && (
                     <>
                       <span className="diary-entry-meta-sep">·</span>
                       <span style={{ color: biomeTag.color }}>{biomeTag.label}</span>
                     </>
                   )}
                 </div>
-                {/* Estrato y profundidad (guardado desde 9B en adelante) */}
-                {entry.stratumName && !isPoi && (
+                {/* Estrato y profundidad */}
+                {entry.stratumName && !isPoi && !isContract && (
                   <div style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginTop:2, opacity:0.62 }}>
                     {entry.stratumName.split('·')[0].trim()}
                     {entry.depthMeters ? ` · ${entry.depthMeters} m` : ''}
@@ -117,7 +136,7 @@ export default function DiaryScreen({ diary }) {
                 )}
 
                 {/* Combates */}
-                {!isEcho && !isPoi && entry.combatResults?.length > 0 && (
+                {!isEcho && !isPoi && !isContract && entry.combatResults?.length > 0 && (
                   <div className="diary-entry-combat">
                     {entry.combatResults.map((cr, ci) => (
                       <span key={ci}>

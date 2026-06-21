@@ -18,6 +18,10 @@ import {
   createPedometerState, processMotionSample,
 } from './systems/pedometerSystem.js'
 import { canUsePoiAction, resolvePoiAction } from './systems/poiSystem.js'
+import {
+  createInitialContractState, sanitizeContractState,
+  canStartContract, startContract, resolveContract,
+} from './systems/contractSystem.js'
 import AppShell        from './components/AppShell.jsx'
 import StartScreen     from './screens/StartScreen.jsx'
 import CaravanScreen   from './screens/CaravanScreen.jsx'
@@ -104,6 +108,8 @@ export default function App() {
   const [stepSource,                setStepSource]                = useState(createInitialStepSource)
   const [pedometer,                 setPedometer]                 = useState(createPedometerState)
   const [lastPoiResult,             setLastPoiResult]             = useState(null)
+  const [contractState,             setContractState]             = useState(createInitialContractState)
+  const [lastContractResult,        setLastContractResult]        = useState(null)
 
   const completionDone   = useRef(false)
   const combatTriggered  = useRef(new Set())
@@ -152,6 +158,7 @@ export default function App() {
     }
     setLastEchoClaimAt(save.lastEchoClaimAt ?? null)
     setStepSource(sanitizeStepSource(save.stepSource))
+    setContractState(sanitizeContractState(save.contractState ?? null))
     setPedometer(createPedometerState())  // pedometer always starts idle after reload
 
     completionDone.current  = false
@@ -178,6 +185,8 @@ export default function App() {
     setLastEchoResult(null)
     setLastDiscovery(null)
     setLastPoiResult(null)
+    setContractState(createInitialContractState())
+    setLastContractResult(null)
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
     if (motionHandlerRef.current) {
@@ -282,6 +291,7 @@ export default function App() {
       biomeId:      prev.biomeId,
     }))
     setLastDiscovery(null)
+    setLastContractResult(null)
     setSectors(prev => clearRecentDiscoveries(prev))
   }
 
@@ -392,6 +402,57 @@ export default function App() {
     setLastEchoClaimAt(now)
     setLastEchoResult({ ...echo, sectorName: sector?.name ?? '—' })
     setEchoMessage(null)
+  }
+
+  // ── Contratos ────────────────────────────────────────────────────────────────
+  function handleStartContract(contract) {
+    const check = canStartContract({ contractState, expedition, combat })
+    if (!check.ok) return
+    const active = startContract({ contract, now: new Date().toISOString() })
+    setContractState(prev => ({ ...prev, activeContract: active }))
+    setLastContractResult(null)
+  }
+
+  function handleResolveActiveContract() {
+    if (!contractState.activeContract) return
+    if (expedition?.status === 'combat' || combat?.status === 'awaiting_choice') return
+    if (expedition?.status === 'marching') return
+
+    const resolved = resolveContract({ activeContract: contractState.activeContract })
+    if (!resolved) return
+
+    const { xp = 0, resources = {} } = resolved.rewards ?? {}
+
+    if (xp > 0) {
+      setPlayer(prev => ({ ...prev, xp: Math.min(prev.xpToNext, prev.xp + xp) }))
+    }
+    if (Object.keys(resources).length > 0) {
+      setInventory(prev => addResources(prev, resources))
+    }
+
+    setContractState(prev => ({
+      ...prev,
+      activeContract:       null,
+      completedContractIds: [...prev.completedContractIds, resolved.id],
+      contractLog:          [...prev.contractLog, { id: resolved.id, resolvedAt: resolved.resolvedAt }],
+    }))
+
+    const entry = {
+      id:             `contract-${Date.now()}`,
+      type:           'contract',
+      title:          'Contrato completado',
+      contractTitle:  resolved.title,
+      contractorName: resolved.contractorName,
+      sectorId:       resolved.sourceSectorId,
+      sectorName:     resolved.sourceSectorName,
+      poiId:          resolved.sourcePoiId,
+      summaryText:    resolved.summaryText,
+      rewards:        { xp, resources },
+      completedAt:    new Date().toISOString(),
+      steps:          0,
+    }
+    setDiary(prev => [...prev, entry])
+    setLastContractResult(resolved)
   }
 
   // ── Acción de lugar seguro ───────────────────────────────────────────────────
@@ -540,6 +601,7 @@ export default function App() {
       expedition,
       lastEchoClaimAt,
       stepSource,
+      contractState,
     })
     writeSave(snapshot)
     setLastSaved(new Date())
@@ -555,6 +617,7 @@ export default function App() {
     expedition.modeId,
     expedition.sectorId,
     expedition.status,   // captures marching/combat start for recovery note
+    contractState,
   ])
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -587,6 +650,10 @@ export default function App() {
             onAddPrototypeSteps={handleAddPrototypeSteps}
             lastPoiResult={lastPoiResult}
             onUsePoiAction={handleUsePoiAction}
+            contractState={contractState}
+            lastContractResult={lastContractResult}
+            onStartContract={handleStartContract}
+            onResolveActiveContract={handleResolveActiveContract}
           />
         )
       case 'mapa':       return <MapScreen       sectors={sectors} />

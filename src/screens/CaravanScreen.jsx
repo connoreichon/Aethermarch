@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS } from '../data/gameData.js'
 import { canUsePoiAction, getPoiActionLabel, getPoiFlavorText } from '../systems/poiSystem.js'
+import { getAvailableContracts, canStartContract, isSectorContractCompleted } from '../systems/contractSystem.js'
 import { getAvailableEchoSteps } from '../systems/stepSourceSystem.js'
 import { getAvailableStances } from '../systems/combatSystem.js'
 import { getExpeditionPreparation, getRiskLevel, getPreparationWarnings } from '../systems/preparationSystem.js'
@@ -753,6 +754,125 @@ function PoiPanel({ sector, player, expedition, combat, lastPoiResult, onUsePoiA
   )
 }
 
+// ── Panel de contratos ────────────────────────────────────────────────────────
+
+function ContractsPanel({ sector, contractState, expedition, combat, lastContractResult, onStartContract, onResolveActiveContract }) {
+  if (!sector) return null
+
+  const available      = getAvailableContracts({ sector, contractState })
+  const active         = contractState?.activeContract ?? null
+  const completed      = isSectorContractCompleted(sector.poiId, contractState)
+  const canAcceptCheck = canStartContract({ contractState, expedition, combat })
+  const inCombat       = expedition?.status === 'combat' || combat?.status === 'awaiting_choice'
+  const inMarch        = expedition?.status === 'marching'
+
+  return (
+    <div className="panel">
+      <div className="panel-title">Encargos del lugar</div>
+      <div className="contract-panel">
+
+        {/* Sin POI */}
+        {!sector.poiId && (
+          <div className="contract-empty">No hay encargos disponibles en este sector.</div>
+        )}
+
+        {/* Contrato activo (visible en cualquier sector) */}
+        {sector.poiId && active && (
+          <div className="contract-card">
+            <div className="contract-active-badge">Contrato activo</div>
+            <div className="contract-title">{active.title}</div>
+            <div className="contract-contractor">{active.contractorName}</div>
+            <div className="contract-meta">Duración estimada: {active.durationLabel}</div>
+            <div className="contract-description" style={{ marginTop:5 }}>
+              En esta versión de prototipo puedes resolverlo manualmente.
+            </div>
+            {(inCombat || inMarch) && (
+              <div className="contract-empty" style={{ marginBottom:5 }}>
+                No puedes resolver contratos {inCombat ? 'durante un combate' : 'mientras la caravana está en marcha'}.
+              </div>
+            )}
+            <button
+              className="contract-action-button"
+              onClick={onResolveActiveContract}
+              disabled={inCombat || inMarch}
+            >
+              Resolver contrato
+            </button>
+          </div>
+        )}
+
+        {/* Contrato disponible */}
+        {sector.poiId && !active && available.length > 0 && available.map(contract => (
+          <div key={contract.id} className="contract-card">
+            <div className="contract-title">{contract.title}</div>
+            <div className="contract-contractor">{contract.contractorName}</div>
+            <div className="contract-meta">
+              Riesgo: {contract.riskLabel} · Duración estimada: {contract.durationLabel}
+            </div>
+            <div className="contract-description">{contract.description}</div>
+            <div className="contract-rewards">
+              Recompensa:{' '}
+              {(contract.rewards?.xp ?? 0) > 0 && (
+                <span style={{ color:'var(--color-xp)' }}>+{contract.rewards.xp} XP</span>
+              )}
+              {Object.entries(contract.rewards?.resources ?? {}).map(([id, qty]) => (
+                <span key={id} style={{ color:'var(--color-gold)', marginLeft:5 }}>
+                  · {RESOURCES[id]?.name ?? id.replace(/_/g,' ')} ×{qty}
+                </span>
+              ))}
+            </div>
+            {!canAcceptCheck.ok && (
+              <div className="contract-empty" style={{ marginBottom:5 }}>
+                {canAcceptCheck.reason}
+              </div>
+            )}
+            <button
+              className="contract-action-button"
+              onClick={() => onStartContract(contract)}
+              disabled={!canAcceptCheck.ok}
+            >
+              Aceptar contrato
+            </button>
+          </div>
+        ))}
+
+        {/* Completado */}
+        {sector.poiId && !active && available.length === 0 && completed && (
+          <div>
+            <div className="contract-empty" style={{ marginBottom: lastContractResult?.sourceSectorId === sector.id ? 8 : 0 }}>
+              Contrato completado en este lugar.
+            </div>
+            {lastContractResult?.sourceSectorId === sector.id && (
+              <div className="contract-result-box">
+                <div className="contract-result-title">{lastContractResult.title}</div>
+                <div className="contract-result-text">{lastContractResult.summaryText}</div>
+                <div style={{ marginTop:5, display:'flex', flexWrap:'wrap', gap:6 }}>
+                  {(lastContractResult.rewards?.xp ?? 0) > 0 && (
+                    <span style={{ fontSize:'0.6rem', color:'var(--color-xp)' }}>
+                      +{lastContractResult.rewards.xp} XP
+                    </span>
+                  )}
+                  {Object.entries(lastContractResult.rewards?.resources ?? {}).map(([id, qty]) => (
+                    <span key={id} style={{ fontSize:'0.6rem', color:'var(--color-gold)' }}>
+                      +{qty}× {RESOURCES[id]?.name ?? id.replace(/_/g,' ')}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sin contrato para este POI */}
+        {sector.poiId && !active && available.length === 0 && !completed && (
+          <div className="contract-empty">Este lugar no ofrece encargos por ahora.</div>
+        )}
+
+      </div>
+    </div>
+  )
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function CaravanScreen({
@@ -766,6 +886,7 @@ export default function CaravanScreen({
   stepSource, pedometer,
   onStartPedometer, onStopPedometer, onAddPrototypeSteps,
   lastPoiResult, onUsePoiAction,
+  contractState, lastContractResult, onStartContract, onResolveActiveContract,
 }) {
   const archetype = ARCHETYPES.find(a => a.id === player?.archetypeId)
   const creature  = CREATURES.find(c => c.id === player?.creatureId)
@@ -1195,6 +1316,19 @@ export default function CaravanScreen({
           combat={combat}
           lastPoiResult={lastPoiResult}
           onUsePoiAction={onUsePoiAction}
+        />
+      )}
+
+      {/* Encargos del lugar */}
+      {activeSector && (
+        <ContractsPanel
+          sector={activeSector}
+          contractState={contractState}
+          expedition={expedition}
+          combat={combat}
+          lastContractResult={lastContractResult}
+          onStartContract={onStartContract}
+          onResolveActiveContract={onResolveActiveContract}
         />
       )}
 
