@@ -592,7 +592,7 @@ El Abismo baja. La Torre sube. Ambos comparten la estructura de estratos, pero l
 - **Marcha Interior:** pasos en casa/cinta, sin descubrir sectores
 - **Modo Personalizado:** sliders de caza/recolección/exploración
 - **Cooperativo:** mundo base común, rutas compartidas
-- **Equipo visible:** slots de arma/armadura/casco/capa/escudo/reliquia
+- **Equipo mecánico** (arma/armadura/casco/capa/escudo/reliquia/herramienta): stats, resistencias, acceso a zonas y bonus — sin representación visual directa sobre el personaje (ver decisión de diseño equipo vs skins más abajo)
 - **Desbloqueo de mascotas:** piezas, rastros, fragmentos, huevos, núcleos
 - **Mejoras profundas de POIs**
 
@@ -669,16 +669,17 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 9B — Datos de estratos (ABYSS_STRATA), enemyPool, lootTier, abyssSystem.js
 - ✅ 10A — Códice del Abismo: enciclopedia derivada de estado, 6 categorías
 - ✅ 10B — Saneo y coherencia: inventario plano, entradas ocultas corregidas, docs actualizados
+- ✅ 11A — World Bible: biblia base del mundo del Abismo (`docs/WORLD_BIBLE.md`)
 
 ### Inmediato
-- 🔲 11A — Primer nivel de progresión del jugador (XP, nivel, HP visible)
-- 🔲 11B — Primer estrato completo con contenido funcional diferenciado
+- 🔲 12A — Primer lugar seguro funcional (posada/refugio con descanso básico)
+- 🔲 12B — Progresión del jugador: XP visible, subida de nivel, HP como barra real
 
 ### Próximo
-- 🔲 11A — Enciclopedia básica (registro de recursos y enemigos)
-- 🔲 11B — Primer contratable encuentro simple
-- 🔲 12A — Zonas secretas simples (acceso por mascota o equipo)
-- 🔲 12B — Sistema de rangos básico
+- 🔲 13A — Primer contratable encuentro simple
+- 🔲 13B — Primer estrato completo con contenido funcional diferenciado
+- 🔲 14A — Zonas secretas simples (acceso por mascota o equipo)
+- 🔲 14B — Sistema de rangos básico
 
 ### Largo Plazo
 - 🔲 Múltiples estratos con biomas propios
