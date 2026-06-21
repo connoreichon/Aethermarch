@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS } from '../data/gameData.js'
 import { canUsePoiAction, getPoiActionLabel, getPoiFlavorText } from '../systems/poiSystem.js'
 import { getAvailableContracts, canStartContract, isSectorContractCompleted, getContractSuccessChance, getContractRewardText } from '../systems/contractSystem.js'
+import { getPlayerRank, getNextRankRequirement, canUseMercenaryContracts } from '../systems/rankSystem.js'
 import { getAvailableEchoSteps } from '../systems/stepSourceSystem.js'
 import { getAvailableStances } from '../systems/combatSystem.js'
 import { getExpeditionPreparation, getRiskLevel, getPreparationWarnings } from '../systems/preparationSystem.js'
@@ -19,6 +20,13 @@ const MODE_LABELS = {
   hunt:       'Caza',
   gather:     'Recolección',
   explore:    'Exploración',
+}
+
+const MODE_SHORT = {
+  free_march: 'Riesgo equilibrado · recursos y sendas',
+  hunt:       'Más amenazas y XP de combate',
+  gather:     'Más recursos · menos combates',
+  explore:    'Más rutas y secretos',
 }
 
 const EVT_LABEL = {
@@ -695,6 +703,56 @@ function EchoPanel({
   )
 }
 
+// ── Tarjeta de rango ─────────────────────────────────────────────────────────
+
+function RankCard({ rank, nextReq }) {
+  return (
+    <div className="rank-card">
+      <div className="rank-label">{rank.label}</div>
+      <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', fontStyle:'italic', marginTop:2, lineHeight:1.4 }}>
+        {rank.description}
+      </div>
+      {nextReq && (
+        <div className="rank-progress">
+          Progreso a {nextReq.nextRank.name}: {nextReq.metCount}/{nextReq.totalRequired} requisitos
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Puerta de mercenarios ─────────────────────────────────────────────────────
+
+function MercenaryGateCard({ canUseMercenaries }) {
+  return (
+    <div className="panel mercenary-gate-card">
+      <div className="panel-title">Exploradores contratables</div>
+      {!canUseMercenaries ? (
+        <div className="mercenary-locked">
+          <div style={{ fontSize:'0.68rem', color:'var(--color-stone-light)' }}>
+            Bloqueado hasta <span style={{ color:'var(--color-gold)' }}>Rango II · Caminante</span>.
+          </div>
+          <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', marginTop:5, lineHeight:1.45, fontStyle:'italic' }}>
+            Al principio la caravana desciende sola. Los exploradores aceptarán contratos cuando tu nombre pese más en el Abismo.
+          </div>
+          <button className="contract-action-button" style={{ marginTop:8 }} disabled>
+            Enviar explorador · Bloqueado
+          </button>
+        </div>
+      ) : (
+        <div className="mercenary-available">
+          <div style={{ fontSize:'0.65rem', color:'var(--color-stone-light)', lineHeight:1.45 }}>
+            Disponible próximamente. Los exploradores podrán partir durante 2 h para revisar rutas conocidas y volver con informe, recursos o complicaciones.
+          </div>
+          <button className="contract-action-button" style={{ marginTop:8 }} disabled>
+            Enviar explorador 2 h · Próximamente
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Panel de lugar seguro ─────────────────────────────────────────────────────
 
 function PoiPanel({ sector, player, expedition, combat, lastPoiResult, onUsePoiAction }) {
@@ -1231,6 +1289,10 @@ export default function CaravanScreen({
     modeId:  expedition?.modeId ?? 'free_march',
   })
 
+  const rank     = getPlayerRank({ player, sectors, contractState })
+  const nextReq  = getNextRankRequirement({ player, sectors, contractState })
+  const canMercs = canUseMercenaryContracts({ player, sectors, contractState })
+
   return (
     <div className="screen-scroll">
 
@@ -1273,25 +1335,23 @@ export default function CaravanScreen({
         </div>
       )}
 
-      {/* Estado */}
+      {/* Estado compacto */}
       <div className="panel">
-        <div className="panel-title">Estado</div>
         <div className="stat-bar-wrap">
           <StatBar label="HP" value={player.hp} max={player.maxHp} type="hp" />
           <StatBar label="XP" value={player.xp} max={player.xpToNext} type="xp" />
         </div>
-        <div style={{ marginTop:10, display:'flex', gap:8, flexWrap:'wrap' }}>
-          <div style={{ fontSize:'0.65rem', color:'var(--color-stone-light)' }}>
-            Nivel <span style={{ color:'var(--color-gold)' }}>{player.level}</span>
-          </div>
-          <div style={{ fontSize:'0.65rem', color:'var(--color-stone-light)' }}>
-            Arquetipo: <span style={{ color:'var(--color-parchment)' }}>{archetype?.name}</span>
-          </div>
-          <div style={{ fontSize:'0.65rem', color:'var(--color-stone-light)' }}>
-            Pasiva: <span style={{ color:'var(--color-magic)' }}>{archetype?.passiveName}</span>
-          </div>
+        <div className="compact-info-grid">
+          <span style={{ fontSize:'0.62rem', color:'var(--color-stone-light)' }}>
+            Nv. <span style={{ color:'var(--color-gold)' }}>{player.level}</span>
+          </span>
+          <span style={{ fontSize:'0.62rem', color:'var(--color-parchment)' }}>{archetype?.name}</span>
+          <span style={{ fontSize:'0.62rem', color:'var(--color-magic)' }}>{archetype?.passiveName}</span>
         </div>
       </div>
+
+      {/* Rango de expedición */}
+      <RankCard rank={rank} nextReq={nextReq} />
 
       {/* Destino del tramo */}
       <div className="panel prep-section">
@@ -1309,6 +1369,104 @@ export default function CaravanScreen({
           ))
         )}
       </div>
+
+      {/* Modo de marcha compacto */}
+      <div className="panel prep-section">
+        <div className="panel-title">Modo de marcha</div>
+        <div className="prep-modes-compact">
+          {EXPEDITION_MODES.map(m => {
+            const mRisk    = getRiskLevel({ modeId: m.id, sector: activeSector })
+            const isActive = expedition?.modeId === m.id
+            return (
+              <div
+                key={m.id}
+                className={`mode-compact-card${isActive ? ' selected' : ''}${m.locked ? ' locked' : ''}`}
+                onClick={() => !m.locked && onSelectMode(m.id)}
+              >
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span className="mode-compact-name">{m.name}</span>
+                  {m.locked
+                    ? <span style={{ fontSize:'0.52rem', color:'var(--color-stone-light)', opacity:0.45 }}>Próximamente</span>
+                    : <span className={`prep-risk ${mRisk.level}`}>{mRisk.label}</span>
+                  }
+                </div>
+                <div className="mode-compact-desc">
+                  {MODE_SHORT[m.id] ?? m.description}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Iniciar la marcha */}
+      <div className="alzar-caravana-panel">
+        <button
+          className="march-primary-button"
+          onClick={canAlzar ? onAlzar : undefined}
+          disabled={!canAlzar}
+        >
+          {canAlzar ? 'Iniciar la marcha' : 'No se puede iniciar ahora'}
+        </button>
+        {canAlzar ? (
+          <p className="alzar-caravana-summary">
+            Tramo {expedition?.currentTramo} · {MODE_LABELS[expedition?.modeId] ?? ''} · <strong>{activeSector?.name ?? '—'}</strong>
+          </p>
+        ) : (
+          <p className="alzar-caravana-summary" style={{ color:'var(--color-ember)' }}>
+            Elige un destino antes de partir.
+          </p>
+        )}
+        {lastSaved && (
+          <div className="save-status">Crónica guardada</div>
+        )}
+      </div>
+
+      {/* Previsión compacta */}
+      {activeSector && (
+        <div className="panel preparation-compact">
+          <div className="panel-title">Previsión del tramo</div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:7 }}>
+            <span className={`compact-chip risk-${prep.risk.level}`}>{prep.risk.label}</span>
+            {prep.expected.events.map((ev, i) => (
+              <span key={i} className="compact-chip">{ev}</span>
+            ))}
+          </div>
+          {prep.stratumInfo && (
+            <div style={{ display:'flex', flexWrap:'wrap', gap:14, marginBottom:5 }}>
+              {prep.stratumInfo.resourceNames.length > 0 && (
+                <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)' }}>
+                  Recursos:{' '}
+                  <span style={{ color:'var(--color-parchment)' }}>
+                    {prep.stratumInfo.resourceNames.join(', ')}
+                  </span>
+                </div>
+              )}
+              {prep.stratumInfo.enemyNames.length > 0 && (
+                <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)' }}>
+                  Amenazas:{' '}
+                  <span style={{ color:'var(--color-ember)' }}>
+                    {prep.stratumInfo.enemyNames.join(', ')}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          {prep.creatureHint && (
+            <div style={{ fontSize:'0.6rem', color:'var(--color-mist)', fontStyle:'italic', marginBottom:3 }}>
+              {creature?.name}: {prep.creatureHint}
+            </div>
+          )}
+          {prep.archetypeHint && (
+            <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', fontStyle:'italic', marginBottom:3 }}>
+              {prep.archetypeHint}
+            </div>
+          )}
+          {warnings.map((w, i) => (
+            <div key={i} className="prep-warning">{w}</div>
+          ))}
+        </div>
+      )}
 
       {/* Lugar del sector */}
       {activeSector && (
@@ -1336,155 +1494,8 @@ export default function CaravanScreen({
         />
       )}
 
-      {/* Tipo de marcha */}
-      <div className="panel prep-section">
-        <div className="panel-title">Tipo de marcha</div>
-        <div className="prep-modes">
-          {EXPEDITION_MODES.map(m => {
-            const mRisk    = getRiskLevel({ modeId: m.id, sector: activeSector })
-            const isActive = expedition?.modeId === m.id
-            return (
-              <div
-                key={m.id}
-                className={`prep-mode-card${isActive ? ' active' : ''}${m.locked ? ' locked' : ''}`}
-                onClick={() => !m.locked && onSelectMode(m.id)}
-              >
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span className="prep-mode-name">{m.name}</span>
-                  {m.locked
-                    ? <span style={{ fontSize:'0.56rem', color:'var(--color-stone-light)', opacity:0.5 }}>Próximamente</span>
-                    : <span className={`prep-risk ${mRisk.level}`}>{mRisk.label}</span>
-                  }
-                </div>
-                <div className="prep-mode-desc">
-                  {m.locked
-                    ? 'Ajusta el peso de caza, recolección y exploración.'
-                    : m.description}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Previsión de jornada */}
-      {activeSector && (
-        <div className="panel prep-section">
-          <div className="panel-title">Previsión de jornada</div>
-
-          {prep.stratumInfo && (
-            <div className="prep-card prep-abyss-info">
-              <div style={{ fontSize:'0.68rem', color:'var(--color-gold)', fontWeight:600, marginBottom:4 }}>
-                {prep.stratumInfo.stratumName.split('·')[0].trim()}
-                {prep.stratumInfo.depthMeters ? ` · ${prep.stratumInfo.depthMeters} m` : ''}
-                {' · Loot T'}{prep.stratumInfo.lootTier}
-              </div>
-              <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', marginBottom:3 }}>
-                Peligro del estrato:{' '}
-                <span style={{ color: DANGER_RANK_COLORS[prep.stratumInfo.dangerRank] }}>
-                  {prep.stratumInfo.dangerLabel}
-                </span>
-              </div>
-              {prep.stratumInfo.resourceNames.length > 0 && (
-                <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', marginBottom:2 }}>
-                  Recursos probables:{' '}
-                  <span style={{ color:'var(--color-parchment)' }}>
-                    {prep.stratumInfo.resourceNames.join(', ')}
-                  </span>
-                </div>
-              )}
-              {prep.stratumInfo.enemyNames.length > 0 && (
-                <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)' }}>
-                  Amenazas probables:{' '}
-                  <span style={{ color:'var(--color-ember)' }}>
-                    {prep.stratumInfo.enemyNames.join(', ')}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="prep-card">
-            <div className={`prep-risk ${prep.risk.level}`} style={{ marginBottom:5 }}>
-              {prep.risk.label}
-            </div>
-            <div className="prep-subtitle">{prep.risk.description}</div>
-          </div>
-
-          <div className="prep-card">
-            <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', textTransform:'uppercase',
-                          letterSpacing:'0.07em', marginBottom:5 }}>
-              Eventos probables
-            </div>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
-              {prep.expected.events.map((ev, i) => (
-                <span key={i} className="prep-event-tag">{ev}</span>
-              ))}
-            </div>
-          </div>
-
-          <div className="prep-subtitle" style={{ marginBottom:8 }}>
-            Experiencia: <span style={{ color:'var(--color-xp)' }}>{prep.expected.xpLabel}</span>
-          </div>
-
-          {prep.expected.resources.length > 0 && (
-            <div className="prep-card">
-              <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', textTransform:'uppercase',
-                            letterSpacing:'0.07em', marginBottom:5 }}>
-                Recursos posibles
-              </div>
-              <div className="prep-finds">
-                {prep.expected.resources.map(r => (
-                  <div key={r.id} className="prep-find-row">
-                    <span style={{ color:'var(--color-parchment)' }}>{RESOURCES[r.id]?.name ?? r.id}</span>
-                    <span style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', marginLeft:6 }}>
-                      · {r.freq}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {prep.creatureHint && (
-            <div className="prep-card prep-hint">
-              <span style={{ color:'var(--color-mist)' }}>{creature?.name}:</span>{' '}
-              {prep.creatureHint}
-            </div>
-          )}
-
-          {prep.archetypeHint && (
-            <div className="prep-card prep-hint">{prep.archetypeHint}</div>
-          )}
-
-          {warnings.map((w, i) => (
-            <div key={i} className="prep-warning">{w}</div>
-          ))}
-        </div>
-      )}
-
-      {/* Alzar la caravana */}
-      <div className="alzar-caravana-panel">
-        <button
-          className="alzar-caravana-button"
-          onClick={canAlzar ? onAlzar : undefined}
-          disabled={!canAlzar}
-        >
-          Alzar la caravana
-        </button>
-        {canAlzar ? (
-          <p className="alzar-caravana-summary">
-            Tramo {expedition?.currentTramo} · {MODE_LABELS[expedition?.modeId] ?? ''} · <strong>{activeSector?.name ?? '—'}</strong>
-          </p>
-        ) : (
-          <p className="alzar-caravana-summary" style={{ color:'var(--color-ember)' }}>
-            Elige un destino antes de partir.
-          </p>
-        )}
-        {lastSaved && (
-          <div className="save-status">Crónica guardada</div>
-        )}
-      </div>
+      {/* Exploradores contratables */}
+      <MercenaryGateCard canUseMercenaries={canMercs} />
 
       {/* Eco de Marcha */}
       <div className="echo-panel-secondary">

@@ -586,6 +586,14 @@ Recompensa: Fragmento de Resonancia maestro, acceso al Fondo del Abismo.
 
 Los contratables son personajes encontrados durante la marcha que el jugador puede contratar para expediciones automáticas.
 
+### Reglas de acceso (implementadas desde 15A)
+
+- **Rango I (Iniciado):** no hay contratables disponibles. La caravana baja sola.
+- **Rango II (Caminante):** los exploradores empiezan a aceptar contratos. Los contratos tendrán duración real (ejemplo: 2 h). El explorador parte y vuelve con informe, recursos o complicaciones.
+- **Rango III (Explorador):** acceso a contratables de mayor especialidad y estratos más profundos.
+
+Los rangos se calculan derivados del estado: XP acumulado, sectores descubiertos y contratos completados. No se guardan por separado.
+
 ### Lista base
 
 #### Mira de las Cornisas

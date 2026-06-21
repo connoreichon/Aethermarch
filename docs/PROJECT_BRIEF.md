@@ -676,6 +676,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 13A — Contratos: encargos por lugar seguro, un activo, resolución manual, XP, recursos, diario
 - ✅ 13B — Contratos: probabilidad de éxito, resultados variables (éxito/parcial/fracaso), consecuencias, log enriquecido
 - ✅ 14A — Expansión Estrato I: Ruina de Guardia Rúnica y Cueva de Setas Huecas, primera zona secreta por criatura/dominio
+- ✅ 15A — Pulido de Caravana, CTA "Iniciar la marcha", base de rangos y bloqueo visual de exploradores contratables
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas

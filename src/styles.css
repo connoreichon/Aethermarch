@@ -2763,3 +2763,122 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   opacity: 0.8;
   letter-spacing: 0.02em;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   15A — RANGOS, MERCENARIOS, CARAVANA COMPACTA
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tarjeta de rango ─────────────────────────────────────────────────────── */
+.rank-card {
+  margin: 0 14px 8px;
+  padding: 10px 12px;
+  background: rgba(184,148,74,0.06);
+  border: 1px solid rgba(184,148,74,0.22);
+  border-radius: var(--radius-md);
+}
+.rank-label {
+  font-size: 0.75rem;
+  color: var(--color-gold);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.rank-progress {
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(184,148,74,0.12);
+}
+
+/* ── Botón principal de marcha ────────────────────────────────────────────── */
+.march-primary-button {
+  width: 100%;
+  padding: 14px 20px;
+  background: linear-gradient(to bottom, #C45A20, #8A3F1D);
+  border: 1px solid rgba(212,106,45,0.6);
+  border-bottom-color: rgba(90,26,6,0.85);
+  color: #F5E8CC;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  box-shadow: 0 2px 14px rgba(212,106,45,0.28), inset 0 1px 0 rgba(255,210,140,0.14);
+  transition: opacity 0.15s;
+}
+.march-primary-button:active {
+  opacity: 0.82;
+}
+.march-primary-button:disabled {
+  background: rgba(42,26,16,0.5);
+  border-color: rgba(98,107,111,0.25);
+  color: var(--color-stone-light);
+  cursor: default;
+  box-shadow: none;
+  opacity: 0.6;
+}
+
+/* ── Grid de info compacta ────────────────────────────────────────────────── */
+.compact-info-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* ── Chips compactos ──────────────────────────────────────────────────────── */
+.compact-chip {
+  font-size: 0.57rem;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: rgba(42,26,16,0.5);
+  border: 1px solid rgba(98,107,111,0.22);
+  color: var(--color-stone-light);
+}
+.compact-chip.risk-low    { border-color: rgba(63,163,77,0.38);  color: var(--color-xp); }
+.compact-chip.risk-medium { border-color: rgba(212,106,45,0.38); color: var(--color-ember); }
+.compact-chip.risk-high   { border-color: rgba(214,40,40,0.38);  color: var(--color-hp); }
+
+/* ── Tarjetas de modo compactas ───────────────────────────────────────────── */
+.prep-modes-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.mode-compact-card {
+  padding: 8px 10px;
+  border: 1px solid rgba(98,107,111,0.22);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: rgba(42,26,16,0.25);
+  transition: border-color 0.15s, background 0.15s;
+}
+.mode-compact-card.selected {
+  border-color: rgba(184,148,74,0.48);
+  background: rgba(184,148,74,0.06);
+}
+.mode-compact-card.locked {
+  opacity: 0.48;
+  cursor: default;
+}
+.mode-compact-name {
+  font-size: 0.72rem;
+  color: var(--color-parchment);
+  font-weight: 500;
+}
+.mode-compact-desc {
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+/* ── Previsión compacta ───────────────────────────────────────────────────── */
+.preparation-compact {}
+
+/* ── Puerta de mercenarios ────────────────────────────────────────────────── */
+.mercenary-gate-card {}
+.mercenary-locked {}
+.mercenary-available {}

@@ -483,6 +483,8 @@ No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y
 | Zonas secretas funcionales | Primera versión implementada: Cueva de Setas Huecas (Estrato I), acceso por Velthar/Exploración o dominio de la Ruina (14A) |
 | Contratos básicos | Implementados: encargos por lugar seguro, un contrato activo, resultado variable y diario (13A–13B) |
 | Subordinados y contratos complejos | No implementado |
+| Rangos | Base implementada como cálculo derivado — Rango I/II/III según XP, sectores y contratos (15A) |
+| Mercenarios/exploradores contratables | Bloqueados hasta Rango II · UI preparada · temporizadores reales pendientes (15A) |
 | Rangos | No implementado |
 | Mascotas con habilidades activas | No implementado |
 | Sistema de equipo mecánico | No implementado |
