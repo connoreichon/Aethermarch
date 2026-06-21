@@ -71,11 +71,13 @@ src/styles.css
 src/systems/abyssSystem.js
 src/systems/codexSystem.js
 src/systems/combatSystem.js
+src/systems/contractSystem.js
 src/systems/echoSystem.js
 src/systems/expeditionSystem.js
 src/systems/inventorySystem.js
 src/systems/mapSystem.js
 src/systems/pedometerSystem.js
+src/systems/poiSystem.js
 src/systems/preparationSystem.js
 src/systems/saveSystem.js
 src/systems/stepSourceSystem.js
@@ -2368,6 +2370,164 @@ export function resolveCombatTurn({ combat, stanceId, player, enemies, auto = fa
 }
 </file>
 
+<file path="src/systems/contractSystem.js">
+export const CONTRACT_STATUS = {
+  AVAILABLE: 'available',
+  ACTIVE:    'active',
+  COMPLETED: 'completed',
+}
+
+const RISK_LABELS = { low: 'Bajo', medium: 'Medio', high: 'Alto' }
+
+const CONTRACT_TEMPLATES = {
+  shelter: {
+    id:             'shelter_repair_markers',
+    title:          'Reparar marcas de farol',
+    type:           'maintenance',
+    contractorName: 'Mira de las Cornisas',
+    durationLabel:  '45 min',
+    risk:           'low',
+    description:    'Mira revisa las marcas del sendero cercano para que otras caravanas no se pierdan entre raíces.',
+    rewards:        { xp: 4, resources: { runic_wood: 1 } },
+  },
+  trader: {
+    id:             'trader_courier',
+    title:          'Recado del mercader',
+    type:           'courier',
+    contractorName: 'Tolk el Salinero',
+    durationLabel:  '1 h',
+    risk:           'low',
+    description:    'Un mercader pide entregar un paquete sellado a otro grupo de paso. Dice que no pesa, pero no deja de mirarlo.',
+    rewards:        { xp: 3, resources: { aethel_root: 1 } },
+  },
+  inn: {
+    id:             'inn_scout_route',
+    title:          'Guía hasta una senda segura',
+    type:           'scout',
+    contractorName: 'Mira de las Cornisas',
+    durationLabel:  '2 h',
+    risk:           'medium',
+    description:    'Una guía acepta revisar una ruta lateral y marcar señales para futuras expediciones.',
+    rewards:        { xp: 6, resources: { arcane_salt: 1 } },
+  },
+  tavern: {
+    id:             'tavern_sealed_chamber',
+    title:          'Rumor de cámara sellada',
+    type:           'intel',
+    contractorName: 'Dos el Silencioso',
+    durationLabel:  '3 h',
+    risk:           'medium',
+    description:    'Entre murmullos, alguien menciona una cámara cerrada. Dos puede comprobar si la pista es real.',
+    rewards:        { xp: 7, resources: { tide_crystal: 1 } },
+  },
+  forge: {
+    id:             'forge_ember_survey',
+    title:          'Inspección de brasas antiguas',
+    type:           'forge_survey',
+    contractorName: 'Sala la Herrera',
+    durationLabel:  '2 h',
+    risk:           'medium',
+    description:    'Sala revisa restos de forja y busca metal aprovechable entre placas y carbón.',
+    rewards:        { xp: 5, resources: { forge_mineral: 1 } },
+  },
+  supply: {
+    id:             'supply_box_inventory',
+    title:          'Inventario de cajas viejas',
+    type:           'supply_check',
+    contractorName: 'Tolk el Salinero',
+    durationLabel:  '1 h',
+    risk:           'low',
+    description:    'Tolk revisa cajas antiguas del puesto y separa lo útil de lo podrido.',
+    rewards:        { xp: 4, resources: { resonant_coal: 1 } },
+  },
+}
+
+// ── Estado inicial ────────────────────────────────────────────────────────────
+
+export function createInitialContractState() {
+  return {
+    activeContract:       null,
+    completedContractIds: [],
+    contractLog:          [],
+  }
+}
+
+export function sanitizeContractState(raw) {
+  if (!raw || typeof raw !== 'object') return createInitialContractState()
+  return {
+    activeContract:       (raw.activeContract && typeof raw.activeContract === 'object')
+                            ? raw.activeContract
+                            : null,
+    completedContractIds: Array.isArray(raw.completedContractIds) ? raw.completedContractIds : [],
+    contractLog:          Array.isArray(raw.contractLog) ? raw.contractLog : [],
+  }
+}
+
+// ── Consultas ─────────────────────────────────────────────────────────────────
+
+export function getAvailableContracts({ sector, contractState }) {
+  if (!sector?.poiId) return []
+  const template = CONTRACT_TEMPLATES[sector.poiId]
+  if (!template) return []
+  if (contractState?.activeContract) return []
+  if ((contractState?.completedContractIds ?? []).includes(template.id)) return []
+  return [{
+    ...template,
+    riskLabel:        RISK_LABELS[template.risk] ?? template.risk,
+    sourcePoiId:      sector.poiId,
+    sourceSectorId:   sector.id,
+    sourceSectorName: sector.name,
+  }]
+}
+
+export function isSectorContractCompleted(poiId, contractState) {
+  const template = CONTRACT_TEMPLATES[poiId]
+  if (!template) return false
+  return (contractState?.completedContractIds ?? []).includes(template.id)
+}
+
+export function canStartContract({ contractState, expedition, combat }) {
+  if (contractState?.activeContract)
+    return { ok: false, reason: 'Ya hay un contrato activo.' }
+  if (expedition?.status === 'marching')
+    return { ok: false, reason: 'No puedes aceptar contratos mientras la caravana está en marcha.' }
+  if (expedition?.status === 'combat' || combat?.status === 'awaiting_choice')
+    return { ok: false, reason: 'No puedes aceptar contratos durante un combate.' }
+  return { ok: true }
+}
+
+// ── Acciones ──────────────────────────────────────────────────────────────────
+
+export function startContract({ contract, now }) {
+  return {
+    ...contract,
+    startedAt: now ?? new Date().toISOString(),
+    status:    CONTRACT_STATUS.ACTIVE,
+  }
+}
+
+export function resolveContract({ activeContract }) {
+  if (!activeContract) return null
+  const rewards = activeContract.rewards ?? { xp: 0, resources: {} }
+  return {
+    ...activeContract,
+    resolvedAt:  new Date().toISOString(),
+    status:      CONTRACT_STATUS.COMPLETED,
+    rewards,
+    summaryText: `${activeContract.contractorName} completó "${activeContract.title}". La caravana recibe la recompensa acordada.`,
+  }
+}
+
+export function getContractRewardText(rewards) {
+  const parts = []
+  if ((rewards?.xp ?? 0) > 0) parts.push(`+${rewards.xp} XP`)
+  for (const [id, qty] of Object.entries(rewards?.resources ?? {})) {
+    parts.push(`${id.replace(/_/g, ' ')} ×${qty}`)
+  }
+  return parts.join(' · ')
+}
+</file>
+
 <file path="src/systems/echoSystem.js">
 export const ECHO_MAX_STEPS   = 2000
 export const ECHO_MIN_STEPS   = 300
@@ -2657,6 +2817,149 @@ export function processMotionSample(previousState, motionEvent) {
     steps,
     lastStepAt,
     sampleCount: previousState.sampleCount + 1,
+  }
+}
+</file>
+
+<file path="src/systems/poiSystem.js">
+import { POIS } from '../data/gameData.js'
+
+export function getCurrentSectorPoi(sector) {
+  if (!sector?.poiId) return null
+  return POIS[sector.poiId] ?? null
+}
+
+export function getPoiActionLabel(poiId) {
+  switch (poiId) {
+    case 'shelter': return 'Descansar (+8 HP)'
+    case 'inn':     return 'Reposar (HP completo)'
+    case 'trader':  return 'Escuchar rumores'
+    case 'forge':   return 'Inspeccionar la forja'
+    case 'tavern':  return 'Preguntar en la taberna'
+    case 'supply':  return 'Revisar suministros'
+    default:        return 'Interactuar'
+  }
+}
+
+export function getPoiFlavorText(poiId, sector) {
+  const sectorName = sector?.name ?? 'el sector'
+  switch (poiId) {
+    case 'shelter':
+      return `Un refugio rudimentario en ${sectorName}. Las paredes absorben el frío del abismo.`
+    case 'inn':
+      return `La posada de ${sectorName} acoge a caravanas exhaustas. El olor a caldo caliente llega desde dentro.`
+    case 'trader':
+      return `Un mercader solitario en ${sectorName}. Observa con ojo calculador el estado de vuestra carga.`
+    case 'forge':
+      return `La fragua de ${sectorName} lleva años apagada. Aún conserva el calor del metal viejo.`
+    case 'tavern':
+      return `La taberna de ${sectorName} guarda más secretos que bebida. Los parroquianos murmuran sin parar.`
+    case 'supply':
+      return `El puesto de suministros en ${sectorName} tiene filas de cajas polvorientas y poco más.`
+    default:
+      return `Un lugar notable en ${sectorName}.`
+  }
+}
+
+export function canUsePoiAction({ poiId, player, expedition, combat }) {
+  if (!poiId) return { ok: false, reason: 'No hay lugar seguro disponible.' }
+  if (expedition?.status === 'marching')    return { ok: false, reason: 'La caravana está en marcha.' }
+  if (expedition?.status === 'combat')      return { ok: false, reason: 'La caravana está en combate.' }
+  if (combat?.status === 'awaiting_choice') return { ok: false, reason: 'La caravana está en combate.' }
+
+  if ((poiId === 'shelter' || poiId === 'inn') && player) {
+    if (player.hp >= player.maxHp)
+      return { ok: false, reason: 'La caravana ya está al máximo de salud.' }
+  }
+
+  return { ok: true }
+}
+
+const TRADER_RUMORS = [
+  'El mercader menciona una ruta alternativa que evita los focos de fracturas.',
+  '"He visto tres caravanas descender por aquí. Sólo una regresó." El comerciante sonríe sin humor.',
+  'El mercader tiene noticias del Estrato II: hay ecos de pasos extraños en la Cornisa Salina.',
+  '"No vendáis resina del abismo a precio bajo — hay quien pagaría mucho más en los estratos superiores."',
+]
+
+const TAVERN_RUMORS = [
+  'Un viajero jura haber visto una criatura luminosa en el Estrato III.',
+  '"El último grupo que bajó a las Forjas Hundidas no llevaba suficiente agua. No la necesitaron."',
+  'La taberna zumba con un rumor: alguien encontró una cámara sellada en la Cornisa Salina.',
+  '"Los Cartógrafos Hundidos dejaron marcas en las paredes del siguiente tramo. Seguid las marcas amarillas."',
+]
+
+export function resolvePoiAction({ poiId, player, sector }) {
+  const poi = POIS[poiId]
+  if (!poi) return null
+
+  const sectorName = sector?.name ?? 'el sector'
+
+  switch (poiId) {
+    case 'shelter': {
+      const heal = Math.min(8, player.maxHp - player.hp)
+      return {
+        poiId, poiName: poi.name,
+        sectorId: sector?.id, sectorName,
+        hpGain: heal,
+        summaryText: heal > 0
+          ? `La caravana descansó en el refugio de ${sectorName}. Recuperaste ${heal} HP entre las sombras del abismo.`
+          : 'La caravana descansó, pero la salud ya era plena.',
+        type: 'rest',
+      }
+    }
+    case 'inn': {
+      const heal = player.maxHp - player.hp
+      return {
+        poiId, poiName: poi.name,
+        sectorId: sector?.id, sectorName,
+        hpGain: heal,
+        summaryText: heal > 0
+          ? `La posada de ${sectorName} ofreció caldo y cama. Recuperaste ${heal} HP. La caravana se levanta renovada.`
+          : 'La caravana ya estaba en plena forma. La posada sirvió de reposo sin necesidad de cura.',
+        type: 'rest',
+      }
+    }
+    case 'trader': {
+      const rumor = TRADER_RUMORS[Math.floor(Math.random() * TRADER_RUMORS.length)]
+      return {
+        poiId, poiName: poi.name,
+        sectorId: sector?.id, sectorName,
+        hpGain: 0,
+        summaryText: rumor,
+        type: 'rumor',
+      }
+    }
+    case 'tavern': {
+      const rumor = TAVERN_RUMORS[Math.floor(Math.random() * TAVERN_RUMORS.length)]
+      return {
+        poiId, poiName: poi.name,
+        sectorId: sector?.id, sectorName,
+        hpGain: 0,
+        summaryText: rumor,
+        type: 'rumor',
+      }
+    }
+    case 'forge': {
+      return {
+        poiId, poiName: poi.name,
+        sectorId: sector?.id, sectorName,
+        hpGain: 0,
+        summaryText: `La Fragua Dormida de ${sectorName} conserva sus secretos. El sistema de forja no está disponible aún en esta expedición.`,
+        type: 'future',
+      }
+    }
+    case 'supply': {
+      return {
+        poiId, poiName: poi.name,
+        sectorId: sector?.id, sectorName,
+        hpGain: 0,
+        summaryText: `El puesto de suministros en ${sectorName} tiene cajas de expediciones anteriores. Los consumibles no están disponibles aún.`,
+        type: 'future',
+      }
+    }
+    default:
+      return null
   }
 }
 </file>
@@ -3227,162 +3530,6 @@ export const INITIAL_SECTORS = [
     enemyPool: ['sleeping_golem'],
   },
 ]
-</file>
-
-<file path="src/screens/DiaryScreen.jsx">
-import { RESOURCES, BIOMES } from '../data/gameData.js'
-
-const MODE_LABELS = {
-  free_march: 'Marcha Libre',
-  hunt:       'Caza',
-  gather:     'Recolección',
-  explore:    'Exploración',
-}
-
-const BIOME_TAG = {
-  forest: { label: 'Bosque Rúnico',   color: 'var(--color-xp)'    },
-  coast:  { label: 'Costa Arcana',    color: 'var(--color-magic)'  },
-  forge:  { label: 'Forja Arcanista', color: 'var(--color-ember)'  },
-}
-
-export default function DiaryScreen({ diary }) {
-  const hasEntries = diary && diary.length > 0
-
-  if (!hasEntries) {
-    return (
-      <div className="screen-scroll">
-        <div className="panel">
-          <div className="panel-title">Crónica de marcha</div>
-          <div className="diary-empty">
-            <div className="diary-empty-icon">📜</div>
-            <div className="diary-empty-title">La caravana aún no ha registrado ningún tramo.</div>
-            <div className="diary-empty-desc">
-              Cuando completes tu primera jornada, aquí quedará el rastro de todo lo vivido.
-            </div>
-            <ul className="diary-coming-list">
-              <li>Tramos completados y pasos recorridos</li>
-              <li>Hallazgos y sendas reveladas</li>
-              <li>Rastros hostiles detectados</li>
-              <li>Recursos recolectados</li>
-              <li>Palabras de tu criatura compañera</li>
-            </ul>
-          </div>
-        </div>
-        <div className="panel">
-          <div className="panel-title">Próximas crónicas</div>
-          <p style={{ fontSize:'0.72rem', color:'var(--color-stone-light)', lineHeight:1.6, fontStyle:'italic' }}>
-            Cada tramo dejará una entrada. La crónica recordará los caminos recorridos,
-            los rastros cruzados y los materiales encontrados.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="screen-scroll">
-      <div className="panel">
-        <div className="panel-title">Crónica de marcha</div>
-        <div className="diary-chronicle-list">
-          {[...diary].reverse().map((entry, idx) => {
-            const resEntries = Object.entries(entry.rewards?.resources ?? {})
-            const xp         = entry.rewards?.xp ?? 0
-            const biomeTag   = BIOME_TAG[entry.biomeId]
-            const isEcho     = entry.type === 'march_echo'
-
-            return (
-              <div key={entry.id} className={`diary-entry-card${idx === 0 ? ' latest' : ''}`}>
-
-                {/* Título */}
-                <div className="diary-entry-title">
-                  {isEcho && <span className="diary-echo-badge">Eco</span>}
-                  {entry.title ?? `Tramo ${entry.tramoNumber}`}
-                </div>
-
-                {/* Meta */}
-                <div className="diary-entry-meta">
-                  {!isEcho && (
-                    <>
-                      <span>{MODE_LABELS[entry.modeId] ?? entry.modeId}</span>
-                      <span className="diary-entry-meta-sep">·</span>
-                    </>
-                  )}
-                  <span>{entry.steps} pasos</span>
-                  {biomeTag && (
-                    <>
-                      <span className="diary-entry-meta-sep">·</span>
-                      <span style={{ color: biomeTag.color }}>{biomeTag.label}</span>
-                    </>
-                  )}
-                </div>
-                {/* Estrato y profundidad (guardado desde 9B en adelante) */}
-                {entry.stratumName && (
-                  <div style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginTop:2, opacity:0.62 }}>
-                    {entry.stratumName.split('·')[0].trim()}
-                    {entry.depthMeters ? ` · ${entry.depthMeters} m` : ''}
-                  </div>
-                )}
-
-                {/* Resumen narrativo */}
-                <p className="diary-entry-summary">{entry.summaryText}</p>
-
-                {/* Flavor de eco */}
-                {isEcho && entry.events?.length > 0 && (
-                  <div className="diary-echo-events">
-                    {entry.events.map((ev, i) => (
-                      <div key={i} className="diary-echo-event-line">{ev}</div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Combates */}
-                {!isEcho && entry.combatResults?.length > 0 && (
-                  <div className="diary-entry-combat">
-                    {entry.combatResults.map((cr, ci) => (
-                      <span key={ci}>
-                        ⚔ {cr.enemyName ?? cr.enemyId}
-                        {cr.finalDamage > 0 ? ` −${cr.finalDamage}HP` : ' (ileso)'}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Recompensas */}
-                {(xp > 0 || resEntries.length > 0) && (
-                  <div className="diary-entry-rewards">
-                    {xp > 0 && (
-                      <span style={{ color:'var(--color-xp)' }}>+{xp} XP</span>
-                    )}
-                    {resEntries.map(([id, qty]) => (
-                      <span key={id} style={{ color:'var(--color-gold)' }}>
-                        +{qty}× {RESOURCES[id]?.name ?? id.replace(/_/g,' ')}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Senda descubierta */}
-                {entry.discovery && (
-                  <div className="diary-entry-discovery">
-                    Nueva senda: {entry.discovery.sectorName}
-                  </div>
-                )}
-
-                {/* Fecha */}
-                <div className="diary-entry-date">
-                  {new Date(entry.completedAt).toLocaleDateString('es-ES', {
-                    day: '2-digit', month: 'short', year: 'numeric',
-                  })}
-                </div>
-
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
-}
 </file>
 
 <file path="src/screens/MapScreen.jsx">
@@ -4332,116 +4479,6 @@ export function getExpeditionPreparation({ modeId, sector, biome, creature, arch
 }
 </file>
 
-<file path="src/systems/saveSystem.js">
-export const SAVE_KEY     = 'aethermarch_save_v1'
-export const SAVE_VERSION = 1
-
-// Statuses that indicate an active session (march / combat in progress)
-const ACTIVE_STATUSES = ['marching', 'combat']
-// Statuses that must be sanitized to 'resting' before writing
-const UNSAFE_STATUSES = ['marching', 'combat', 'awaiting_choice', 'resolved', 'completed']
-
-// ── Acceso a localStorage ─────────────────────────────────────────────────────
-
-export function hasSave() {
-  try { return !!localStorage.getItem(SAVE_KEY) } catch { return false }
-}
-
-export function loadSave() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch { return null }
-}
-
-export function writeSave(saveData) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(saveData)) } catch { /* quota / privacy */ }
-}
-
-export function clearSave() {
-  try { localStorage.removeItem(SAVE_KEY) } catch { /* ignore */ }
-}
-
-// ── Crear snapshot serializable desde el estado de App ────────────────────────
-
-export function createSaveSnapshot({
-  player,
-  selectedArchetypeId,
-  selectedCreatureId,
-  inventory,
-  diary,
-  sectors,
-  expedition,
-  lastEchoClaimAt,
-  stepSource,
-}) {
-  // Track whether the save was created while a run was active
-  const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
-
-  const safeExp = { ...(expedition ?? {}) }
-  if (UNSAFE_STATUSES.includes(safeExp.status)) {
-    safeExp.status        = 'resting'
-    safeExp.currentSteps  = 0
-    safeExp.progress      = 0
-    safeExp.events        = []
-    safeExp.rewards       = {}
-    safeExp.combatResults = []
-  }
-
-  return {
-    version:             SAVE_VERSION,
-    savedAt:             new Date().toISOString(),
-    player,
-    selectedArchetypeId,
-    selectedCreatureId,
-    inventory,
-    diary,
-    sectors,
-    expedition:       safeExp,
-    lastEchoClaimAt:  lastEchoClaimAt ?? null,
-    stepSource:       stepSource ?? null,
-    meta: {
-      recoveredFromInterruptedRun: wasActive,
-    },
-  }
-}
-
-// ── Validar y sanear partida cargada ──────────────────────────────────────────
-
-export function sanitizeLoadedSave(rawSave) {
-  if (!rawSave || rawSave.version !== SAVE_VERSION) return null
-  if (!rawSave.player || typeof rawSave.player !== 'object') return null
-  if (!rawSave.selectedArchetypeId || !rawSave.selectedCreatureId) return null
-  if (!rawSave.inventory || typeof rawSave.inventory !== 'object') return null
-  if (!Array.isArray(rawSave.diary)) return null
-  if (!Array.isArray(rawSave.sectors) || rawSave.sectors.length === 0) return null
-
-  const save = JSON.parse(JSON.stringify(rawSave))  // deep clone
-
-  // Safety net: sanitize dangerous statuses that should not have been saved
-  const exp            = save.expedition ?? {}
-  const wasInterrupted = ACTIVE_STATUSES.includes(exp.status)
-  const needsSanitize  = UNSAFE_STATUSES.includes(exp.status)
-
-  if (needsSanitize) {
-    save.expedition = {
-      ...exp,
-      status:        'resting',
-      currentSteps:  0,
-      progress:      0,
-      events:        [],
-      rewards:       {},
-      combatResults: [],
-    }
-  }
-  if (wasInterrupted) {
-    save.meta = { ...(save.meta ?? {}), recoveredFromInterruptedRun: true }
-  }
-
-  return save
-}
-</file>
-
 <file path="docs/ABYSS_DESIGN.md">
 # El Abismo — Diseño Expandido
 
@@ -4938,9 +4975,335 @@ No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y
 *Este documento es una referencia de diseño viva. Se actualiza conforme el juego avanza.*
 </file>
 
+<file path="src/systems/saveSystem.js">
+export const SAVE_KEY     = 'aethermarch_save_v1'
+export const SAVE_VERSION = 1
+
+// Statuses that indicate an active session (march / combat in progress)
+const ACTIVE_STATUSES = ['marching', 'combat']
+// Statuses that must be sanitized to 'resting' before writing
+const UNSAFE_STATUSES = ['marching', 'combat', 'awaiting_choice', 'resolved', 'completed']
+
+// ── Acceso a localStorage ─────────────────────────────────────────────────────
+
+export function hasSave() {
+  try { return !!localStorage.getItem(SAVE_KEY) } catch { return false }
+}
+
+export function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+export function writeSave(saveData) {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(saveData)) } catch { /* quota / privacy */ }
+}
+
+export function clearSave() {
+  try { localStorage.removeItem(SAVE_KEY) } catch { /* ignore */ }
+}
+
+// ── Crear snapshot serializable desde el estado de App ────────────────────────
+
+export function createSaveSnapshot({
+  player,
+  selectedArchetypeId,
+  selectedCreatureId,
+  inventory,
+  diary,
+  sectors,
+  expedition,
+  lastEchoClaimAt,
+  stepSource,
+  contractState,
+}) {
+  // Track whether the save was created while a run was active
+  const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
+
+  const safeExp = { ...(expedition ?? {}) }
+  if (UNSAFE_STATUSES.includes(safeExp.status)) {
+    safeExp.status        = 'resting'
+    safeExp.currentSteps  = 0
+    safeExp.progress      = 0
+    safeExp.events        = []
+    safeExp.rewards       = {}
+    safeExp.combatResults = []
+  }
+
+  return {
+    version:             SAVE_VERSION,
+    savedAt:             new Date().toISOString(),
+    player,
+    selectedArchetypeId,
+    selectedCreatureId,
+    inventory,
+    diary,
+    sectors,
+    expedition:       safeExp,
+    lastEchoClaimAt:  lastEchoClaimAt ?? null,
+    stepSource:       stepSource ?? null,
+    contractState:    contractState ?? null,
+    meta: {
+      recoveredFromInterruptedRun: wasActive,
+    },
+  }
+}
+
+// ── Validar y sanear partida cargada ──────────────────────────────────────────
+
+export function sanitizeLoadedSave(rawSave) {
+  if (!rawSave || rawSave.version !== SAVE_VERSION) return null
+  if (!rawSave.player || typeof rawSave.player !== 'object') return null
+  if (!rawSave.selectedArchetypeId || !rawSave.selectedCreatureId) return null
+  if (!rawSave.inventory || typeof rawSave.inventory !== 'object') return null
+  if (!Array.isArray(rawSave.diary)) return null
+  if (!Array.isArray(rawSave.sectors) || rawSave.sectors.length === 0) return null
+
+  const save = JSON.parse(JSON.stringify(rawSave))  // deep clone
+
+  // Safety net: sanitize dangerous statuses that should not have been saved
+  const exp            = save.expedition ?? {}
+  const wasInterrupted = ACTIVE_STATUSES.includes(exp.status)
+  const needsSanitize  = UNSAFE_STATUSES.includes(exp.status)
+
+  if (needsSanitize) {
+    save.expedition = {
+      ...exp,
+      status:        'resting',
+      currentSteps:  0,
+      progress:      0,
+      events:        [],
+      rewards:       {},
+      combatResults: [],
+    }
+  }
+  if (wasInterrupted) {
+    save.meta = { ...(save.meta ?? {}), recoveredFromInterruptedRun: true }
+  }
+
+  return save
+}
+</file>
+
+<file path="vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  base: '/Aethermarch/',
+  server: {
+    port: parseInt(process.env.PORT) || 5173,
+    strictPort: false,
+  },
+  build: {
+    chunkSizeWarningLimit: 400,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+        },
+      },
+    },
+  },
+})
+</file>
+
+<file path="src/screens/DiaryScreen.jsx">
+import { RESOURCES, BIOMES } from '../data/gameData.js'
+
+const MODE_LABELS = {
+  free_march: 'Marcha Libre',
+  hunt:       'Caza',
+  gather:     'Recolección',
+  explore:    'Exploración',
+}
+
+const BIOME_TAG = {
+  forest: { label: 'Bosque Rúnico',   color: 'var(--color-xp)'    },
+  coast:  { label: 'Costa Arcana',    color: 'var(--color-magic)'  },
+  forge:  { label: 'Forja Arcanista', color: 'var(--color-ember)'  },
+}
+
+export default function DiaryScreen({ diary }) {
+  const hasEntries = diary && diary.length > 0
+
+  if (!hasEntries) {
+    return (
+      <div className="screen-scroll">
+        <div className="panel">
+          <div className="panel-title">Crónica de marcha</div>
+          <div className="diary-empty">
+            <div className="diary-empty-icon">📜</div>
+            <div className="diary-empty-title">La caravana aún no ha registrado ningún tramo.</div>
+            <div className="diary-empty-desc">
+              Cuando completes tu primera jornada, aquí quedará el rastro de todo lo vivido.
+            </div>
+            <ul className="diary-coming-list">
+              <li>Tramos completados y pasos recorridos</li>
+              <li>Hallazgos y sendas reveladas</li>
+              <li>Rastros hostiles detectados</li>
+              <li>Recursos recolectados</li>
+              <li>Palabras de tu criatura compañera</li>
+            </ul>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-title">Próximas crónicas</div>
+          <p style={{ fontSize:'0.72rem', color:'var(--color-stone-light)', lineHeight:1.6, fontStyle:'italic' }}>
+            Cada tramo dejará una entrada. La crónica recordará los caminos recorridos,
+            los rastros cruzados y los materiales encontrados.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="screen-scroll">
+      <div className="panel">
+        <div className="panel-title">Crónica de marcha</div>
+        <div className="diary-chronicle-list">
+          {[...diary].reverse().map((entry, idx) => {
+            const resEntries = Object.entries(entry.rewards?.resources ?? {})
+            const xp         = entry.rewards?.xp ?? 0
+            const biomeTag   = BIOME_TAG[entry.biomeId]
+            const isEcho     = entry.type === 'march_echo'
+            const isPoi      = entry.type === 'poi'
+            const isContract = entry.type === 'contract'
+
+            return (
+              <div key={entry.id} className={`diary-entry-card${idx === 0 ? ' latest' : ''}`}>
+
+                {/* Título */}
+                <div className="diary-entry-title">
+                  {isEcho     && <span className="diary-echo-badge">Eco</span>}
+                  {isPoi      && <span className="diary-poi-badge">Lugar</span>}
+                  {isContract && <span className="diary-contract-badge">Contrato</span>}
+                  {entry.title ?? `Tramo ${entry.tramoNumber}`}
+                </div>
+
+                {/* Nombre del contrato */}
+                {isContract && entry.contractTitle && (
+                  <div style={{ fontSize:'0.65rem', color:'var(--color-parchment)', fontStyle:'italic', marginBottom:3 }}>
+                    {entry.contractTitle}
+                  </div>
+                )}
+
+                {/* Meta */}
+                <div className="diary-entry-meta">
+                  {!isEcho && !isPoi && !isContract && (
+                    <>
+                      <span>{MODE_LABELS[entry.modeId] ?? entry.modeId}</span>
+                      <span className="diary-entry-meta-sep">·</span>
+                    </>
+                  )}
+                  {isContract ? (
+                    <>
+                      <span>{entry.contractorName ?? '—'}</span>
+                      {entry.sectorName && (
+                        <>
+                          <span className="diary-entry-meta-sep">·</span>
+                          <span>{entry.sectorName}</span>
+                        </>
+                      )}
+                    </>
+                  ) : isPoi ? (
+                    <span>{entry.sectorName ?? '—'}</span>
+                  ) : (
+                    <span>{entry.steps} pasos</span>
+                  )}
+                  {!isPoi && !isContract && biomeTag && (
+                    <>
+                      <span className="diary-entry-meta-sep">·</span>
+                      <span style={{ color: biomeTag.color }}>{biomeTag.label}</span>
+                    </>
+                  )}
+                </div>
+                {/* Estrato y profundidad */}
+                {entry.stratumName && !isPoi && !isContract && (
+                  <div style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginTop:2, opacity:0.62 }}>
+                    {entry.stratumName.split('·')[0].trim()}
+                    {entry.depthMeters ? ` · ${entry.depthMeters} m` : ''}
+                  </div>
+                )}
+
+                {/* Resumen narrativo */}
+                <p className="diary-entry-summary">{entry.summaryText}</p>
+
+                {/* HP recuperado en POI */}
+                {isPoi && (entry.hpGain ?? 0) > 0 && (
+                  <div style={{ fontSize:'0.6rem', color:'var(--color-xp)', marginBottom:5 }}>
+                    +{entry.hpGain} HP recuperados
+                  </div>
+                )}
+
+                {/* Flavor de eco */}
+                {isEcho && entry.events?.length > 0 && (
+                  <div className="diary-echo-events">
+                    {entry.events.map((ev, i) => (
+                      <div key={i} className="diary-echo-event-line">{ev}</div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Combates */}
+                {!isEcho && !isPoi && !isContract && entry.combatResults?.length > 0 && (
+                  <div className="diary-entry-combat">
+                    {entry.combatResults.map((cr, ci) => (
+                      <span key={ci}>
+                        ⚔ {cr.enemyName ?? cr.enemyId}
+                        {cr.finalDamage > 0 ? ` −${cr.finalDamage}HP` : ' (ileso)'}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Recompensas */}
+                {(xp > 0 || resEntries.length > 0) && (
+                  <div className="diary-entry-rewards">
+                    {xp > 0 && (
+                      <span style={{ color:'var(--color-xp)' }}>+{xp} XP</span>
+                    )}
+                    {resEntries.map(([id, qty]) => (
+                      <span key={id} style={{ color:'var(--color-gold)' }}>
+                        +{qty}× {RESOURCES[id]?.name ?? id.replace(/_/g,' ')}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Senda descubierta */}
+                {entry.discovery && (
+                  <div className="diary-entry-discovery">
+                    Nueva senda: {entry.discovery.sectorName}
+                  </div>
+                )}
+
+                {/* Fecha */}
+                <div className="diary-entry-date">
+                  {new Date(entry.completedAt).toLocaleDateString('es-ES', {
+                    day: '2-digit', month: 'short', year: 'numeric',
+                  })}
+                </div>
+
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+</file>
+
 <file path="src/screens/CaravanScreen.jsx">
 import { useState, useEffect, useRef } from 'react'
 import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS } from '../data/gameData.js'
+import { canUsePoiAction, getPoiActionLabel, getPoiFlavorText } from '../systems/poiSystem.js'
+import { getAvailableContracts, canStartContract, isSectorContractCompleted } from '../systems/contractSystem.js'
 import { getAvailableEchoSteps } from '../systems/stepSourceSystem.js'
 import { getAvailableStances } from '../systems/combatSystem.js'
 import { getExpeditionPreparation, getRiskLevel, getPreparationWarnings } from '../systems/preparationSystem.js'
@@ -5634,6 +5997,184 @@ function EchoPanel({
   )
 }
 
+// ── Panel de lugar seguro ─────────────────────────────────────────────────────
+
+function PoiPanel({ sector, player, expedition, combat, lastPoiResult, onUsePoiAction }) {
+  if (!sector) return null
+
+  if (!sector.poiId) {
+    return (
+      <div className="panel">
+        <div className="panel-title">Lugar del sector</div>
+        <div className="poi-empty">No hay ningún lugar seguro registrado en este sector.</div>
+      </div>
+    )
+  }
+
+  const poi         = POIS[sector.poiId]
+  const check       = canUsePoiAction({ poiId: sector.poiId, player, expedition, combat })
+  const actionLabel = getPoiActionLabel(sector.poiId)
+  const flavorText  = getPoiFlavorText(sector.poiId, sector)
+  const showResult  = lastPoiResult?.sectorId === sector.id
+
+  return (
+    <div className="panel">
+      <div className="panel-title">Lugar del sector</div>
+      <div className="poi-panel">
+        <div className="poi-panel-header">
+          <span className="poi-type-label">{poi?.icon} {poi?.name}</span>
+        </div>
+        <div className="poi-meta">
+          {sector.name}
+          {sector.stratumName ? ` · ${sector.stratumName.split('·')[0].trim()}` : ''}
+          {sector.depthMeters ? ` · ${sector.depthMeters} m` : ''}
+        </div>
+        <div className="poi-description">{flavorText}</div>
+        {!check.ok && (
+          <div className="poi-blocked-text">{check.reason}</div>
+        )}
+        <button
+          className="poi-action-button"
+          onClick={onUsePoiAction}
+          disabled={!check.ok}
+        >
+          {actionLabel}
+        </button>
+        {showResult && (
+          <div className="poi-result-box">
+            <div className="poi-result-title">{lastPoiResult.poiName}</div>
+            <div className="poi-result-text">{lastPoiResult.summaryText}</div>
+            {lastPoiResult.hpGain > 0 && (
+              <div style={{ fontSize:'0.6rem', color:'var(--color-xp)', marginTop:4 }}>
+                +{lastPoiResult.hpGain} HP recuperados
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Panel de contratos ────────────────────────────────────────────────────────
+
+function ContractsPanel({ sector, contractState, expedition, combat, lastContractResult, onStartContract, onResolveActiveContract }) {
+  if (!sector) return null
+
+  const available      = getAvailableContracts({ sector, contractState })
+  const active         = contractState?.activeContract ?? null
+  const completed      = isSectorContractCompleted(sector.poiId, contractState)
+  const canAcceptCheck = canStartContract({ contractState, expedition, combat })
+  const inCombat       = expedition?.status === 'combat' || combat?.status === 'awaiting_choice'
+  const inMarch        = expedition?.status === 'marching'
+
+  return (
+    <div className="panel">
+      <div className="panel-title">Encargos del lugar</div>
+      <div className="contract-panel">
+
+        {/* Sin POI */}
+        {!sector.poiId && (
+          <div className="contract-empty">No hay encargos disponibles en este sector.</div>
+        )}
+
+        {/* Contrato activo (visible en cualquier sector) */}
+        {sector.poiId && active && (
+          <div className="contract-card">
+            <div className="contract-active-badge">Contrato activo</div>
+            <div className="contract-title">{active.title}</div>
+            <div className="contract-contractor">{active.contractorName}</div>
+            <div className="contract-meta">Duración estimada: {active.durationLabel}</div>
+            <div className="contract-description" style={{ marginTop:5 }}>
+              En esta versión de prototipo puedes resolverlo manualmente.
+            </div>
+            {(inCombat || inMarch) && (
+              <div className="contract-empty" style={{ marginBottom:5 }}>
+                No puedes resolver contratos {inCombat ? 'durante un combate' : 'mientras la caravana está en marcha'}.
+              </div>
+            )}
+            <button
+              className="contract-action-button"
+              onClick={onResolveActiveContract}
+              disabled={inCombat || inMarch}
+            >
+              Resolver contrato
+            </button>
+          </div>
+        )}
+
+        {/* Contrato disponible */}
+        {sector.poiId && !active && available.length > 0 && available.map(contract => (
+          <div key={contract.id} className="contract-card">
+            <div className="contract-title">{contract.title}</div>
+            <div className="contract-contractor">{contract.contractorName}</div>
+            <div className="contract-meta">
+              Riesgo: {contract.riskLabel} · Duración estimada: {contract.durationLabel}
+            </div>
+            <div className="contract-description">{contract.description}</div>
+            <div className="contract-rewards">
+              Recompensa:{' '}
+              {(contract.rewards?.xp ?? 0) > 0 && (
+                <span style={{ color:'var(--color-xp)' }}>+{contract.rewards.xp} XP</span>
+              )}
+              {Object.entries(contract.rewards?.resources ?? {}).map(([id, qty]) => (
+                <span key={id} style={{ color:'var(--color-gold)', marginLeft:5 }}>
+                  · {RESOURCES[id]?.name ?? id.replace(/_/g,' ')} ×{qty}
+                </span>
+              ))}
+            </div>
+            {!canAcceptCheck.ok && (
+              <div className="contract-empty" style={{ marginBottom:5 }}>
+                {canAcceptCheck.reason}
+              </div>
+            )}
+            <button
+              className="contract-action-button"
+              onClick={() => onStartContract(contract)}
+              disabled={!canAcceptCheck.ok}
+            >
+              Aceptar contrato
+            </button>
+          </div>
+        ))}
+
+        {/* Completado */}
+        {sector.poiId && !active && available.length === 0 && completed && (
+          <div>
+            <div className="contract-empty" style={{ marginBottom: lastContractResult?.sourceSectorId === sector.id ? 8 : 0 }}>
+              Contrato completado en este lugar.
+            </div>
+            {lastContractResult?.sourceSectorId === sector.id && (
+              <div className="contract-result-box">
+                <div className="contract-result-title">{lastContractResult.title}</div>
+                <div className="contract-result-text">{lastContractResult.summaryText}</div>
+                <div style={{ marginTop:5, display:'flex', flexWrap:'wrap', gap:6 }}>
+                  {(lastContractResult.rewards?.xp ?? 0) > 0 && (
+                    <span style={{ fontSize:'0.6rem', color:'var(--color-xp)' }}>
+                      +{lastContractResult.rewards.xp} XP
+                    </span>
+                  )}
+                  {Object.entries(lastContractResult.rewards?.resources ?? {}).map(([id, qty]) => (
+                    <span key={id} style={{ fontSize:'0.6rem', color:'var(--color-gold)' }}>
+                      +{qty}× {RESOURCES[id]?.name ?? id.replace(/_/g,' ')}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sin contrato para este POI */}
+        {sector.poiId && !active && available.length === 0 && !completed && (
+          <div className="contract-empty">Este lugar no ofrece encargos por ahora.</div>
+        )}
+
+      </div>
+    </div>
+  )
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function CaravanScreen({
@@ -5646,6 +6187,8 @@ export default function CaravanScreen({
   lastDiscovery,
   stepSource, pedometer,
   onStartPedometer, onStopPedometer, onAddPrototypeSteps,
+  lastPoiResult, onUsePoiAction,
+  contractState, lastContractResult, onStartContract, onResolveActiveContract,
 }) {
   const archetype = ARCHETYPES.find(a => a.id === player?.archetypeId)
   const creature  = CREATURES.find(c => c.id === player?.creatureId)
@@ -6066,6 +6609,31 @@ export default function CaravanScreen({
         )}
       </div>
 
+      {/* Lugar del sector */}
+      {activeSector && (
+        <PoiPanel
+          sector={activeSector}
+          player={player}
+          expedition={expedition}
+          combat={combat}
+          lastPoiResult={lastPoiResult}
+          onUsePoiAction={onUsePoiAction}
+        />
+      )}
+
+      {/* Encargos del lugar */}
+      {activeSector && (
+        <ContractsPanel
+          sector={activeSector}
+          contractState={contractState}
+          expedition={expedition}
+          combat={combat}
+          lastContractResult={lastContractResult}
+          onStartContract={onStartContract}
+          onResolveActiveContract={onResolveActiveContract}
+        />
+      )}
+
       {/* Tipo de marcha */}
       <div className="panel prep-section">
         <div className="panel-title">Tipo de marcha</div>
@@ -6272,30 +6840,6 @@ export default function CaravanScreen({
 }
 </file>
 
-<file path="vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-export default defineConfig({
-  plugins: [react()],
-  base: '/Aethermarch/',
-  server: {
-    port: parseInt(process.env.PORT) || 5173,
-    strictPort: false,
-  },
-  build: {
-    chunkSizeWarningLimit: 400,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-        },
-      },
-    },
-  },
-})
-</file>
-
 <file path="src/App.jsx">
 import { useState, useEffect, useRef } from 'react'
 import { ARCHETYPES, BIOMES, ENEMIES, INITIAL_SECTORS } from './data/gameData.js'
@@ -6316,6 +6860,11 @@ import {
   isMotionSupported, needsMotionPermission, requestMotionPermission,
   createPedometerState, processMotionSample,
 } from './systems/pedometerSystem.js'
+import { canUsePoiAction, resolvePoiAction } from './systems/poiSystem.js'
+import {
+  createInitialContractState, sanitizeContractState,
+  canStartContract, startContract, resolveContract,
+} from './systems/contractSystem.js'
 import AppShell        from './components/AppShell.jsx'
 import StartScreen     from './screens/StartScreen.jsx'
 import CaravanScreen   from './screens/CaravanScreen.jsx'
@@ -6401,6 +6950,9 @@ export default function App() {
   const [lastDiscovery,             setLastDiscovery]             = useState(null)
   const [stepSource,                setStepSource]                = useState(createInitialStepSource)
   const [pedometer,                 setPedometer]                 = useState(createPedometerState)
+  const [lastPoiResult,             setLastPoiResult]             = useState(null)
+  const [contractState,             setContractState]             = useState(createInitialContractState)
+  const [lastContractResult,        setLastContractResult]        = useState(null)
 
   const completionDone   = useRef(false)
   const combatTriggered  = useRef(new Set())
@@ -6449,6 +7001,7 @@ export default function App() {
     }
     setLastEchoClaimAt(save.lastEchoClaimAt ?? null)
     setStepSource(sanitizeStepSource(save.stepSource))
+    setContractState(sanitizeContractState(save.contractState ?? null))
     setPedometer(createPedometerState())  // pedometer always starts idle after reload
 
     completionDone.current  = false
@@ -6474,6 +7027,9 @@ export default function App() {
     setEchoMessage(null)
     setLastEchoResult(null)
     setLastDiscovery(null)
+    setLastPoiResult(null)
+    setContractState(createInitialContractState())
+    setLastContractResult(null)
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
     if (motionHandlerRef.current) {
@@ -6578,6 +7134,7 @@ export default function App() {
       biomeId:      prev.biomeId,
     }))
     setLastDiscovery(null)
+    setLastContractResult(null)
     setSectors(prev => clearRecentDiscoveries(prev))
   }
 
@@ -6688,6 +7245,88 @@ export default function App() {
     setLastEchoClaimAt(now)
     setLastEchoResult({ ...echo, sectorName: sector?.name ?? '—' })
     setEchoMessage(null)
+  }
+
+  // ── Contratos ────────────────────────────────────────────────────────────────
+  function handleStartContract(contract) {
+    const check = canStartContract({ contractState, expedition, combat })
+    if (!check.ok) return
+    const active = startContract({ contract, now: new Date().toISOString() })
+    setContractState(prev => ({ ...prev, activeContract: active }))
+    setLastContractResult(null)
+  }
+
+  function handleResolveActiveContract() {
+    if (!contractState.activeContract) return
+    if (expedition?.status === 'combat' || combat?.status === 'awaiting_choice') return
+    if (expedition?.status === 'marching') return
+
+    const resolved = resolveContract({ activeContract: contractState.activeContract })
+    if (!resolved) return
+
+    const { xp = 0, resources = {} } = resolved.rewards ?? {}
+
+    if (xp > 0) {
+      setPlayer(prev => ({ ...prev, xp: Math.min(prev.xpToNext, prev.xp + xp) }))
+    }
+    if (Object.keys(resources).length > 0) {
+      setInventory(prev => addResources(prev, resources))
+    }
+
+    setContractState(prev => ({
+      ...prev,
+      activeContract:       null,
+      completedContractIds: [...prev.completedContractIds, resolved.id],
+      contractLog:          [...prev.contractLog, { id: resolved.id, resolvedAt: resolved.resolvedAt }],
+    }))
+
+    const entry = {
+      id:             `contract-${Date.now()}`,
+      type:           'contract',
+      title:          'Contrato completado',
+      contractTitle:  resolved.title,
+      contractorName: resolved.contractorName,
+      sectorId:       resolved.sourceSectorId,
+      sectorName:     resolved.sourceSectorName,
+      poiId:          resolved.sourcePoiId,
+      summaryText:    resolved.summaryText,
+      rewards:        { xp, resources },
+      completedAt:    new Date().toISOString(),
+      steps:          0,
+    }
+    setDiary(prev => [...prev, entry])
+    setLastContractResult(resolved)
+  }
+
+  // ── Acción de lugar seguro ───────────────────────────────────────────────────
+  function handleUsePoiAction() {
+    const sector = sectors.find(s => s.id === expedition?.sectorId)
+    if (!sector?.poiId) return
+    const check = canUsePoiAction({ poiId: sector.poiId, player, expedition, combat })
+    if (!check.ok) return
+    const result = resolvePoiAction({ poiId: sector.poiId, player, sector })
+    if (!result) return
+
+    if (result.hpGain > 0) {
+      setPlayer(prev => ({ ...prev, hp: Math.min(prev.maxHp, prev.hp + result.hpGain) }))
+    }
+
+    const entry = {
+      id:          `poi-${Date.now()}`,
+      type:        'poi',
+      title:       `${result.poiName} · ${result.sectorName}`,
+      sectorId:    result.sectorId,
+      sectorName:  result.sectorName,
+      poiId:       result.poiId,
+      poiName:     result.poiName,
+      hpGain:      result.hpGain,
+      summaryText: result.summaryText,
+      completedAt: new Date().toISOString(),
+      steps:       0,
+      rewards:     { xp: 0, resources: {} },
+    }
+    setDiary(prev => [...prev, entry])
+    setLastPoiResult(result)
   }
 
   // ── Cleanup del listener de movimiento al desmontar ─────────────────────────
@@ -6805,6 +7444,7 @@ export default function App() {
       expedition,
       lastEchoClaimAt,
       stepSource,
+      contractState,
     })
     writeSave(snapshot)
     setLastSaved(new Date())
@@ -6820,6 +7460,7 @@ export default function App() {
     expedition.modeId,
     expedition.sectorId,
     expedition.status,   // captures marching/combat start for recovery note
+    contractState,
   ])
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -6850,6 +7491,12 @@ export default function App() {
             onStartPedometer={handleStartPedometer}
             onStopPedometer={handleStopPedometer}
             onAddPrototypeSteps={handleAddPrototypeSteps}
+            lastPoiResult={lastPoiResult}
+            onUsePoiAction={handleUsePoiAction}
+            contractState={contractState}
+            lastContractResult={lastContractResult}
+            onStartContract={handleStartContract}
+            onResolveActiveContract={handleResolveActiveContract}
           />
         )
       case 'mapa':       return <MapScreen       sectors={sectors} />
@@ -9372,6 +10019,226 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   letter-spacing: 0.03em;
   gap: 2px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   LUGARES SEGUROS 12A
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Panel POI ────────────────────────────────────────────────────── */
+.poi-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.poi-panel-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.poi-type-label {
+  font-size: 0.78rem;
+  color: var(--color-gold);
+  font-weight: 500;
+}
+.poi-meta {
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  opacity: 0.75;
+}
+.poi-description {
+  font-size: 0.66rem;
+  color: var(--color-parchment);
+  line-height: 1.5;
+  font-style: italic;
+}
+.poi-blocked-text {
+  font-size: 0.6rem;
+  color: var(--color-ember);
+  opacity: 0.75;
+  font-style: italic;
+}
+.poi-action-button {
+  width: 100%;
+  padding: 9px 12px;
+  background: rgba(42,26,16,0.6);
+  border: 1px solid rgba(184,148,74,0.35);
+  border-radius: var(--radius-sm);
+  color: var(--color-parchment);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  margin-top: 2px;
+}
+.poi-action-button:hover:not(:disabled) {
+  border-color: rgba(184,148,74,0.65);
+  background: rgba(42,26,16,0.85);
+}
+.poi-action-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: rgba(98,107,111,0.2);
+}
+.poi-result-box {
+  border-top: 1px solid rgba(184,148,74,0.16);
+  padding-top: 7px;
+  margin-top: 2px;
+}
+.poi-result-title {
+  font-size: 0.6rem;
+  color: var(--color-gold);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 3px;
+}
+.poi-result-text {
+  font-size: 0.65rem;
+  color: var(--color-parchment);
+  line-height: 1.5;
+}
+.poi-empty {
+  font-size: 0.65rem;
+  color: var(--color-stone-light);
+  font-style: italic;
+  opacity: 0.65;
+}
+
+/* ── Badge POI en diario ─────────────────────────────────────────── */
+.diary-poi-badge {
+  display: inline-block;
+  font-size: 0.48rem;
+  color: var(--color-gold);
+  border: 1px solid rgba(184,148,74,0.32);
+  padding: 1px 5px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CONTRATOS 13A
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Panel de contratos ──────────────────────────────────────────── */
+.contract-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.contract-empty {
+  font-size: 0.65rem;
+  color: var(--color-stone-light);
+  font-style: italic;
+  opacity: 0.65;
+}
+.contract-card {
+  background: rgba(10,12,10,0.55);
+  border: 1px solid rgba(184,148,74,0.2);
+  border-radius: var(--radius-md);
+  padding: 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.contract-active-badge {
+  font-size: 0.5rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ember);
+  border: 1px solid rgba(212,106,45,0.35);
+  border-radius: 2px;
+  padding: 1px 5px;
+  align-self: flex-start;
+  margin-bottom: 3px;
+}
+.contract-title {
+  font-size: 0.78rem;
+  color: var(--color-parchment);
+  font-weight: 500;
+}
+.contract-contractor {
+  font-size: 0.62rem;
+  color: var(--color-gold);
+  opacity: 0.8;
+}
+.contract-meta {
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  opacity: 0.72;
+}
+.contract-description {
+  font-size: 0.64rem;
+  color: var(--color-stone-light);
+  line-height: 1.5;
+  font-style: italic;
+  margin-top: 2px;
+}
+.contract-rewards {
+  font-size: 0.62rem;
+  color: var(--color-stone-light);
+  margin-top: 2px;
+}
+.contract-action-button {
+  width: 100%;
+  padding: 9px 12px;
+  background: rgba(42,26,16,0.55);
+  border: 1px solid rgba(184,148,74,0.32);
+  border-radius: var(--radius-sm);
+  color: var(--color-parchment);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  margin-top: 6px;
+}
+.contract-action-button:hover:not(:disabled) {
+  border-color: rgba(184,148,74,0.6);
+  background: rgba(42,26,16,0.8);
+}
+.contract-action-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: rgba(98,107,111,0.18);
+}
+.contract-result-box {
+  background: rgba(42,26,8,0.5);
+  border: 1px solid rgba(184,148,74,0.18);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-top: 4px;
+}
+.contract-result-title {
+  font-size: 0.58rem;
+  color: var(--color-gold);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 3px;
+}
+.contract-result-text {
+  font-size: 0.64rem;
+  color: var(--color-parchment);
+  line-height: 1.5;
+}
+
+/* ── Badge de contrato en diario ─────────────────────────────────── */
+.diary-contract-badge {
+  display: inline-block;
+  font-size: 0.48rem;
+  color: var(--color-ember);
+  border: 1px solid rgba(212,106,45,0.32);
+  padding: 1px 5px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
 </file>
 
 <file path="docs/PROJECT_BRIEF.md">
@@ -10049,8 +10916,9 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 11A — World Bible: biblia base del mundo del Abismo (`docs/WORLD_BIBLE.md`)
 
 ### Inmediato
-- 🔲 12A — Primer lugar seguro funcional (posada/refugio con descanso básico)
-- 🔲 12B — Progresión del jugador: XP visible, subida de nivel, HP como barra real
+- ✅ 12A — Lugares seguros funcionales (descanso, rumores, feedback narrativo)
+- ✅ 13A — Contratos: encargos por lugar seguro, un activo, resolución manual, XP, recursos, diario
+- 🔲 13B — Progresión del jugador: XP visible, subida de nivel, HP como barra real
 
 ### Próximo
 - 🔲 13A — Primer contratable encuentro simple

@@ -2701,3 +2701,35 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   margin-bottom: 4px;
 }
 
+
+/* ── CONTRATOS 13B — probabilidad y resultado ── */
+.contract-chance {
+  font-size: 0.6rem;
+  color: var(--color-magic);
+  margin-bottom: 6px;
+}
+.contract-outcome {
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.contract-outcome.success { color: var(--color-xp); }
+.contract-outcome.partial { color: var(--color-gold); }
+.contract-outcome.failure { color: var(--color-hp); }
+.contract-consequence {
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  font-style: italic;
+  margin-top: 7px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(98,107,111,0.18);
+}
+.diary-contract-outcome {
+  font-size: 0.65rem;
+  font-weight: 600;
+  margin-bottom: 3px;
+  margin-top: 2px;
+}
+.diary-contract-outcome.success { color: var(--color-xp); }
+.diary-contract-outcome.partial { color: var(--color-gold); }
+.diary-contract-outcome.failure { color: var(--color-hp); }

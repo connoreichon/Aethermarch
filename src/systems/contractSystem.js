@@ -1,7 +1,15 @@
+import { RESOURCES } from '../data/gameData.js'
+
 export const CONTRACT_STATUS = {
   AVAILABLE: 'available',
   ACTIVE:    'active',
   COMPLETED: 'completed',
+}
+
+export const CONTRACT_OUTCOMES = {
+  SUCCESS: 'success',
+  PARTIAL: 'partial',
+  FAILURE: 'failure',
 }
 
 const RISK_LABELS = { low: 'Bajo', medium: 'Medio', high: 'Alto' }
@@ -123,6 +131,41 @@ export function canStartContract({ contractState, expedition, combat }) {
   return { ok: true }
 }
 
+// ── Probabilidad ──────────────────────────────────────────────────────────────
+
+export function getContractSuccessChance({ contract, player, sector }) {
+  const BASE = { low: 85, medium: 65, high: 45 }
+  let chance = BASE[contract.risk] ?? 65
+
+  if (player?.archetypeId === 'rastreador' && (contract.type === 'scout' || contract.type === 'intel')) chance += 10
+  if (player?.archetypeId === 'guardian'   && (contract.type === 'maintenance' || contract.type === 'courier')) chance += 5
+  if (player?.archetypeId === 'runario'    && (contract.type === 'intel' || contract.type === 'forge_survey')) chance += 8
+
+  if (player?.creatureId === 'velthar' && (contract.type === 'scout' || contract.type === 'intel')) chance += 8
+  if (player?.creatureId === 'brontik' && (contract.risk === 'medium' || contract.risk === 'high')) chance += 5
+  if (player?.creatureId === 'lumora'  && Object.keys(contract.rewards?.resources ?? {}).length > 0) chance += 5
+
+  if (sector?.threat === 'high')        chance -= 10
+  else if (sector?.threat === 'medium') chance -= 5
+  if (sector?.masteryLevel >= 3)        chance += 10
+  else if (sector?.masteryLevel >= 2)   chance += 5
+
+  return Math.min(95, Math.max(5, Math.round(chance)))
+}
+
+export function getContractOutcomeLabel(outcome) {
+  if (outcome === CONTRACT_OUTCOMES.SUCCESS) return 'Éxito'
+  if (outcome === CONTRACT_OUTCOMES.PARTIAL) return 'Éxito parcial'
+  if (outcome === CONTRACT_OUTCOMES.FAILURE) return 'Fracaso'
+  return '—'
+}
+
+const OUTCOME_TEXTS = {
+  [CONTRACT_OUTCOMES.SUCCESS]: 'El encargo se completó sin incidentes. La recompensa llega íntegra a la caravana.',
+  [CONTRACT_OUTCOMES.PARTIAL]: 'El encargo se completó con complicaciones. Parte del botín se perdió durante el regreso.',
+  [CONTRACT_OUTCOMES.FAILURE]: 'El encargo salió mal. No hubo pérdidas graves, pero el contratista volvió sin materiales útiles.',
+}
+
 // ── Acciones ──────────────────────────────────────────────────────────────────
 
 export function startContract({ contract, now }) {
@@ -133,15 +176,53 @@ export function startContract({ contract, now }) {
   }
 }
 
-export function resolveContract({ activeContract }) {
+export function resolveContract({ activeContract, player, sector, now, randomValue }) {
   if (!activeContract) return null
-  const rewards = activeContract.rewards ?? { xp: 0, resources: {} }
+
+  const successChance = getContractSuccessChance({ contract: activeContract, player, sector })
+  const roll          = Math.round((randomValue !== undefined ? randomValue : Math.random()) * 100)
+
+  let outcome
+  if (roll <= successChance) {
+    outcome = CONTRACT_OUTCOMES.SUCCESS
+  } else if (roll - successChance <= 20) {
+    outcome = CONTRACT_OUTCOMES.PARTIAL
+  } else {
+    outcome = CONTRACT_OUTCOMES.FAILURE
+  }
+
+  const baseRewards = activeContract.rewards ?? { xp: 0, resources: {} }
+  let rewardsGranted
+
+  if (outcome === CONTRACT_OUTCOMES.SUCCESS) {
+    rewardsGranted = { xp: baseRewards.xp ?? 0, resources: { ...baseRewards.resources } }
+  } else if (outcome === CONTRACT_OUTCOMES.PARTIAL) {
+    const xp        = Math.ceil((baseRewards.xp ?? 0) / 2)
+    const resources = {}
+    for (const [id, qty] of Object.entries(baseRewards.resources ?? {})) {
+      resources[id] = Math.max(1, Math.ceil(qty / 2))
+    }
+    rewardsGranted = { xp, resources }
+  } else {
+    rewardsGranted = { xp: 1, resources: {} }
+  }
+
+  const consequence = outcome === CONTRACT_OUTCOMES.FAILURE
+    ? { type: 'delay', text: 'El encargo no salió bien. La caravana gana experiencia, pero no obtiene materiales.' }
+    : null
+
   return {
     ...activeContract,
-    resolvedAt:  new Date().toISOString(),
-    status:      CONTRACT_STATUS.COMPLETED,
-    rewards,
-    summaryText: `${activeContract.contractorName} completó "${activeContract.title}". La caravana recibe la recompensa acordada.`,
+    resolvedAt:    now ?? new Date().toISOString(),
+    status:        CONTRACT_STATUS.COMPLETED,
+    successChance,
+    roll,
+    outcome,
+    outcomeLabel:  getContractOutcomeLabel(outcome),
+    baseRewards,
+    rewardsGranted,
+    summaryText:   OUTCOME_TEXTS[outcome],
+    consequence,
   }
 }
 
@@ -149,7 +230,8 @@ export function getContractRewardText(rewards) {
   const parts = []
   if ((rewards?.xp ?? 0) > 0) parts.push(`+${rewards.xp} XP`)
   for (const [id, qty] of Object.entries(rewards?.resources ?? {})) {
-    parts.push(`${id.replace(/_/g, ' ')} ×${qty}`)
+    const name = RESOURCES[id]?.name ?? id.replace(/_/g, ' ')
+    parts.push(`${name} ×${qty}`)
   }
   return parts.join(' · ')
 }

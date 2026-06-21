@@ -20,7 +20,7 @@ import {
 import { canUsePoiAction, resolvePoiAction } from './systems/poiSystem.js'
 import {
   createInitialContractState, sanitizeContractState,
-  canStartContract, startContract, resolveContract,
+  canStartContract, startContract, resolveContract, getContractSuccessChance,
 } from './systems/contractSystem.js'
 import AppShell        from './components/AppShell.jsx'
 import StartScreen     from './screens/StartScreen.jsx'
@@ -408,7 +408,9 @@ export default function App() {
   function handleStartContract(contract) {
     const check = canStartContract({ contractState, expedition, combat })
     if (!check.ok) return
-    const active = startContract({ contract, now: new Date().toISOString() })
+    const sector        = sectors.find(s => s.id === expedition?.sectorId)
+    const successChance = getContractSuccessChance({ contract, player, sector })
+    const active        = startContract({ contract: { ...contract, successChance }, now: new Date().toISOString() })
     setContractState(prev => ({ ...prev, activeContract: active }))
     setLastContractResult(null)
   }
@@ -418,10 +420,11 @@ export default function App() {
     if (expedition?.status === 'combat' || combat?.status === 'awaiting_choice') return
     if (expedition?.status === 'marching') return
 
-    const resolved = resolveContract({ activeContract: contractState.activeContract })
+    const sector   = sectors.find(s => s.id === expedition?.sectorId)
+    const resolved = resolveContract({ activeContract: contractState.activeContract, player, sector })
     if (!resolved) return
 
-    const { xp = 0, resources = {} } = resolved.rewards ?? {}
+    const { xp = 0, resources = {} } = resolved.rewardsGranted ?? {}
 
     if (xp > 0) {
       setPlayer(prev => ({ ...prev, xp: Math.min(prev.xpToNext, prev.xp + xp) }))
@@ -430,11 +433,30 @@ export default function App() {
       setInventory(prev => addResources(prev, resources))
     }
 
+    const logEntry = {
+      id:               resolved.id,
+      title:            resolved.title,
+      contractorName:   resolved.contractorName,
+      sourcePoiId:      resolved.sourcePoiId,
+      sourceSectorId:   resolved.sourceSectorId,
+      sourceSectorName: resolved.sourceSectorName,
+      risk:             resolved.risk,
+      successChance:    resolved.successChance,
+      outcome:          resolved.outcome,
+      outcomeLabel:     resolved.outcomeLabel,
+      startedAt:        resolved.startedAt,
+      resolvedAt:       resolved.resolvedAt,
+      rewardsGranted:   resolved.rewardsGranted,
+      baseRewards:      resolved.baseRewards,
+      summaryText:      resolved.summaryText,
+      consequence:      resolved.consequence,
+    }
+
     setContractState(prev => ({
       ...prev,
       activeContract:       null,
       completedContractIds: [...prev.completedContractIds, resolved.id],
-      contractLog:          [...prev.contractLog, { id: resolved.id, resolvedAt: resolved.resolvedAt }],
+      contractLog:          [...prev.contractLog, logEntry].slice(-50),
     }))
 
     const entry = {
@@ -446,8 +468,13 @@ export default function App() {
       sectorId:       resolved.sourceSectorId,
       sectorName:     resolved.sourceSectorName,
       poiId:          resolved.sourcePoiId,
+      outcome:        resolved.outcome,
+      outcomeLabel:   resolved.outcomeLabel,
+      successChance:  resolved.successChance,
       summaryText:    resolved.summaryText,
       rewards:        { xp, resources },
+      baseRewards:    resolved.baseRewards,
+      consequence:    resolved.consequence,
       completedAt:    new Date().toISOString(),
       steps:          0,
     }

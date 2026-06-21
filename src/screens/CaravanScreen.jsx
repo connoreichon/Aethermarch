@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS } from '../data/gameData.js'
 import { canUsePoiAction, getPoiActionLabel, getPoiFlavorText } from '../systems/poiSystem.js'
-import { getAvailableContracts, canStartContract, isSectorContractCompleted } from '../systems/contractSystem.js'
+import { getAvailableContracts, canStartContract, isSectorContractCompleted, getContractSuccessChance, getContractRewardText } from '../systems/contractSystem.js'
 import { getAvailableEchoSteps } from '../systems/stepSourceSystem.js'
 import { getAvailableStances } from '../systems/combatSystem.js'
 import { getExpeditionPreparation, getRiskLevel, getPreparationWarnings } from '../systems/preparationSystem.js'
@@ -756,7 +756,7 @@ function PoiPanel({ sector, player, expedition, combat, lastPoiResult, onUsePoiA
 
 // ── Panel de contratos ────────────────────────────────────────────────────────
 
-function ContractsPanel({ sector, contractState, expedition, combat, lastContractResult, onStartContract, onResolveActiveContract }) {
+function ContractsPanel({ sector, player, contractState, expedition, combat, lastContractResult, onStartContract, onResolveActiveContract }) {
   if (!sector) return null
 
   const available      = getAvailableContracts({ sector, contractState })
@@ -776,13 +776,18 @@ function ContractsPanel({ sector, contractState, expedition, combat, lastContrac
           <div className="contract-empty">No hay encargos disponibles en este sector.</div>
         )}
 
-        {/* Contrato activo (visible en cualquier sector) */}
+        {/* Contrato activo */}
         {sector.poiId && active && (
           <div className="contract-card">
             <div className="contract-active-badge">Contrato activo</div>
             <div className="contract-title">{active.title}</div>
             <div className="contract-contractor">{active.contractorName}</div>
-            <div className="contract-meta">Duración estimada: {active.durationLabel}</div>
+            <div className="contract-meta">
+              Riesgo: {active.riskLabel ?? active.risk}
+              {active.successChance != null && (
+                <> · <span className="contract-chance">Prob. éxito: {active.successChance}%</span></>
+              )}
+            </div>
             <div className="contract-description" style={{ marginTop:5 }}>
               En esta versión de prototipo puedes resolverlo manualmente.
             </div>
@@ -802,39 +807,35 @@ function ContractsPanel({ sector, contractState, expedition, combat, lastContrac
         )}
 
         {/* Contrato disponible */}
-        {sector.poiId && !active && available.length > 0 && available.map(contract => (
-          <div key={contract.id} className="contract-card">
-            <div className="contract-title">{contract.title}</div>
-            <div className="contract-contractor">{contract.contractorName}</div>
-            <div className="contract-meta">
-              Riesgo: {contract.riskLabel} · Duración estimada: {contract.durationLabel}
-            </div>
-            <div className="contract-description">{contract.description}</div>
-            <div className="contract-rewards">
-              Recompensa:{' '}
-              {(contract.rewards?.xp ?? 0) > 0 && (
-                <span style={{ color:'var(--color-xp)' }}>+{contract.rewards.xp} XP</span>
-              )}
-              {Object.entries(contract.rewards?.resources ?? {}).map(([id, qty]) => (
-                <span key={id} style={{ color:'var(--color-gold)', marginLeft:5 }}>
-                  · {RESOURCES[id]?.name ?? id.replace(/_/g,' ')} ×{qty}
-                </span>
-              ))}
-            </div>
-            {!canAcceptCheck.ok && (
-              <div className="contract-empty" style={{ marginBottom:5 }}>
-                {canAcceptCheck.reason}
+        {sector.poiId && !active && available.length > 0 && available.map(contract => {
+          const chance = getContractSuccessChance({ contract, player, sector })
+          return (
+            <div key={contract.id} className="contract-card">
+              <div className="contract-title">{contract.title}</div>
+              <div className="contract-contractor">{contract.contractorName}</div>
+              <div className="contract-meta">
+                Riesgo: {contract.riskLabel} · Duración estimada: {contract.durationLabel}
               </div>
-            )}
-            <button
-              className="contract-action-button"
-              onClick={() => onStartContract(contract)}
-              disabled={!canAcceptCheck.ok}
-            >
-              Aceptar contrato
-            </button>
-          </div>
-        ))}
+              <div className="contract-chance">Probabilidad estimada: {chance}%</div>
+              <div className="contract-description">{contract.description}</div>
+              <div className="contract-rewards">
+                Recompensa base: {getContractRewardText(contract.rewards)}
+              </div>
+              {!canAcceptCheck.ok && (
+                <div className="contract-empty" style={{ marginBottom:5 }}>
+                  {canAcceptCheck.reason}
+                </div>
+              )}
+              <button
+                className="contract-action-button"
+                onClick={() => onStartContract(contract)}
+                disabled={!canAcceptCheck.ok}
+              >
+                Aceptar contrato
+              </button>
+            </div>
+          )
+        })}
 
         {/* Completado */}
         {sector.poiId && !active && available.length === 0 && completed && (
@@ -845,19 +846,21 @@ function ContractsPanel({ sector, contractState, expedition, combat, lastContrac
             {lastContractResult?.sourceSectorId === sector.id && (
               <div className="contract-result-box">
                 <div className="contract-result-title">{lastContractResult.title}</div>
-                <div className="contract-result-text">{lastContractResult.summaryText}</div>
-                <div style={{ marginTop:5, display:'flex', flexWrap:'wrap', gap:6 }}>
-                  {(lastContractResult.rewards?.xp ?? 0) > 0 && (
-                    <span style={{ fontSize:'0.6rem', color:'var(--color-xp)' }}>
-                      +{lastContractResult.rewards.xp} XP
-                    </span>
-                  )}
-                  {Object.entries(lastContractResult.rewards?.resources ?? {}).map(([id, qty]) => (
-                    <span key={id} style={{ fontSize:'0.6rem', color:'var(--color-gold)' }}>
-                      +{qty}× {RESOURCES[id]?.name ?? id.replace(/_/g,' ')}
-                    </span>
-                  ))}
+                {lastContractResult.outcomeLabel && (
+                  <div className={`contract-outcome ${lastContractResult.outcome ?? ''}`}>
+                    Resultado: {lastContractResult.outcomeLabel}
+                  </div>
+                )}
+                <div className="contract-result-text" style={{ marginTop:4 }}>{lastContractResult.summaryText}</div>
+                <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', marginTop:5 }}>
+                  Recompensa obtenida:{' '}
+                  <span style={{ color:'var(--color-parchment)' }}>
+                    {getContractRewardText(lastContractResult.rewardsGranted ?? lastContractResult.rewards)}
+                  </span>
                 </div>
+                {lastContractResult.consequence && (
+                  <div className="contract-consequence">{lastContractResult.consequence.text}</div>
+                )}
               </div>
             )}
           </div>
@@ -1323,6 +1326,7 @@ export default function CaravanScreen({
       {activeSector && (
         <ContractsPanel
           sector={activeSector}
+          player={player}
           contractState={contractState}
           expedition={expedition}
           combat={combat}

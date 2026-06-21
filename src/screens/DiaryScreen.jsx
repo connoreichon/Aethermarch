@@ -78,6 +78,18 @@ export default function DiaryScreen({ diary }) {
                   </div>
                 )}
 
+                {/* Resultado del contrato */}
+                {isContract && entry.outcomeLabel && (
+                  <div className={`diary-contract-outcome ${entry.outcome ?? ''}`}>
+                    {entry.outcomeLabel}
+                    {entry.successChance != null && (
+                      <span style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginLeft:6, fontWeight:400 }}>
+                        Prob. estimada: {entry.successChance}%
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* Meta */}
                 <div className="diary-entry-meta">
                   {!isEcho && !isPoi && !isContract && (
@@ -118,6 +130,14 @@ export default function DiaryScreen({ diary }) {
 
                 {/* Resumen narrativo */}
                 <p className="diary-entry-summary">{entry.summaryText}</p>
+
+                {/* Consecuencia de contrato fallido */}
+                {isContract && entry.consequence && (
+                  <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', fontStyle:'italic',
+                                marginTop:4, paddingTop:4, borderTop:'1px solid rgba(98,107,111,0.18)' }}>
+                    {entry.consequence.text}
+                  </div>
+                )}
 
                 {/* HP recuperado en POI */}
                 {isPoi && (entry.hpGain ?? 0) > 0 && (
