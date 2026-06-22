@@ -3144,3 +3144,78 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 .world-route-hidden .world-route-meta {
   color: rgba(109,90,156,0.6);
 }
+
+/* ── TRAMOS DE RUTA — 18B ──────────────────────────────────────────────── */
+.world-route-segment-count {
+  font-size: 0.54rem;
+  color: var(--color-mist);
+  margin-top: 2px;
+  opacity: 0.85;
+}
+.world-route-segment-count.route-segment-hidden {
+  color: var(--color-rune);
+  font-style: italic;
+  opacity: 0.65;
+}
+.route-segment-list {
+  margin-top: 5px;
+  border-top: 1px solid rgba(98,107,111,0.12);
+  padding-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.route-segment-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.route-segment-index {
+  font-size: 0.5rem;
+  color: var(--color-stone-light);
+  min-width: 12px;
+  opacity: 0.7;
+}
+.route-segment-name {
+  font-size: 0.6rem;
+  color: var(--color-parchment);
+  font-weight: 500;
+}
+.route-segment-meta {
+  font-size: 0.54rem;
+  color: var(--color-stone-light);
+}
+.route-segment-danger-high .route-segment-name {
+  color: var(--color-hp);
+}
+.route-segment-danger-medium .route-segment-name {
+  color: var(--color-ember);
+}
+.route-segment-danger-low .route-segment-name {
+  color: var(--color-parchment);
+}
+/* Tramo estimado en CaravanScreen */
+.route-segments-preview {
+  background: rgba(28,32,34,0.55);
+  border: 1px solid rgba(98,107,111,0.18);
+  border-radius: 6px;
+  padding: 7px 10px;
+  margin-bottom: 8px;
+}
+.route-preview-name {
+  font-size: 0.64rem;
+  color: var(--color-parchment);
+  font-weight: 500;
+}
+.route-preview-meta {
+  font-size: 0.56rem;
+  color: var(--color-mist);
+  margin-top: 2px;
+}
+.route-preview-first {
+  font-size: 0.54rem;
+  color: var(--color-stone-light);
+  margin-top: 3px;
+  font-style: italic;
+  opacity: 0.8;
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA, WORLD_ROUTES, ABYSS_ZONES } from '../data/gameData.js'
+import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA, WORLD_ROUTES, ABYSS_ZONES, WORLD_ROUTE_SEGMENTS } from '../data/gameData.js'
 import { getStratumProgress } from '../systems/abyssSystem.js'
 import {
   getWorldScaleSummary,
@@ -8,6 +8,11 @@ import {
   getRouteDangerLabel,
   getRouteStepRangeLabel,
 } from '../systems/worldScaleSystem.js'
+import {
+  getSegmentsForRoute,
+  getRouteSegmentsTotalSteps,
+  getRouteSegmentDangerLabel,
+} from '../systems/routeSegmentSystem.js'
 
 const THREAT_LABEL  = { low: 'Baja', medium: 'Media', high: 'Alta' }
 const MASTERY_LABEL = ['Sin rastro', 'Conocido', 'Familiar', 'Dominado', 'Legendario']
@@ -98,6 +103,7 @@ const BIOME_ICON_COLOR = {
 
 export default function MapScreen({ sectors }) {
   const [selectedId, setSelectedId] = useState(null)
+  const [expandedRouteId, setExpandedRouteId] = useState(null)
 
   const rawSelected   = sectors.find(s => s.id === selectedId)
   const selected      = rawSelected ? withAbyssMeta(rawSelected) : null
@@ -330,17 +336,58 @@ export default function MapScreen({ sectors }) {
                   <div className="world-routes-label">Rutas desde aquí</div>
                   {selectedRoutes.map(r => {
                     const isSecretHidden = r.type === 'secret' && r.status === 'hidden'
+                    const routeSegs  = getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: r.id })
+                    const segTotal   = getRouteSegmentsTotalSteps(routeSegs)
+                    const isExpanded = expandedRouteId === r.id
+
                     return isSecretHidden ? (
                       <div key={r.id} className="world-route-item world-route-hidden">
                         <div className="world-route-name">Ruta oculta</div>
                         <div className="world-route-meta">Condición desconocida</div>
+                        {routeSegs.length > 0 && (
+                          <div className="world-route-segment-count route-segment-hidden">
+                            {routeSegs.length} tramos desconocidos
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div key={r.id} className="world-route-item">
-                        <div className="world-route-name">{r.name}</div>
+                      <div
+                        key={r.id}
+                        className="world-route-item"
+                        style={{ cursor: routeSegs.length > 0 ? 'pointer' : 'default' }}
+                        onClick={() => routeSegs.length > 0 && setExpandedRouteId(prev => prev === r.id ? null : r.id)}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <div className="world-route-name">{r.name}</div>
+                          {routeSegs.length > 0 && (
+                            <span style={{ fontSize: '0.48rem', color: 'var(--color-stone-light)', opacity: 0.7 }}>
+                              {isExpanded ? '▲' : '▼'}
+                            </span>
+                          )}
+                        </div>
                         <div className="world-route-meta">
                           {getRouteTypeLabel(r.type)} · {getRouteStepRangeLabel(r)} · {getRouteDangerLabel(r)}
                         </div>
+                        {routeSegs.length > 0 && (
+                          <div className="world-route-segment-count">
+                            {routeSegs.length} tramos · {segTotal.min}–{segTotal.max} pasos
+                          </div>
+                        )}
+                        {isExpanded && (
+                          <div className="route-segment-list">
+                            {routeSegs.map(seg => (
+                              <div key={seg.id} className={`route-segment-row route-segment-danger-${seg.danger}`}>
+                                <span className="route-segment-index">{seg.order}.</span>
+                                <div>
+                                  <span className="route-segment-name">{seg.name}</span>
+                                  <span className="route-segment-meta">
+                                    {' · '}{seg.stepMin}–{seg.stepMax} pasos · {getRouteSegmentDangerLabel(seg)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )
                   })}

@@ -690,3 +690,189 @@ export const ABYSS_ZONES = [
     routeIds: ['route_forge_to_coal'],
   },
 ]
+
+export const WORLD_ROUTE_SEGMENTS = [
+  // route_aethel_to_mist — Senda de los Faroles Bajos
+  {
+    id: 'seg_afm_01', routeId: 'route_aethel_to_mist', order: 1,
+    name: 'Faroles hundidos',
+    description: 'Farolillos de hueso enterrados en el suelo, camino de tierra firme.',
+    type: 'approach', danger: 'low', stepMin: 180, stepMax: 300,
+    eventBias: { resource: 0.4, exploration: 0.3, creature: 0.1, threat: 0.05, microevent: 0.15 },
+  },
+  {
+    id: 'seg_afm_02', routeId: 'route_aethel_to_mist', order: 2,
+    name: 'Raíces de paso',
+    description: 'Red de raíces que forma un puente natural sobre la grieta de niebla.',
+    type: 'crossing', danger: 'low', stepMin: 220, stepMax: 360,
+    eventBias: { resource: 0.2, exploration: 0.4, creature: 0.2, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_afm_03', routeId: 'route_aethel_to_mist', order: 3,
+    name: 'Boca de niebla',
+    description: 'Entrada al Sector Raíz de Niebla; la bruma sube hasta la cintura.',
+    type: 'landmark', danger: 'medium', stepMin: 200, stepMax: 340,
+    eventBias: { resource: 0.1, exploration: 0.5, creature: 0.2, threat: 0.1, microevent: 0.1 },
+  },
+
+  // route_aethel_to_salt — Bajada a la Cornisa
+  {
+    id: 'seg_ats_01', routeId: 'route_aethel_to_salt', order: 1,
+    name: 'Piedra húmeda',
+    description: 'Escalones tallados en roca negra cubiertos de humedad constante.',
+    type: 'approach', danger: 'low', stepMin: 280, stepMax: 400,
+    eventBias: { resource: 0.3, exploration: 0.3, creature: 0.2, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_ats_02', routeId: 'route_aethel_to_salt', order: 2,
+    name: 'Primer olor a sal',
+    description: 'La roca cambia de color; se detecta el aroma salino de las capas inferiores.',
+    type: 'crossing', danger: 'medium', stepMin: 310, stepMax: 430,
+    eventBias: { resource: 0.25, exploration: 0.35, creature: 0.2, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ats_03', routeId: 'route_aethel_to_salt', order: 3,
+    name: 'Bajada fría',
+    description: 'Pendiente pronunciada donde el viento de profundidad corta el aliento.',
+    type: 'descent', danger: 'medium', stepMin: 310, stepMax: 470,
+    eventBias: { resource: 0.15, exploration: 0.3, creature: 0.3, threat: 0.2, microevent: 0.05 },
+  },
+
+  // route_mist_to_ruins — Senda de las Marcas
+  {
+    id: 'seg_mtr_01', routeId: 'route_mist_to_ruins', order: 1,
+    name: 'Marcas partidas',
+    description: 'Señales de expedición antiguas que alguien ha tratado de borrar.',
+    type: 'approach', danger: 'low', stepMin: 220, stepMax: 340,
+    eventBias: { resource: 0.2, exploration: 0.5, creature: 0.1, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_mtr_02', routeId: 'route_mist_to_ruins', order: 2,
+    name: 'Arco de raíces',
+    description: 'Dos raíces colosales forman un portal natural; la niebla no lo cruza.',
+    type: 'crossing', danger: 'medium', stepMin: 260, stepMax: 400,
+    eventBias: { resource: 0.1, exploration: 0.45, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_mtr_03', routeId: 'route_mist_to_ruins', order: 3,
+    name: 'Umbral rúnico',
+    description: 'Ruinas del antiguo puesto de guardia; las runas emiten luz violácea.',
+    type: 'landmark', danger: 'medium', stepMin: 220, stepMax: 360,
+    eventBias: { resource: 0.1, exploration: 0.4, creature: 0.3, threat: 0.15, microevent: 0.05 },
+  },
+
+  // route_ruins_to_mushroom — Pasaje secreto (hidden)
+  {
+    id: 'seg_rtm_01', routeId: 'route_ruins_to_mushroom', order: 1,
+    name: 'Raíz sellada',
+    description: 'Una raíz hueca que actúa de túnel; el acceso está bloqueado con savia endurecida.',
+    type: 'secret', danger: 'low', stepMin: 160, stepMax: 250,
+    eventBias: { resource: 0.1, exploration: 0.6, creature: 0.1, threat: 0.05, microevent: 0.15 },
+  },
+  {
+    id: 'seg_rtm_02', routeId: 'route_ruins_to_mushroom', order: 2,
+    name: 'Respiración hueca',
+    description: 'Cavidad resonante donde el suelo emite un pulso regular como un corazón.',
+    type: 'secret', danger: 'low', stepMin: 170, stepMax: 270,
+    eventBias: { resource: 0.05, exploration: 0.6, creature: 0.15, threat: 0.05, microevent: 0.15 },
+  },
+  {
+    id: 'seg_rtm_03', routeId: 'route_ruins_to_mushroom', order: 3,
+    name: 'Luz de setas',
+    description: 'Pasillo iluminado por hongos bioluminiscentes de tono azul. Silencio absoluto.',
+    type: 'secret', danger: 'low', stepMin: 170, stepMax: 280,
+    eventBias: { resource: 0.2, exploration: 0.5, creature: 0.1, threat: 0.0, microevent: 0.2 },
+  },
+
+  // route_mist_to_forge — Senda de la Forja
+  {
+    id: 'seg_mtf_01', routeId: 'route_mist_to_forge', order: 1,
+    name: 'Desvío sin marcas',
+    description: 'Bifurcación sin señal conocida; el calor seco indica la dirección correcta.',
+    type: 'approach', danger: 'medium', stepMin: 380, stepMax: 540,
+    eventBias: { resource: 0.15, exploration: 0.4, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_mtf_02', routeId: 'route_mist_to_forge', order: 2,
+    name: 'Pendiente de hierro',
+    description: 'Corredor de roca con venas de hierro oxidado; el suelo cede bajo el peso.',
+    type: 'descent', danger: 'high', stepMin: 420, stepMax: 580,
+    eventBias: { resource: 0.1, exploration: 0.3, creature: 0.35, threat: 0.2, microevent: 0.05 },
+  },
+  {
+    id: 'seg_mtf_03', routeId: 'route_mist_to_forge', order: 3,
+    name: 'Horno dormido',
+    description: 'Antecámara de la forja: calor intenso, aire cargado de ceniza fina.',
+    type: 'danger', danger: 'high', stepMin: 400, stepMax: 580,
+    eventBias: { resource: 0.05, exploration: 0.25, creature: 0.4, threat: 0.25, microevent: 0.05 },
+  },
+
+  // route_salt_to_tide — Senda de la Marea
+  {
+    id: 'seg_stt_01', routeId: 'route_salt_to_tide', order: 1,
+    name: 'Cornisa mojada',
+    description: 'Repisa estrecha sobre un abismo; el suelo está siempre húmedo.',
+    type: 'crossing', danger: 'medium', stepMin: 220, stepMax: 340,
+    eventBias: { resource: 0.2, exploration: 0.35, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_stt_02', routeId: 'route_salt_to_tide', order: 2,
+    name: 'Rocas de sal negra',
+    description: 'Campo de cristales de sal negra cortantes; moverse despacio o sangrar.',
+    type: 'danger', danger: 'high', stepMin: 260, stepMax: 400,
+    eventBias: { resource: 0.15, exploration: 0.2, creature: 0.3, threat: 0.3, microevent: 0.05 },
+  },
+  {
+    id: 'seg_stt_03', routeId: 'route_salt_to_tide', order: 3,
+    name: 'Marea sin luna',
+    description: 'La roca absorbe la humedad en pulsos. No hay ciclo solar ni lunar visible.',
+    type: 'danger', danger: 'high', stepMin: 220, stepMax: 360,
+    eventBias: { resource: 0.1, exploration: 0.25, creature: 0.35, threat: 0.25, microevent: 0.05 },
+  },
+
+  // route_tide_to_coal — Descenso al Bastión
+  {
+    id: 'seg_ttc_01', routeId: 'route_tide_to_coal', order: 1,
+    name: 'Senda de humo',
+    description: 'Camino marcado por columnas de humo antiguo solidificado en formas caprichosas.',
+    type: 'approach', danger: 'medium', stepMin: 320, stepMax: 480,
+    eventBias: { resource: 0.2, exploration: 0.3, creature: 0.3, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ttc_02', routeId: 'route_tide_to_coal', order: 2,
+    name: 'Carbón bajo el agua',
+    description: 'Galería parcialmente inundada con agua oscura que oculta el suelo de carbón.',
+    type: 'crossing', danger: 'high', stepMin: 340, stepMax: 510,
+    eventBias: { resource: 0.1, exploration: 0.3, creature: 0.35, threat: 0.2, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ttc_03', routeId: 'route_tide_to_coal', order: 3,
+    name: 'Bajada oscura',
+    description: 'El último tramo no tiene faroles; la oscuridad es total salvo por brasas lejanas.',
+    type: 'descent', danger: 'high', stepMin: 340, stepMax: 510,
+    eventBias: { resource: 0.05, exploration: 0.2, creature: 0.4, threat: 0.3, microevent: 0.05 },
+  },
+
+  // route_forge_to_coal — Galería de Ceniza
+  {
+    id: 'seg_ftc_01', routeId: 'route_forge_to_coal', order: 1,
+    name: 'Galería apagada',
+    description: 'Corredor de la forja ya fría; herramientas abandonadas cuelgan de las paredes.',
+    type: 'approach', danger: 'medium', stepMin: 250, stepMax: 420,
+    eventBias: { resource: 0.35, exploration: 0.3, creature: 0.2, threat: 0.1, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ftc_02', routeId: 'route_forge_to_coal', order: 2,
+    name: 'Columnas de hollín',
+    description: 'Pilares naturales cubiertos de hollín milenario; el aire pesa.',
+    type: 'crossing', danger: 'medium', stepMin: 280, stepMax: 440,
+    eventBias: { resource: 0.2, exploration: 0.35, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ftc_03', routeId: 'route_forge_to_coal', order: 3,
+    name: 'Bastión de carbón',
+    description: 'Las paredes son puro carbón comprimido; se escuchan voces en la roca.',
+    type: 'landmark', danger: 'medium', stepMin: 270, stepMax: 440,
+    eventBias: { resource: 0.15, exploration: 0.4, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+]

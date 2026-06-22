@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS } from '../data/gameData.js'
+import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS } from '../data/gameData.js'
+import { getSegmentsForRoute, getRouteSegmentsTotalSteps } from '../systems/routeSegmentSystem.js'
 import { canUsePoiAction, getPoiActionLabel, getPoiFlavorText } from '../systems/poiSystem.js'
 import { getAvailableContracts, canStartContract, isSectorContractCompleted, getContractSuccessChance, getContractRewardText } from '../systems/contractSystem.js'
 import { getPlayerRank, getNextRankRequirement, canUseMercenaryContracts } from '../systems/rankSystem.js'
@@ -1382,6 +1383,28 @@ export default function CaravanScreen({
           Sin sector seleccionado — elige un destino abajo.
         </div>
       )}
+
+      {/* Tramo estimado */}
+      {activeSector && (() => {
+        const nextRoute = (WORLD_ROUTES ?? []).find(
+          r => (r.fromSectorId === activeSector.id || r.toSectorId === activeSector.id) &&
+               (r.status === 'open' || r.status === 'discovered')
+        )
+        if (!nextRoute) return null
+        const segs = getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: nextRoute.id })
+        const { min, max } = getRouteSegmentsTotalSteps(segs)
+        return (
+          <div className="route-segments-preview">
+            <div className="route-preview-name">{nextRoute.name}</div>
+            <div className="route-preview-meta">
+              {segs.length} tramos · {min}–{max} pasos
+            </div>
+            {segs[0] && (
+              <div className="route-preview-first">Primer tramo: {segs[0].name}</div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Strip de modos */}
       <div className="mode-strip">

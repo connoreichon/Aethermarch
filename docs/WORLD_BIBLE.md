@@ -941,6 +941,37 @@ Cada capa jugable completa tendrá:
 
 ---
 
+## 19. Tramos internos por ruta (18B)
+
+Cada ruta tiene entre 3 y 5 tramos (`WORLD_ROUTE_SEGMENTS` en `gameData.js`). Cada tramo define:
+
+| Campo | Descripción |
+|-------|-------------|
+| `routeId` | Ruta a la que pertenece |
+| `order` | Posición en la ruta (1, 2, 3…) |
+| `name` | Nombre evocador del tramo |
+| `type` | `approach / crossing / landmark / danger / rest / secret / descent / return` |
+| `danger` | `low / medium / high` — afecta colores en UI y futuros eventos |
+| `stepMin / stepMax` | Rango de pasos para completar el tramo |
+| `eventBias` | Pesos de eventos preparados: `{ resource, exploration, creature, threat, microevent }` |
+
+Los tramos del Estrato I actualmente implementados:
+
+| Ruta | Tramo 1 | Tramo 2 | Tramo 3 |
+|------|---------|---------|---------|
+| Senda de los Faroles Bajos | Faroles hundidos | Raíces de paso | Boca de niebla |
+| Bajada a la Cornisa | Piedra húmeda | Primer olor a sal | Bajada fría |
+| Senda de las Marcas | Marcas partidas | Arco de raíces | Umbral rúnico |
+| Pasaje secreto (oculto) | Raíz sellada | Respiración hueca | Luz de setas |
+| Senda de la Forja | Desvío sin marcas | Pendiente de hierro | Horno dormido |
+| Senda de la Marea | Cornisa mojada | Rocas de sal negra | Marea sin luna |
+| Descenso al Bastión | Senda de humo | Carbón bajo el agua | Bajada oscura |
+| Galería de Ceniza | Galería apagada | Columnas de hollín | Bastión de carbón |
+
+La lógica de marcha (`marchSystem.js`) no consume aún `eventBias` — los pesos están preparados para la iteración siguiente.
+
+---
+
 *Este documento es la base de diseño del mundo de Aethermarch. Se actualiza conforme el juego avanza.*
 *Para estado de implementación técnica, ver `docs/ABYSS_DESIGN.md`.*
 *Para roadmap de bloques, ver `docs/PROJECT_BRIEF.md`.*

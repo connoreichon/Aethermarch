@@ -680,6 +680,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 16A — Marcha fluida: auto-retorno tras combate (1200 ms), paneles plegables, ruta compacta, strip de modos
 - ✅ 17A — Color Bible + Design Tokens: paleta funcional para sistemas, modos, estados, mapa, combate, contratos y UI principal
 - ✅ 18A — Escala del mundo: capas, zonas, rutas explícitas y visión de 20+ capas.
+- ✅ 18B — Tramos internos por ruta: routeSegmentSystem.js, 24 segmentos (8 rutas × 3), visualización en MapScreen y CaravanScreen.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
