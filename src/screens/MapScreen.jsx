@@ -2,6 +2,13 @@ import { useState } from 'react'
 import { ABYSS_STRATA, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS, ABYSS_SETTLEMENTS } from '../data/gameData.js'
 import VisualMapCanvas from '../components/VisualMapCanvas.jsx'
 
+const CENTER_LABEL = { abyss: 'Volver al inicio', layer: 'Centrar capa', route: 'Centrar ruta' }
+const MAP_HINT     = {
+  abyss: 'Desliza para descender · Toca una capa para acercarte',
+  layer: 'Toca una ciudad o una ruta',
+  route: 'Toca un tramo para ver detalle',
+}
+
 function getBreadcrumb(viewLevel, layerId, routeId) {
   const stratum = layerId ? ABYSS_STRATA.find(s => s.id === layerId) : null
   const route   = routeId ? WORLD_ROUTES.find(r => r.id === routeId) : null
@@ -14,35 +21,62 @@ function getBreadcrumb(viewLevel, layerId, routeId) {
   return 'El Abismo'
 }
 
-export default function MapScreen({ sectors, expedition, discoveredSegmentIds = [] }) {
-  const [viewLevel,       setViewLevel]       = useState('abyss')
-  const [selectedLayerId, setSelectedLayerId] = useState(null)
-  const [selectedRouteId, setSelectedRouteId] = useState(null)
-  const [centerTrigger,   setCenterTrigger]   = useState(0)
+export default function MapScreen({
+  sectors,
+  expedition,
+  discoveredSegmentIds = [],
+  cameraState,
+  onCameraChange,
+}) {
+  // centerTrigger is purely local — only fires on explicit "Centrar" press
+  const [centerTrigger, setCenterTrigger] = useState(0)
+  const [mapViewKey,    setMapViewKey]    = useState(0) // for enter-transition
+
+  const { viewLevel, selectedLayerId, selectedRouteId, panByView } = cameraState
 
   const discoveredCount = sectors.filter(s => s.discovered).length
 
   function handleSelectLayer(id) {
-    setSelectedLayerId(id)
-    setSelectedRouteId(null)
-    setViewLevel('layer')
-    setCenterTrigger(t => t + 1)
+    setMapViewKey(k => k + 1)
+    onCameraChange(prev => ({
+      ...prev,
+      viewLevel:       'layer',
+      selectedLayerId: id,
+      selectedRouteId: null,
+    }))
   }
 
   function handleSelectRoute(id) {
-    setSelectedRouteId(id)
-    setViewLevel('route')
-    setCenterTrigger(t => t + 1)
+    setMapViewKey(k => k + 1)
+    onCameraChange(prev => ({
+      ...prev,
+      viewLevel:       'route',
+      selectedRouteId: id,
+    }))
   }
 
   function handleBack() {
+    setMapViewKey(k => k + 1)
     if (viewLevel === 'route') {
-      setViewLevel('layer')
+      onCameraChange(prev => ({ ...prev, viewLevel: 'layer' }))
     } else if (viewLevel === 'layer') {
-      setViewLevel('abyss')
-      setSelectedLayerId(null)
+      onCameraChange(prev => ({
+        ...prev,
+        viewLevel:       'abyss',
+        selectedLayerId: null,
+      }))
     }
+  }
+
+  function handleCenter() {
     setCenterTrigger(t => t + 1)
+  }
+
+  function handlePanChange(vl, pan) {
+    onCameraChange(prev => ({
+      ...prev,
+      panByView: { ...prev.panByView, [vl]: pan },
+    }))
   }
 
   return (
@@ -64,13 +98,13 @@ export default function MapScreen({ sectors, expedition, discoveredSegmentIds = 
         {viewLevel !== 'abyss' && (
           <button className="visual-map-back" onClick={handleBack}>← Volver</button>
         )}
-        <button className="visual-map-center" onClick={() => setCenterTrigger(t => t + 1)}>
-          Centrar
+        <button className="visual-map-center" onClick={handleCenter}>
+          {CENTER_LABEL[viewLevel] ?? 'Centrar'}
         </button>
       </div>
 
       {/* Visual map canvas */}
-      <div className="visual-map-viewport">
+      <div key={mapViewKey} className="visual-map-viewport map-view-entering">
         <VisualMapCanvas
           viewLevel={viewLevel}
           selectedLayerId={selectedLayerId}
@@ -85,8 +119,13 @@ export default function MapScreen({ sectors, expedition, discoveredSegmentIds = 
           onSelectSettlement={() => {}}
           onSelectRoute={handleSelectRoute}
           centerTrigger={centerTrigger}
+          panByView={panByView}
+          onPanChange={handlePanChange}
         />
       </div>
+
+      {/* Microhint */}
+      <div className="visual-map-hint">{MAP_HINT[viewLevel]}</div>
     </div>
   )
 }

@@ -197,23 +197,36 @@ export default function VisualMapCanvas({
   onSelectSettlement,
   onSelectRoute,
   centerTrigger,
+  panByView,
+  onPanChange,
 }) {
-  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [pan, setPan] = useState(() => panByView?.[viewLevel] ?? { x: 0, y: 0 })
   const isDownRef    = useRef(false)
   const didDragRef   = useRef(false)
   const dragStartRef = useRef(null)
+  const panRef       = useRef(pan)
   const [selectedNodeId,    setSelectedNodeId]    = useState(null)
   const [detailSettlement,  setDetailSettlement]  = useState(null)
   const [detailSegment,     setDetailSegment]     = useState(null)
   const [detailLockedLayer, setDetailLockedLayer] = useState(null)
 
-  useEffect(() => { setPan({ x: 0, y: 0 }) }, [centerTrigger])
+  useEffect(() => {
+    const zeroPan = { x: 0, y: 0 }
+    panRef.current = zeroPan
+    setPan(zeroPan)
+    if (onPanChange) onPanChange(viewLevel, zeroPan)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerTrigger])
 
   useEffect(() => {
+    const restored = panByView?.[viewLevel] ?? { x: 0, y: 0 }
+    panRef.current = restored
+    setPan(restored)
     setSelectedNodeId(null)
     setDetailSettlement(null)
     setDetailSegment(null)
     setDetailLockedLayer(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewLevel, selectedLayerId, selectedRouteId])
 
   function onPointerDown(e) {
@@ -233,12 +246,15 @@ export default function VisualMapCanvas({
       newX = 0
       newY = Math.min(ABYSS_PAN.maxY, Math.max(ABYSS_PAN.minY, newY))
     }
-    setPan({ x: newX, y: newY })
+    const newPan = { x: newX, y: newY }
+    panRef.current = newPan
+    setPan(newPan)
   }
 
   function onPointerUp() {
     isDownRef.current    = false
     dragStartRef.current = null
+    if (onPanChange) onPanChange(viewLevel, panRef.current)
   }
 
   function isSettlementVisible(s) {

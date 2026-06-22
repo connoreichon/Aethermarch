@@ -1,8 +1,8 @@
 import BottomNav from './BottomNav.jsx'
 
-export default function AppShell({ currentTab, onChangeTab, children }) {
+export default function AppShell({ currentTab, onChangeTab, children, flowClass }) {
   return (
-    <div className="app-root">
+    <div className={['app-root', flowClass].filter(Boolean).join(' ')}>
       <header className="app-header">
         <h1>Aethermarch</h1>
         <p>El camino te espera</p>

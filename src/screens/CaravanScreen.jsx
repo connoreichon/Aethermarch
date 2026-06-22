@@ -421,39 +421,27 @@ function CombatScene({ combat, player, expedition, sectors, onResolveCombat, onC
     combat.status === 'awaiting_choice' ? decisionSeconds : 0
   )
   const autoResolvedRef = useRef(false)
-  const autoResumeRef   = useRef(false)
 
-  // Countdown tick
+  // Stable countdown based on absolute decisionEndsAt timestamp
   useEffect(() => {
-    if (combat.status !== 'awaiting_choice') return
+    if (combat.status !== 'awaiting_choice') { autoResolvedRef.current = false; return }
     autoResolvedRef.current = false
-    setRemainingSeconds(decisionSeconds)
-    const id = setInterval(() => {
-      setRemainingSeconds(prev => Math.max(0, prev - 1))
-    }, 1000)
+
+    function tick() {
+      const ms   = combat.decisionEndsAt ? Math.max(0, combat.decisionEndsAt - Date.now()) : 0
+      const secs = Math.ceil(ms / 1000)
+      setRemainingSeconds(secs)
+      if (ms <= 0 && !autoResolvedRef.current) {
+        autoResolvedRef.current = true
+        onResolveCombat('equilibrada', { auto: true })
+      }
+    }
+
+    tick()
+    const id = setInterval(tick, 250)
     return () => clearInterval(id)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [combat.status])
-
-  // Auto-resolve when countdown hits 0
-  useEffect(() => {
-    if (combat.status !== 'awaiting_choice') return
-    if (remainingSeconds > 0) return
-    if (autoResolvedRef.current) return
-    autoResolvedRef.current = true
-    onResolveCombat('equilibrada', { auto: true })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds, combat.status])
-
-  // Auto-retomar marcha tras resolución (1200 ms)
-  useEffect(() => {
-    if (!resolved) { autoResumeRef.current = false; return }
-    if (autoResumeRef.current) return
-    autoResumeRef.current = true
-    const id = setTimeout(onContinueMarch, 1200)
-    return () => clearTimeout(id)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolved])
+  }, [combat.status, combat.decisionEndsAt])
 
   const bgTop = biome?.id === 'coast'
     ? 'linear-gradient(to bottom, #060810, #0A0F1A)'
@@ -585,17 +573,10 @@ function CombatScene({ combat, player, expedition, sectors, onResolveCombat, onC
         ))}
       </div>
 
-      {/* Auto-retorno */}
+      {/* Auto-retorno — solo texto, sin botón de retomar */}
       {resolved && (
         <div className="combat-continue">
-          <div className="auto-resume-note">La caravana recupera el paso...</div>
-          <button
-            className="btn btn-secondary"
-            style={{ marginTop:4, opacity:0.35, fontSize:'0.58rem' }}
-            onClick={onContinueMarch}
-          >
-            Retomar manualmente
-          </button>
+          <div className="auto-resume-note">La marcha continúa...</div>
         </div>
       )}
     </div>

@@ -3360,3 +3360,156 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   font-family: Georgia, serif;
   letter-spacing: 0.04em;
 }
+
+/* ── Combat alert dock (non-intrusive) ───────────────────────────────────── */
+.combat-alert-layer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 64px;
+  z-index: 5000;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  padding: 0 12px;
+}
+.combat-alert-dock {
+  pointer-events: auto;
+  width: min(420px, 100%);
+  background: #0D0A07;
+  border: 1px solid rgba(180,40,40,0.55);
+  border-radius: 8px;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.55), 0 0 20px rgba(180,40,40,0.12);
+  overflow: hidden;
+  animation: combatDockIn 220ms ease-out both;
+}
+.combat-alert-dock.minimized {
+  border-radius: 6px;
+}
+.combat-dock-header {
+  background: rgba(180,40,40,0.18);
+  border-bottom: 1px solid rgba(180,40,40,0.28);
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.combat-dock-min-btn {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  color: var(--color-stone-light);
+  font-size: 0.65rem;
+  cursor: pointer;
+  margin-left: auto;
+  border-radius: 3px;
+}
+.combat-dock-min-btn:hover { background: rgba(255,255,255,0.06); }
+.combat-dock-body { padding: 10px 12px 8px; }
+.combat-dock-stances { display: flex; gap: 6px; margin: 8px 0 6px; }
+.combat-dock-stance-btn {
+  flex: 1;
+  background: rgba(98,107,111,0.12);
+  border: 1px solid rgba(98,107,111,0.28);
+  border-radius: 5px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--color-parchment);
+  font-family: inherit;
+  font-size: 0.62rem;
+  font-weight: 500;
+  text-align: center;
+}
+.combat-dock-stance-btn:hover {
+  background: rgba(98,107,111,0.22);
+  border-color: rgba(184,148,74,0.4);
+}
+.combat-dock-result {
+  padding: 8px 12px;
+  font-size: 0.68rem;
+  color: var(--color-parchment);
+  font-style: italic;
+  text-align: center;
+  border-top: 1px solid rgba(98,107,111,0.15);
+}
+.combat-dock-footer {
+  border-top: 1px solid rgba(98,107,111,0.15);
+  padding: 6px 12px;
+  display: flex;
+  justify-content: center;
+}
+.combat-dock-goto-btn {
+  background: none;
+  border: 1px solid rgba(98,107,111,0.28);
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 0.58rem;
+  color: var(--color-mist);
+  cursor: pointer;
+  font-family: inherit;
+}
+.combat-dock-goto-btn:hover { background: rgba(111,159,163,0.08); }
+
+@keyframes combatDockIn {
+  from { transform: translateY(14px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+@keyframes dangerPulse {
+  0%   { box-shadow: inset 0 0 0   rgba(182,58,46,0); }
+  35%  { box-shadow: inset 0 0 34px rgba(182,58,46,0.18); }
+  100% { box-shadow: inset 0 0 0   rgba(182,58,46,0); }
+}
+.flow-combat-alert .app-content {
+  animation: dangerPulse 700ms ease-out;
+}
+
+/* ── Map view transitions ────────────────────────────────────────────────── */
+@keyframes mapSoftShift {
+  from { opacity: 0.7; transform: translateY(6px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
+.map-view-entering {
+  animation: mapSoftShift 180ms ease-out both;
+}
+
+/* ── Segment transition card ─────────────────────────────────────────────── */
+.segment-transition-card {
+  margin: 8px 12px;
+  background: rgba(184,148,74,0.07);
+  border: 1px solid rgba(184,148,74,0.22);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.segment-transition-title {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-gold);
+  margin-bottom: 4px;
+}
+.segment-transition-name {
+  font-size: 0.88rem;
+  color: var(--color-parchment);
+  font-family: Georgia, serif;
+  margin-bottom: 8px;
+}
+.segment-transition-next {
+  font-size: 0.62rem;
+  color: var(--color-stone-light);
+  margin-bottom: 10px;
+}
+.segment-transition-timer {
+  font-size: 0.62rem;
+  color: var(--color-mist);
+  margin-bottom: 10px;
+}
+
+/* ── Map microhint ───────────────────────────────────────────────────────── */
+.visual-map-hint {
+  text-align: center;
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  padding: 4px 0 2px;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}

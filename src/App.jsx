@@ -39,6 +39,37 @@ import CodexScreen    from './screens/CodexScreen.jsx'
 
 const THRESHOLDS = [20, 40, 60, 80]
 
+const COMBAT_DECISION_SECONDS = 6
+
+const DEFAULT_MAP_CAMERA = {
+  viewLevel:       'abyss',
+  selectedLayerId: null,
+  selectedRouteId: null,
+  panByView: {
+    abyss: { x: 0, y: 0 },
+    layer: { x: 0, y: 0 },
+    route: { x: 0, y: 0 },
+  },
+}
+
+function loadMapCamera() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('aethermarch_map_camera_v1') ?? 'null')
+    if (!raw || typeof raw !== 'object') return DEFAULT_MAP_CAMERA
+    const views = ['abyss', 'layer', 'route']
+    return {
+      viewLevel:       views.includes(raw.viewLevel) ? raw.viewLevel : 'abyss',
+      selectedLayerId: raw.selectedLayerId ?? null,
+      selectedRouteId: raw.selectedRouteId ?? null,
+      panByView: {
+        abyss: { x: Number(raw.panByView?.abyss?.x) || 0, y: Number(raw.panByView?.abyss?.y) || 0 },
+        layer: { x: Number(raw.panByView?.layer?.x) || 0, y: Number(raw.panByView?.layer?.y) || 0 },
+        route: { x: Number(raw.panByView?.route?.x) || 0, y: Number(raw.panByView?.route?.y) || 0 },
+      },
+    }
+  } catch { return DEFAULT_MAP_CAMERA }
+}
+
 const INITIAL_EXPEDITION = {
   status:        'resting',
   currentTramo:  1,
@@ -117,11 +148,13 @@ export default function App() {
   const [contractState,             setContractState]             = useState(createInitialContractState)
   const [lastContractResult,        setLastContractResult]        = useState(null)
   const [discoveredSegmentIds,      setDiscoveredSegmentIds]      = useState([])
+  const [mapCameraState,            setMapCameraState]            = useState(loadMapCamera)
 
-  const completionDone   = useRef(false)
-  const combatTriggered  = useRef(new Set())
-  const pedStateRef      = useRef(createPedometerState())
-  const motionHandlerRef = useRef(null)
+  const completionDone      = useRef(false)
+  const combatTriggered     = useRef(new Set())
+  const combatAutoResumeRef = useRef(false)
+  const pedStateRef         = useRef(createPedometerState())
+  const motionHandlerRef    = useRef(null)
 
   // ── Nueva partida ────────────────────────────────────────────────────────────
   function handleStart({ archetypeId, creatureId }) {
@@ -175,6 +208,11 @@ export default function App() {
     setHasStarted(true)
   }
 
+  // ── Persistir cámara del mapa en localStorage ────────────────────────────────
+  useEffect(() => {
+    localStorage.setItem('aethermarch_map_camera_v1', JSON.stringify(mapCameraState))
+  }, [mapCameraState])
+
   // ── Reinicio completo ─────────────────────────────────────────────────────────
   function resetGame() {
     clearSave()
@@ -196,6 +234,7 @@ export default function App() {
     setContractState(createInitialContractState())
     setLastContractResult(null)
     setDiscoveredSegmentIds([])
+    setMapCameraState(DEFAULT_MAP_CAMERA)
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
     if (motionHandlerRef.current) {
@@ -736,6 +775,9 @@ export default function App() {
     const newCombat = createCombatFromThreat({ event: threat, enemies: ENEMIES })
     if (!newCombat) return
 
+    newCombat.decisionSeconds  = COMBAT_DECISION_SECONDS
+    newCombat.decisionEndsAt   = Date.now() + COMBAT_DECISION_SECONDS * 1000
+    combatAutoResumeRef.current = false
     setCombat(newCombat)
     setExpedition(prev => prev.status === 'marching' ? { ...prev, status: 'combat' } : prev)
   }, [expedition.events, expedition.status, combat.status, expedition.combatResults])
@@ -901,6 +943,16 @@ export default function App() {
     contractState,
   ])
 
+  // ── Auto-resume tras combate resuelto (activo en cualquier pestaña) ──────────
+  useEffect(() => {
+    if (combat.status !== 'resolved') { combatAutoResumeRef.current = false; return }
+    if (combatAutoResumeRef.current) return
+    combatAutoResumeRef.current = true
+    const id = setTimeout(handleContinueMarch, 1200)
+    return () => clearTimeout(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combat.status])
+
   // ── Render ───────────────────────────────────────────────────────────────────
   function renderTab() {
     switch (currentTab) {
@@ -939,7 +991,15 @@ export default function App() {
             onResolveActiveContract={handleResolveActiveContract}
           />
         )
-      case 'mapa':       return <MapScreen       sectors={sectors} expedition={expedition} discoveredSegmentIds={discoveredSegmentIds} />
+      case 'mapa':       return (
+        <MapScreen
+          sectors={sectors}
+          expedition={expedition}
+          discoveredSegmentIds={discoveredSegmentIds}
+          cameraState={mapCameraState}
+          onCameraChange={setMapCameraState}
+        />
+      )
       case 'diario':     return <DiaryScreen      diary={diary} />
       case 'inventario': return <InventoryScreen  inventory={inventory} />
       case 'criatura':   return <CreatureScreen   player={player} />
@@ -968,10 +1028,16 @@ export default function App() {
     )
   }
 
+  const appFlowClass = [
+    combat?.status === 'awaiting_choice'   ? 'flow-combat-alert'       : '',
+    expedition?.status === 'segment_transition' ? 'flow-segment-transition' : '',
+    mapCameraState?.viewLevel ? `map-view-${mapCameraState.viewLevel}` : '',
+  ].filter(Boolean).join(' ')
+
   return (
-    <AppShell currentTab={currentTab} onChangeTab={setCurrentTab}>
+    <AppShell currentTab={currentTab} onChangeTab={setCurrentTab} flowClass={appFlowClass}>
       {renderTab()}
-      {combat.status === 'awaiting_choice' && currentTab !== 'caravana' && (
+      {(combat.status === 'awaiting_choice' || combat.status === 'resolved') && currentTab !== 'caravana' && (
         <CombatAlertModal
           combat={combat}
           player={player}

@@ -484,18 +484,18 @@ Todos los eventos deben verse en la escena, no ser solo texto.
 
 ## Combate
 
-No es modal encima de la ruta. Es una escena propia.
+No es un modal bloqueante. Es una escena en Caravana + dock compacto en pestañas externas.
 
-**Flujo:**
+**Flujo (19C):**
 1. Amenaza aparece durante marcha
 2. Marcha se pausa
-3. CombatScene se activa
-4. Enemigo prepara ataque
-5. Jugador elige postura (Prudente / Equilibrada / Audaz)
-6. Si no elige en 5 segundos → Equilibrada automática
-7. Se resuelve daño
-8. Se registra combate
-9. Marcha continúa
+3. En pestaña Caravana: CombatScene inline
+4. En cualquier otra pestaña: CombatAlertDock (pie de pantalla, sin bloquear contenido)
+5. Enemigo prepara ataque
+6. Jugador elige postura (Prudente / Equilibrada / Audaz) o ignora
+7. Si no elige en 6 segundos → Equilibrada automática (timer con timestamp absoluto, estable entre pestañas)
+8. Resultado visible 1200 ms → dock desaparece
+9. Marcha reanuda automáticamente desde cualquier pestaña activa
 
 ### Posturas
 - **Prudente:** Cubrirse y leer el ataque
@@ -516,9 +516,11 @@ No es modal encima de la ruta. Es una escena propia.
 ## Mapa — Hacia el Abismo en Espiral
 
 ### Estado actual
-Mapa visual interactivo implementado (19A–19B): navegación por tres niveles (Abismo → Capa → Ruta), asentamientos como nodos SVG con iconos por tipo, rutas como trazados curvos Bézier, niebla de descubrimiento por segmento, pan/arrastre con discriminación tap/drag, y breadcrumb de navegación.
+Mapa visual interactivo implementado (19A–19C): navegación por tres niveles (Abismo → Capa → Ruta), asentamientos como nodos SVG con iconos por tipo, rutas como trazados curvos Bézier, niebla de descubrimiento por segmento, pan/arrastre con discriminación tap/drag, breadcrumb contextual y hint dinámico.
 
 Vista Abismo rediseñada en 19B como sima vertical: espiral S-curve con 20 capas alternando izquierda/derecha, paredes orgánicas de cueva, pan vertical clampeado, nodos de capa en cornisas, fog-band en capas bloqueadas, y detalle narrativo "Profundidad no cartografiada" al tocar una capa futura. La ruta `route_aethel_to_mist` se amplió de 3 a 12 tramos con identificadores compatibles con saves anteriores.
+
+En 19C se añadió cámara persistente: `mapCameraState` en App.jsx (viewLevel, selectedLayerId, selectedRouteId, panByView) se guarda en `localStorage('aethermarch_map_camera_v1')` y se restaura entre sesiones. Cambiar de pestaña y volver no resetea la vista ni el pan.
 
 ### Dirección futura
 El mapa evolucionará conforme se añadan estratos y sectores:
@@ -687,6 +689,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 18D — Mapa vivo y asentamientos: zoom conceptual (Capas/Rutas/Tramos), tramos descubiertos progresivamente, pausa de 20 s entre tramos, modo bloqueado durante expedición, botón Salir de expedición, popup global de combate fuera de Caravana y primera capa con 5 asentamientos base.
 - ✅ 19A — Mapa visual interactivo: navegación Abismo → Capa → Ruta con asentamientos SVG, rutas curvas, tramos dibujados, niebla de descubrimiento y pan/arrastre.
 - ✅ 19B — Abismo como sima vertical: espiral S-curve de 20 capas, paredes orgánicas de cueva, pan vertical, capas bloqueadas con detalle "Profundidad no cartografiada", Senda de los Faroles Bajos expandida a 12 tramos.
+- ✅ 19C — Flujo UX: cámara del mapa persistente entre pestañas (localStorage), dock de combate no invasivo (sin modal bloqueante), auto-resolve al agotar timer, marcha reanuda automáticamente tras combate, timer estable entre cambios de pestaña.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
