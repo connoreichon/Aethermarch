@@ -55,6 +55,7 @@ src/components/AppShell.jsx
 src/components/BottomNav.jsx
 src/components/ChoiceCard.jsx
 src/components/CollapsiblePanel.jsx
+src/components/CombatAlertModal.jsx
 src/components/StatBar.jsx
 src/components/tokens/ArchetypeToken.jsx
 src/components/tokens/CreatureToken.jsx
@@ -501,6 +502,195 @@ export default function CollapsiblePanel({ title, defaultOpen = false, children,
           {children}
         </div>
       )}
+    </div>
+  )
+}
+</file>
+
+<file path="src/components/CombatAlertModal.jsx">
+import { useState, useEffect, useRef } from 'react'
+import { ENEMIES } from '../data/gameData.js'
+import { getAvailableStances } from '../systems/combatSystem.js'
+import EnemyToken from './tokens/EnemyToken.jsx'
+
+export default function CombatAlertModal({
+  combat,
+  player,
+  onChooseStance,
+  onGoToCaravan,
+}) {
+  const decisionSeconds = combat?.decisionSeconds ?? 6
+  const [remainingSeconds, setRemainingSeconds] = useState(decisionSeconds)
+  const autoResolvedRef = useRef(false)
+
+  useEffect(() => {
+    if (!combat || combat.status !== 'awaiting_choice') return
+    autoResolvedRef.current = false
+    setRemainingSeconds(decisionSeconds)
+    const id = setInterval(() => {
+      setRemainingSeconds(prev => Math.max(0, prev - 1))
+    }, 1000)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combat?.status])
+
+  useEffect(() => {
+    if (!combat || combat.status !== 'awaiting_choice') return
+    if (remainingSeconds > 0) return
+    if (autoResolvedRef.current) return
+    autoResolvedRef.current = true
+    onChooseStance('equilibrada', { auto: true })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remainingSeconds, combat?.status])
+
+  if (!combat || combat.status !== 'awaiting_choice') return null
+
+  const enemy   = ENEMIES[combat.enemyId]
+  const stances = getAvailableStances()
+  const resolved = combat.status === 'resolved'
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9000,
+      background: 'rgba(0,0,0,0.82)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '0 16px',
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 340,
+        background: '#0D0A07',
+        border: '1px solid rgba(180,40,40,0.55)',
+        borderRadius: 8,
+        boxShadow: '0 0 32px rgba(180,40,40,0.22)',
+        overflow: 'hidden',
+      }}>
+        {/* Cabecera */}
+        <div style={{
+          background: 'rgba(180,40,40,0.18)',
+          borderBottom: '1px solid rgba(180,40,40,0.3)',
+          padding: '10px 14px',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" style={{ flexShrink: 0 }}>
+            <path d="M9 2 L16 15 H2 Z" fill="none" stroke="rgba(214,80,60,0.9)" strokeWidth="1.5"/>
+            <rect x="8.2" y="7" width="1.6" height="5" fill="rgba(214,80,60,0.9)" rx="0.5"/>
+            <circle cx="9" cy="13.5" r="0.9" fill="rgba(214,80,60,0.9)"/>
+          </svg>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontSize: '0.72rem', color: 'var(--color-hp)',
+              textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600,
+            }}>
+              Combate en la ruta
+            </div>
+            <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', marginTop: 1 }}>
+              Estás fuera de la Caravana
+            </div>
+          </div>
+        </div>
+
+        {/* Enemigo */}
+        <div style={{
+          padding: '12px 14px 8px',
+          display: 'flex', gap: 12, alignItems: 'center',
+        }}>
+          <EnemyToken enemyId={combat.enemyId} size={44} />
+          <div>
+            <div style={{ fontSize: '0.82rem', color: 'var(--color-parchment)', fontWeight: 500 }}>
+              {enemy?.name ?? combat.enemyId}
+            </div>
+            <div style={{ fontSize: '0.6rem', color: 'var(--color-ember)', marginTop: 2 }}>
+              {combat.attack?.name ?? '—'}
+            </div>
+            {player && (
+              <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', marginTop: 3 }}>
+                HP: <span style={{ color: player.hp < player.maxHp * 0.3 ? 'var(--color-hp)' : 'var(--color-parchment)' }}>
+                  {player.hp} / {player.maxHp}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Cuenta atrás */}
+        <div style={{ padding: '4px 14px 8px' }}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            fontSize: '0.58rem', color: 'var(--color-stone-light)',
+            marginBottom: 5,
+          }}>
+            <span>Reacción automática en {remainingSeconds} s</span>
+            <span style={{
+              fontSize: '0.72rem', fontWeight: 700,
+              color: remainingSeconds <= 2 ? 'var(--color-hp)' : 'var(--color-ember)',
+            }}>
+              {remainingSeconds}
+            </span>
+          </div>
+          <div style={{
+            height: 3, background: 'rgba(98,107,111,0.25)', borderRadius: 2,
+          }}>
+            <div style={{
+              height: '100%', borderRadius: 2,
+              background: remainingSeconds <= 2 ? 'var(--color-hp)' : 'var(--color-ember)',
+              width: `${(remainingSeconds / decisionSeconds) * 100}%`,
+              transition: 'width 1s linear',
+            }} />
+          </div>
+        </div>
+
+        {/* Posturas */}
+        <div style={{ padding: '4px 14px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{
+            fontSize: '0.54rem', color: 'var(--color-stone-light)',
+            textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2,
+          }}>
+            Elige postura:
+          </div>
+          {stances.map(stance => (
+            <button
+              key={stance.id}
+              onClick={() => onChooseStance(stance.id)}
+              style={{
+                background: 'rgba(98,107,111,0.12)',
+                border: '1px solid rgba(98,107,111,0.28)',
+                borderRadius: 5,
+                padding: '7px 10px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                color: 'var(--color-parchment)',
+              }}
+            >
+              <div style={{ fontSize: '0.7rem', fontWeight: 500 }}>{stance.name}</div>
+              <div style={{ fontSize: '0.57rem', color: 'var(--color-stone-light)', marginTop: 1 }}>
+                {stance.description}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Ir a Caravana */}
+        <div style={{
+          borderTop: '1px solid rgba(98,107,111,0.18)',
+          padding: '8px 14px',
+          textAlign: 'center',
+        }}>
+          <button
+            onClick={onGoToCaravan}
+            style={{
+              background: 'none',
+              border: '1px solid rgba(98,107,111,0.28)',
+              borderRadius: 4,
+              padding: '5px 14px',
+              fontSize: '0.6rem',
+              color: 'var(--color-mist)',
+              cursor: 'pointer',
+            }}
+          >
+            Ver en Caravana
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -1631,93 +1821,6 @@ export function getSectorLootPool(sector) {
 }
 </file>
 
-<file path="src/systems/combatSystem.js">
-// ── Constante de decisión ──────────────────────────────────────────────────────
-export const COMBAT_DECISION_SECONDS = 5
-
-// ── Posturas disponibles ──────────────────────────────────────────────────────
-export const STANCES = [
-  { id: 'prudente',    name: 'Prudente',    description: 'Cubrirse y leer el ataque.' },
-  { id: 'equilibrada', name: 'Equilibrada', description: 'Mantener posición y repartir.' },
-  { id: 'audaz',       name: 'Audaz',       description: 'Romper el ritmo del enemigo.' },
-]
-
-export function getAvailableStances() {
-  return STANCES
-}
-
-// ── Crear combate desde evento de amenaza ─────────────────────────────────────
-export function createCombatFromThreat({ event, enemies }) {
-  if (!event?.enemyId) return null
-  const enemy = enemies[event.enemyId]
-  if (!enemy || !enemy.attacks?.length) return null
-
-  const attackIdx = Math.floor((event.threshold ?? 20) / 40) % enemy.attacks.length
-  const attack    = enemy.attacks[attackIdx]
-
-  return {
-    status:          'awaiting_choice',
-    enemyId:         event.enemyId,
-    attackId:        attack.id,
-    attack,
-    selectedStance:  null,
-    result:          null,
-    sourceEventId:   event.id,
-    decisionSeconds: COMBAT_DECISION_SECONDS,
-    autoResolved:    false,
-    log: [
-      'La amenaza se revela en el camino.',
-      `${enemy.name} prepara ${attack?.name ?? 'un ataque'}.`,
-    ],
-  }
-}
-
-// ── Resolver turno de combate ─────────────────────────────────────────────────
-export function resolveCombatTurn({ combat, stanceId, player, enemies, auto = false }) {
-  const attack = combat.attack
-  if (!attack) return null
-
-  let damage = attack.baseDamage
-
-  if (stanceId === attack.bestStance) {
-    damage = 0
-  } else if (stanceId === 'equilibrada') {
-    damage = Math.ceil(attack.baseDamage / 2)
-  }
-
-  if (player?.archetypeId === 'guardian') damage = Math.max(0, damage - 2)
-  if (player?.creatureId  === 'brontik')  damage = Math.max(0, damage - 1)
-
-  const wasCorrect = stanceId === attack.bestStance
-  const xpGain     = damage === 0 ? 8 : 5
-
-  let text = auto ? 'La caravana mantiene una postura equilibrada por instinto. ' : ''
-
-  if (wasCorrect) {
-    text += 'La postura elegida evita el golpe. La caravana sale ilesa.'
-  } else if (damage === 0) {
-    text += 'El golpe es absorbido. La guardia aguanta sin daño.'
-  } else {
-    text += `El impacto alcanza la guardia. La caravana recibe ${damage} de daño.`
-  }
-
-  const currentHp = player?.hp ?? 30
-  if (damage > 0 && damage >= currentHp) {
-    text += ' La caravana queda maltrecha, pero consigue seguir adelante.'
-  }
-
-  return {
-    stanceId,
-    wasCorrect,
-    baseDamage:   attack.baseDamage,
-    finalDamage:  damage,
-    xpGain,
-    text,
-    autoResolved: auto,
-  }
-}
-</file>
-
 <file path="src/systems/echoSystem.js">
 export const ECHO_MAX_STEPS   = 2000
 export const ECHO_MIN_STEPS   = 300
@@ -2155,71 +2258,6 @@ export function canUseMercenaryContracts({ player, sectors, contractState }) {
 }
 </file>
 
-<file path="src/systems/routeSegmentSystem.js">
-export const ROUTE_SEGMENT_TYPES = {
-  APPROACH: 'approach',
-  CROSSING: 'crossing',
-  LANDMARK: 'landmark',
-  DANGER:   'danger',
-  REST:     'rest',
-  SECRET:   'secret',
-  DESCENT:  'descent',
-  RETURN:   'return',
-}
-
-export function getRouteSegmentTypeLabel(type) {
-  const LABELS = {
-    approach: 'Aproximación',
-    crossing: 'Cruce',
-    landmark: 'Referencia',
-    danger:   'Zona de peligro',
-    rest:     'Zona de descanso',
-    secret:   'Tramo secreto',
-    descent:  'Descenso',
-    return:   'Retorno',
-  }
-  return LABELS[type] ?? type
-}
-
-export function getSegmentsForRoute({ segments, routeId }) {
-  return (segments ?? [])
-    .filter(seg => seg.routeId === routeId)
-    .sort((a, b) => a.order - b.order)
-}
-
-export function getVisibleSegmentsForRoute({ segments, route, destinationSectorDiscovered }) {
-  if (route?.type === 'secret' && !destinationSectorDiscovered) return []
-  return getSegmentsForRoute({ segments, routeId: route?.id })
-}
-
-export function getRouteSegmentStepRangeLabel(segment) {
-  if (!segment?.stepMin || !segment?.stepMax) return '—'
-  return `${segment.stepMin}–${segment.stepMax} pasos`
-}
-
-export function getRouteSegmentsTotalSteps(segments) {
-  const min = (segments ?? []).reduce((s, seg) => s + (seg.stepMin ?? 0), 0)
-  const max = (segments ?? []).reduce((s, seg) => s + (seg.stepMax ?? 0), 0)
-  return { min, max }
-}
-
-export function getRouteSegmentSummary({ route, segments }) {
-  const segs = getSegmentsForRoute({ segments, routeId: route?.id })
-  const { min, max } = getRouteSegmentsTotalSteps(segs)
-  return {
-    count: segs.length,
-    totalStepMin: min,
-    totalStepMax: max,
-    firstSegment: segs[0] ?? null,
-  }
-}
-
-export function getRouteSegmentDangerLabel(segment) {
-  const LABELS = { low: 'Riesgo bajo', medium: 'Riesgo medio', high: 'Riesgo alto' }
-  return LABELS[segment?.danger] ?? '—'
-}
-</file>
-
 <file path="src/systems/secretSystem.js">
 export function isSecretSector(sector) {
   return sector?.secret === true
@@ -2464,6 +2502,93 @@ export default function BottomNav({ currentTab, onChangeTab }) {
       ))}
     </nav>
   )
+}
+</file>
+
+<file path="src/systems/combatSystem.js">
+// ── Constante de decisión ──────────────────────────────────────────────────────
+export const COMBAT_DECISION_SECONDS = 6
+
+// ── Posturas disponibles ──────────────────────────────────────────────────────
+export const STANCES = [
+  { id: 'prudente',    name: 'Prudente',    description: 'Cubrirse y leer el ataque.' },
+  { id: 'equilibrada', name: 'Equilibrada', description: 'Mantener posición y repartir.' },
+  { id: 'audaz',       name: 'Audaz',       description: 'Romper el ritmo del enemigo.' },
+]
+
+export function getAvailableStances() {
+  return STANCES
+}
+
+// ── Crear combate desde evento de amenaza ─────────────────────────────────────
+export function createCombatFromThreat({ event, enemies }) {
+  if (!event?.enemyId) return null
+  const enemy = enemies[event.enemyId]
+  if (!enemy || !enemy.attacks?.length) return null
+
+  const attackIdx = Math.floor((event.threshold ?? 20) / 40) % enemy.attacks.length
+  const attack    = enemy.attacks[attackIdx]
+
+  return {
+    status:          'awaiting_choice',
+    enemyId:         event.enemyId,
+    attackId:        attack.id,
+    attack,
+    selectedStance:  null,
+    result:          null,
+    sourceEventId:   event.id,
+    decisionSeconds: COMBAT_DECISION_SECONDS,
+    autoResolved:    false,
+    log: [
+      'La amenaza se revela en el camino.',
+      `${enemy.name} prepara ${attack?.name ?? 'un ataque'}.`,
+    ],
+  }
+}
+
+// ── Resolver turno de combate ─────────────────────────────────────────────────
+export function resolveCombatTurn({ combat, stanceId, player, enemies, auto = false }) {
+  const attack = combat.attack
+  if (!attack) return null
+
+  let damage = attack.baseDamage
+
+  if (stanceId === attack.bestStance) {
+    damage = 0
+  } else if (stanceId === 'equilibrada') {
+    damage = Math.ceil(attack.baseDamage / 2)
+  }
+
+  if (player?.archetypeId === 'guardian') damage = Math.max(0, damage - 2)
+  if (player?.creatureId  === 'brontik')  damage = Math.max(0, damage - 1)
+
+  const wasCorrect = stanceId === attack.bestStance
+  const xpGain     = damage === 0 ? 8 : 5
+
+  let text = auto ? 'La caravana mantiene una postura equilibrada por instinto. ' : ''
+
+  if (wasCorrect) {
+    text += 'La postura elegida evita el golpe. La caravana sale ilesa.'
+  } else if (damage === 0) {
+    text += 'El golpe es absorbido. La guardia aguanta sin daño.'
+  } else {
+    text += `El impacto alcanza la guardia. La caravana recibe ${damage} de daño.`
+  }
+
+  const currentHp = player?.hp ?? 30
+  if (damage > 0 && damage >= currentHp) {
+    text += ' La caravana queda maltrecha, pero consigue seguir adelante.'
+  }
+
+  return {
+    stanceId,
+    wasCorrect,
+    baseDamage:   attack.baseDamage,
+    finalDamage:  damage,
+    xpGain,
+    text,
+    autoResolved: auto,
+  }
 }
 </file>
 
@@ -3135,6 +3260,143 @@ export function getExpeditionPreparation({ modeId, sector, biome, creature, arch
 }
 </file>
 
+<file path="src/systems/routeSegmentSystem.js">
+export const ROUTE_SEGMENT_TYPES = {
+  APPROACH: 'approach',
+  CROSSING: 'crossing',
+  LANDMARK: 'landmark',
+  DANGER:   'danger',
+  REST:     'rest',
+  SECRET:   'secret',
+  DESCENT:  'descent',
+  RETURN:   'return',
+}
+
+export function getRouteSegmentTypeLabel(type) {
+  const LABELS = {
+    approach: 'Aproximación',
+    crossing: 'Cruce',
+    landmark: 'Referencia',
+    danger:   'Zona de peligro',
+    rest:     'Zona de descanso',
+    secret:   'Tramo secreto',
+    descent:  'Descenso',
+    return:   'Retorno',
+  }
+  return LABELS[type] ?? type
+}
+
+export function getSegmentsForRoute({ segments, routeId }) {
+  return (segments ?? [])
+    .filter(seg => seg.routeId === routeId)
+    .sort((a, b) => a.order - b.order)
+}
+
+export function getVisibleSegmentsForRoute({ segments, route, destinationSectorDiscovered }) {
+  if (route?.type === 'secret' && !destinationSectorDiscovered) return []
+  return getSegmentsForRoute({ segments, routeId: route?.id })
+}
+
+export function getRouteSegmentStepRangeLabel(segment) {
+  if (!segment?.stepMin || !segment?.stepMax) return '—'
+  return `${segment.stepMin}–${segment.stepMax} pasos`
+}
+
+export function getRouteSegmentsTotalSteps(segments) {
+  const min = (segments ?? []).reduce((s, seg) => s + (seg.stepMin ?? 0), 0)
+  const max = (segments ?? []).reduce((s, seg) => s + (seg.stepMax ?? 0), 0)
+  return { min, max }
+}
+
+export function getRouteSegmentSummary({ route, segments }) {
+  const segs = getSegmentsForRoute({ segments, routeId: route?.id })
+  const { min, max } = getRouteSegmentsTotalSteps(segs)
+  return {
+    count: segs.length,
+    totalStepMin: min,
+    totalStepMax: max,
+    firstSegment: segs[0] ?? null,
+  }
+}
+
+export function getRouteSegmentDangerLabel(segment) {
+  const LABELS = { low: 'Riesgo bajo', medium: 'Riesgo medio', high: 'Riesgo alto' }
+  return LABELS[segment?.danger] ?? '—'
+}
+
+export function getNextRouteSegment({ segments, routeId, completedSegmentIds }) {
+  const ordered = getSegmentsForRoute({ segments, routeId })
+  return ordered.find(seg => !(completedSegmentIds ?? []).includes(seg.id)) ?? null
+}
+
+export function getRouteProgress({ route, segments, completedSegmentIds }) {
+  const ordered   = getSegmentsForRoute({ segments, routeId: route?.id })
+  const completed = ordered.filter(seg => (completedSegmentIds ?? []).includes(seg.id))
+  return {
+    completedCount: completed.length,
+    totalCount:     ordered.length,
+    isComplete:     ordered.length > 0 && completed.length >= ordered.length,
+  }
+}
+
+export function isRouteComplete({ route, segments, completedSegmentIds }) {
+  return getRouteProgress({ route, segments, completedSegmentIds }).isComplete
+}
+
+export function getRouteDestinationSectorId({ route, currentSectorId }) {
+  if (!route) return null
+  if (route.fromSectorId === currentSectorId) return route.toSectorId
+  if (route.toSectorId   === currentSectorId) return route.fromSectorId
+  return route.toSectorId ?? null
+}
+
+export function getRouteOriginSectorId({ route, currentSectorId }) {
+  if (!route) return null
+  if (route.fromSectorId === currentSectorId) return route.fromSectorId
+  if (route.toSectorId   === currentSectorId) return route.toSectorId
+  return route.fromSectorId ?? null
+}
+
+export function buildRouteRunState({ route, segments, currentSectorId }) {
+  const ordered = getSegmentsForRoute({ segments, routeId: route?.id })
+  const first   = ordered[0] ?? null
+  return {
+    routeId:             route?.id ?? null,
+    fromSectorId:        getRouteOriginSectorId({ route, currentSectorId }),
+    toSectorId:          getRouteDestinationSectorId({ route, currentSectorId }),
+    currentSegmentId:    first?.id ?? null,
+    currentSegmentOrder: first?.order ?? 1,
+    completedSegmentIds: [],
+    totalSegments:       ordered.length,
+    completed:           false,
+    startedAt:           new Date().toISOString(),
+  }
+}
+
+export function completeCurrentRouteSegment({ routeRun, route, segments }) {
+  if (!routeRun?.currentSegmentId) return routeRun
+
+  const completedSegmentIds = Array.from(new Set([
+    ...(routeRun.completedSegmentIds ?? []),
+    routeRun.currentSegmentId,
+  ]))
+
+  const next = getNextRouteSegment({
+    segments,
+    routeId: route?.id ?? routeRun.routeId,
+    completedSegmentIds,
+  })
+
+  return {
+    ...routeRun,
+    completedSegmentIds,
+    currentSegmentId:    next?.id ?? null,
+    currentSegmentOrder: next?.order ?? routeRun.currentSegmentOrder,
+    completed:           !next,
+  }
+}
+</file>
+
 <file path="src/systems/codexSystem.js">
 import { ABYSS_STRATA, RESOURCES, ENEMIES, CREATURES, POIS } from '../data/gameData.js'
 
@@ -3469,6 +3731,30 @@ export function clearRecentDiscoveries(sectors) {
 }
 </file>
 
+<file path="vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  base: '/Aethermarch/',
+  server: {
+    port: parseInt(process.env.PORT) || 5173,
+    strictPort: false,
+  },
+  build: {
+    chunkSizeWarningLimit: 400,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+        },
+      },
+    },
+  },
+})
+</file>
+
 <file path="src/systems/saveSystem.js">
 export const SAVE_KEY     = 'aethermarch_save_v1'
 export const SAVE_VERSION = 1
@@ -3512,6 +3798,7 @@ export function createSaveSnapshot({
   lastEchoClaimAt,
   stepSource,
   contractState,
+  discoveredSegmentIds,
 }) {
   // Track whether the save was created while a run was active
   const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
@@ -3535,10 +3822,11 @@ export function createSaveSnapshot({
     inventory,
     diary,
     sectors,
-    expedition:       safeExp,
-    lastEchoClaimAt:  lastEchoClaimAt ?? null,
-    stepSource:       stepSource ?? null,
-    contractState:    contractState ?? null,
+    expedition:            safeExp,
+    lastEchoClaimAt:       lastEchoClaimAt ?? null,
+    stepSource:            stepSource ?? null,
+    contractState:         contractState ?? null,
+    discoveredSegmentIds:  Array.isArray(discoveredSegmentIds) ? discoveredSegmentIds : [],
     meta: {
       recoveredFromInterruptedRun: wasActive,
     },
@@ -3577,32 +3865,220 @@ export function sanitizeLoadedSave(rawSave) {
     save.meta = { ...(save.meta ?? {}), recoveredFromInterruptedRun: true }
   }
 
+  save.discoveredSegmentIds = Array.isArray(save.discoveredSegmentIds)
+    ? save.discoveredSegmentIds
+    : []
+
   return save
 }
 </file>
 
-<file path="vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+<file path="src/screens/DiaryScreen.jsx">
+import { RESOURCES, BIOMES } from '../data/gameData.js'
 
-export default defineConfig({
-  plugins: [react()],
-  base: '/Aethermarch/',
-  server: {
-    port: parseInt(process.env.PORT) || 5173,
-    strictPort: false,
-  },
-  build: {
-    chunkSizeWarningLimit: 400,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-        },
-      },
-    },
-  },
-})
+const MODE_LABELS = {
+  free_march: 'Marcha Libre',
+  hunt:       'Caza',
+  gather:     'Recolección',
+  explore:    'Exploración',
+}
+
+const BIOME_TAG = {
+  forest: { label: 'Bosque Rúnico',   color: 'var(--color-xp)'    },
+  coast:  { label: 'Costa Arcana',    color: 'var(--color-magic)'  },
+  forge:  { label: 'Forja Arcanista', color: 'var(--color-ember)'  },
+}
+
+export default function DiaryScreen({ diary }) {
+  const hasEntries = diary && diary.length > 0
+
+  if (!hasEntries) {
+    return (
+      <div className="screen-scroll">
+        <div className="panel">
+          <div className="panel-title">Crónica de marcha</div>
+          <div className="diary-empty">
+            <div className="diary-empty-icon">📜</div>
+            <div className="diary-empty-title">La caravana aún no ha registrado ningún tramo.</div>
+            <div className="diary-empty-desc">
+              Cuando completes tu primera jornada, aquí quedará el rastro de todo lo vivido.
+            </div>
+            <ul className="diary-coming-list">
+              <li>Tramos completados y pasos recorridos</li>
+              <li>Hallazgos y sendas reveladas</li>
+              <li>Rastros hostiles detectados</li>
+              <li>Recursos recolectados</li>
+              <li>Palabras de tu criatura compañera</li>
+            </ul>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-title">Próximas crónicas</div>
+          <p style={{ fontSize:'0.72rem', color:'var(--color-stone-light)', lineHeight:1.6, fontStyle:'italic' }}>
+            Cada tramo dejará una entrada. La crónica recordará los caminos recorridos,
+            los rastros cruzados y los materiales encontrados.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="screen-scroll">
+      <div className="panel">
+        <div className="panel-title">Crónica de marcha</div>
+        <div className="diary-chronicle-list">
+          {[...diary].reverse().map((entry, idx) => {
+            const resEntries = Object.entries(entry.rewards?.resources ?? {})
+            const xp         = entry.rewards?.xp ?? 0
+            const biomeTag   = BIOME_TAG[entry.biomeId]
+            const isEcho     = entry.type === 'march_echo'
+            const isPoi      = entry.type === 'poi'
+            const isContract = entry.type === 'contract'
+
+            return (
+              <div key={entry.id} className={`diary-entry-card${idx === 0 ? ' latest' : ''}`}>
+
+                {/* Título */}
+                <div className="diary-entry-title">
+                  {isEcho     && <span className="diary-echo-badge">Eco</span>}
+                  {isPoi      && <span className="diary-poi-badge">Lugar</span>}
+                  {isContract && <span className="diary-contract-badge">Contrato</span>}
+                  {entry.title ?? `Tramo ${entry.tramoNumber}`}
+                </div>
+
+                {/* Nombre del contrato */}
+                {isContract && entry.contractTitle && (
+                  <div style={{ fontSize:'0.65rem', color:'var(--color-parchment)', fontStyle:'italic', marginBottom:3 }}>
+                    {entry.contractTitle}
+                  </div>
+                )}
+
+                {/* Resultado del contrato */}
+                {isContract && entry.outcomeLabel && (
+                  <div className={`diary-contract-outcome ${entry.outcome ?? ''}`}>
+                    {entry.outcomeLabel}
+                    {entry.successChance != null && (
+                      <span style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginLeft:6, fontWeight:400 }}>
+                        Prob. estimada: {entry.successChance}%
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Meta */}
+                <div className="diary-entry-meta">
+                  {!isEcho && !isPoi && !isContract && (
+                    <>
+                      <span>{MODE_LABELS[entry.modeId] ?? entry.modeId}</span>
+                      <span className="diary-entry-meta-sep">·</span>
+                    </>
+                  )}
+                  {isContract ? (
+                    <>
+                      <span>{entry.contractorName ?? '—'}</span>
+                      {entry.sectorName && (
+                        <>
+                          <span className="diary-entry-meta-sep">·</span>
+                          <span>{entry.sectorName}</span>
+                        </>
+                      )}
+                    </>
+                  ) : isPoi ? (
+                    <span>{entry.sectorName ?? '—'}</span>
+                  ) : (
+                    <span>{entry.steps} pasos</span>
+                  )}
+                  {!isPoi && !isContract && biomeTag && (
+                    <>
+                      <span className="diary-entry-meta-sep">·</span>
+                      <span style={{ color: biomeTag.color }}>{biomeTag.label}</span>
+                    </>
+                  )}
+                </div>
+                {/* Estrato y profundidad */}
+                {entry.stratumName && !isPoi && !isContract && (
+                  <div style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginTop:2, opacity:0.62 }}>
+                    {entry.stratumName.split('·')[0].trim()}
+                    {entry.depthMeters ? ` · ${entry.depthMeters} m` : ''}
+                  </div>
+                )}
+
+                {/* Resumen narrativo */}
+                <p className="diary-entry-summary">{entry.summaryText}</p>
+
+                {/* Consecuencia de contrato fallido */}
+                {isContract && entry.consequence && (
+                  <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', fontStyle:'italic',
+                                marginTop:4, paddingTop:4, borderTop:'1px solid rgba(98,107,111,0.18)' }}>
+                    {entry.consequence.text}
+                  </div>
+                )}
+
+                {/* HP recuperado en POI */}
+                {isPoi && (entry.hpGain ?? 0) > 0 && (
+                  <div style={{ fontSize:'0.6rem', color:'var(--color-xp)', marginBottom:5 }}>
+                    +{entry.hpGain} HP recuperados
+                  </div>
+                )}
+
+                {/* Flavor de eco */}
+                {isEcho && entry.events?.length > 0 && (
+                  <div className="diary-echo-events">
+                    {entry.events.map((ev, i) => (
+                      <div key={i} className="diary-echo-event-line">{ev}</div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Combates */}
+                {!isEcho && !isPoi && !isContract && entry.combatResults?.length > 0 && (
+                  <div className="diary-entry-combat">
+                    {entry.combatResults.map((cr, ci) => (
+                      <span key={ci}>
+                        ⚔ {cr.enemyName ?? cr.enemyId}
+                        {cr.finalDamage > 0 ? ` −${cr.finalDamage}HP` : ' (ileso)'}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Recompensas */}
+                {(xp > 0 || resEntries.length > 0) && (
+                  <div className="diary-entry-rewards">
+                    {xp > 0 && (
+                      <span style={{ color:'var(--color-xp)' }}>+{xp} XP</span>
+                    )}
+                    {resEntries.map(([id, qty]) => (
+                      <span key={id} style={{ color:'var(--color-gold)' }}>
+                        +{qty}× {RESOURCES[id]?.name ?? id.replace(/_/g,' ')}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Senda descubierta */}
+                {entry.discovery && (
+                  <div className="diary-entry-discovery">
+                    Nueva senda: {entry.discovery.sectorName}
+                  </div>
+                )}
+
+                {/* Fecha */}
+                <div className="diary-entry-date">
+                  {new Date(entry.completedAt).toLocaleDateString('es-ES', {
+                    day: '2-digit', month: 'short', year: 'numeric',
+                  })}
+                </div>
+
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
 </file>
 
 <file path="docs/WORLD_BIBLE.md">
@@ -4576,7 +5052,70 @@ Los tramos del Estrato I actualmente implementados:
 | Descenso al Bastión | Senda de humo | Carbón bajo el agua | Bajada oscura |
 | Galería de Ceniza | Galería apagada | Columnas de hollín | Bastión de carbón |
 
-La lógica de marcha (`marchSystem.js`) no consume aún `eventBias` — los pesos están preparados para la iteración siguiente.
+La lógica de marcha (`App.jsx`) recorre los tramos uno a uno automáticamente (18C). Al completar todos los tramos, la caravana llega al sector destino. El `eventBias` está preparado pero no consume aún la lógica de eventos — previsto para iteraciones futuras.
+
+---
+
+## Progresión de asentamientos por profundidad
+
+Las ciudades y asentamientos del Abismo no desaparecen conforme se desciende — se vuelven más escasos, peligrosos y extraños.
+
+**Capas tempranas (Estratos I-II):**
+- Muchos asentamientos estables: aldeas, posadas, mercados, caravasares, fortines.
+- El jugador puede descansare curar en múltiples puntos.
+- Presencia humana mayoritaria. Idioma, moneda y costumbres reconocibles.
+- Rumores, contratos sencillos, guías disponibles.
+
+**Capas medias (Estratos III-V):**
+- Menos posadas. Más puestos especializados: forjas, mercados de sal, campamentos de rastreadores.
+- Asentamientos más pequeños. Algunos semidesiertos o vigilados por facciones no humanas.
+- El jugador siente alivio al encontrar un refugio. No puede darlo por sentado.
+- Contratos más rentables pero más peligrosos.
+
+**Capas profundas (Estratos VI+):**
+- Pocos lugares seguros. Los que existen son raros, extraños o condicionados.
+- Ciudades semivivas, santuarios, ruinas habitadas, refugios míticos.
+- Algunos requieren rango, reputación o rutas especiales para acceder.
+- El jugador debe planificar el descenso para no quedarse sin refugio.
+
+**Regla de diseño:** el jugador siempre debe sentir que encontrar un lugar seguro profundo es un logro, no un derecho.
+
+---
+
+## Progresión de biomas
+
+La fantasía del Abismo aumenta gradualmente con la profundidad. No se pasa de bosque normal a locura cósmica de golpe.
+
+**Capas tempranas:**
+- Bosques rúnicos oscuros, montañas, lagos subterráneos, ríos, cuevas.
+- Desiertos de polvo mineral, ruinas humanas, caminos de piedra.
+- Referencia visual: mundo natural con toques de magia antigua.
+
+**Capas medias:**
+- Sal negra, hongos gigantes bioluminiscentes, resina petrificada.
+- Forjas antiguas, colonias insectoides, ruinas sumergidas, mares interiores.
+- Cavernas con «cielo falso» de cristal o vapor.
+- La magia ya no es sutil — es parte del paisaje.
+
+**Capas profundas:**
+- Bosques de cristal, desiertos eléctricos, océanos verticales, ciudades fósiles.
+- Campos de gravedad alterada, catedrales de raíz petrificada.
+- Mares de piedra líquida, zonas imposibles, abismos dentro del Abismo.
+- El entorno actúa. Las reglas físicas se doblan.
+
+---
+
+## Primera capa — 5 asentamientos iniciales (Estrato I · Raíces Ciegas)
+
+| ID | Nombre | Tipo | Seguridad |
+|----|--------|------|-----------|
+| `settlement_aethel_linde` | Linde de Aethel | Aldea | Seguro |
+| `settlement_root_lantern_market` | Mercado de Raíz Vieja | Mercado | Vigilado |
+| `settlement_fogbreak_fort` | Fortín Quebrabruma | Fortín | Vigilado |
+| `settlement_blind_lake_dock` | Muelle del Lago Ciego | Puerto | Inestable |
+| `settlement_dust_gate_caravanserai` | Caravasar del Polvo Bajo | Caravasar | Vigilado |
+
+Los cinco están en el Estrato I. El jugador parte desde Linde de Aethel (desbloqueado por defecto). Los demás se revelan conforme se descubren sus sectores.
 
 ---
 
@@ -5464,219 +6003,95 @@ export const WORLD_ROUTE_SEGMENTS = [
     eventBias: { resource: 0.15, exploration: 0.4, creature: 0.25, threat: 0.15, microevent: 0.05 },
   },
 ]
-</file>
 
-<file path="src/screens/DiaryScreen.jsx">
-import { RESOURCES, BIOMES } from '../data/gameData.js'
-
-const MODE_LABELS = {
-  free_march: 'Marcha Libre',
-  hunt:       'Caza',
-  gather:     'Recolección',
-  explore:    'Exploración',
-}
-
-const BIOME_TAG = {
-  forest: { label: 'Bosque Rúnico',   color: 'var(--color-xp)'    },
-  coast:  { label: 'Costa Arcana',    color: 'var(--color-magic)'  },
-  forge:  { label: 'Forja Arcanista', color: 'var(--color-ember)'  },
-}
-
-export default function DiaryScreen({ diary }) {
-  const hasEntries = diary && diary.length > 0
-
-  if (!hasEntries) {
-    return (
-      <div className="screen-scroll">
-        <div className="panel">
-          <div className="panel-title">Crónica de marcha</div>
-          <div className="diary-empty">
-            <div className="diary-empty-icon">📜</div>
-            <div className="diary-empty-title">La caravana aún no ha registrado ningún tramo.</div>
-            <div className="diary-empty-desc">
-              Cuando completes tu primera jornada, aquí quedará el rastro de todo lo vivido.
-            </div>
-            <ul className="diary-coming-list">
-              <li>Tramos completados y pasos recorridos</li>
-              <li>Hallazgos y sendas reveladas</li>
-              <li>Rastros hostiles detectados</li>
-              <li>Recursos recolectados</li>
-              <li>Palabras de tu criatura compañera</li>
-            </ul>
-          </div>
-        </div>
-        <div className="panel">
-          <div className="panel-title">Próximas crónicas</div>
-          <p style={{ fontSize:'0.72rem', color:'var(--color-stone-light)', lineHeight:1.6, fontStyle:'italic' }}>
-            Cada tramo dejará una entrada. La crónica recordará los caminos recorridos,
-            los rastros cruzados y los materiales encontrados.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="screen-scroll">
-      <div className="panel">
-        <div className="panel-title">Crónica de marcha</div>
-        <div className="diary-chronicle-list">
-          {[...diary].reverse().map((entry, idx) => {
-            const resEntries = Object.entries(entry.rewards?.resources ?? {})
-            const xp         = entry.rewards?.xp ?? 0
-            const biomeTag   = BIOME_TAG[entry.biomeId]
-            const isEcho     = entry.type === 'march_echo'
-            const isPoi      = entry.type === 'poi'
-            const isContract = entry.type === 'contract'
-
-            return (
-              <div key={entry.id} className={`diary-entry-card${idx === 0 ? ' latest' : ''}`}>
-
-                {/* Título */}
-                <div className="diary-entry-title">
-                  {isEcho     && <span className="diary-echo-badge">Eco</span>}
-                  {isPoi      && <span className="diary-poi-badge">Lugar</span>}
-                  {isContract && <span className="diary-contract-badge">Contrato</span>}
-                  {entry.title ?? `Tramo ${entry.tramoNumber}`}
-                </div>
-
-                {/* Nombre del contrato */}
-                {isContract && entry.contractTitle && (
-                  <div style={{ fontSize:'0.65rem', color:'var(--color-parchment)', fontStyle:'italic', marginBottom:3 }}>
-                    {entry.contractTitle}
-                  </div>
-                )}
-
-                {/* Resultado del contrato */}
-                {isContract && entry.outcomeLabel && (
-                  <div className={`diary-contract-outcome ${entry.outcome ?? ''}`}>
-                    {entry.outcomeLabel}
-                    {entry.successChance != null && (
-                      <span style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginLeft:6, fontWeight:400 }}>
-                        Prob. estimada: {entry.successChance}%
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Meta */}
-                <div className="diary-entry-meta">
-                  {!isEcho && !isPoi && !isContract && (
-                    <>
-                      <span>{MODE_LABELS[entry.modeId] ?? entry.modeId}</span>
-                      <span className="diary-entry-meta-sep">·</span>
-                    </>
-                  )}
-                  {isContract ? (
-                    <>
-                      <span>{entry.contractorName ?? '—'}</span>
-                      {entry.sectorName && (
-                        <>
-                          <span className="diary-entry-meta-sep">·</span>
-                          <span>{entry.sectorName}</span>
-                        </>
-                      )}
-                    </>
-                  ) : isPoi ? (
-                    <span>{entry.sectorName ?? '—'}</span>
-                  ) : (
-                    <span>{entry.steps} pasos</span>
-                  )}
-                  {!isPoi && !isContract && biomeTag && (
-                    <>
-                      <span className="diary-entry-meta-sep">·</span>
-                      <span style={{ color: biomeTag.color }}>{biomeTag.label}</span>
-                    </>
-                  )}
-                </div>
-                {/* Estrato y profundidad */}
-                {entry.stratumName && !isPoi && !isContract && (
-                  <div style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', marginTop:2, opacity:0.62 }}>
-                    {entry.stratumName.split('·')[0].trim()}
-                    {entry.depthMeters ? ` · ${entry.depthMeters} m` : ''}
-                  </div>
-                )}
-
-                {/* Resumen narrativo */}
-                <p className="diary-entry-summary">{entry.summaryText}</p>
-
-                {/* Consecuencia de contrato fallido */}
-                {isContract && entry.consequence && (
-                  <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', fontStyle:'italic',
-                                marginTop:4, paddingTop:4, borderTop:'1px solid rgba(98,107,111,0.18)' }}>
-                    {entry.consequence.text}
-                  </div>
-                )}
-
-                {/* HP recuperado en POI */}
-                {isPoi && (entry.hpGain ?? 0) > 0 && (
-                  <div style={{ fontSize:'0.6rem', color:'var(--color-xp)', marginBottom:5 }}>
-                    +{entry.hpGain} HP recuperados
-                  </div>
-                )}
-
-                {/* Flavor de eco */}
-                {isEcho && entry.events?.length > 0 && (
-                  <div className="diary-echo-events">
-                    {entry.events.map((ev, i) => (
-                      <div key={i} className="diary-echo-event-line">{ev}</div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Combates */}
-                {!isEcho && !isPoi && !isContract && entry.combatResults?.length > 0 && (
-                  <div className="diary-entry-combat">
-                    {entry.combatResults.map((cr, ci) => (
-                      <span key={ci}>
-                        ⚔ {cr.enemyName ?? cr.enemyId}
-                        {cr.finalDamage > 0 ? ` −${cr.finalDamage}HP` : ' (ileso)'}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Recompensas */}
-                {(xp > 0 || resEntries.length > 0) && (
-                  <div className="diary-entry-rewards">
-                    {xp > 0 && (
-                      <span style={{ color:'var(--color-xp)' }}>+{xp} XP</span>
-                    )}
-                    {resEntries.map(([id, qty]) => (
-                      <span key={id} style={{ color:'var(--color-gold)' }}>
-                        +{qty}× {RESOURCES[id]?.name ?? id.replace(/_/g,' ')}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Senda descubierta */}
-                {entry.discovery && (
-                  <div className="diary-entry-discovery">
-                    Nueva senda: {entry.discovery.sectorName}
-                  </div>
-                )}
-
-                {/* Fecha */}
-                <div className="diary-entry-date">
-                  {new Date(entry.completedAt).toLocaleDateString('es-ES', {
-                    day: '2-digit', month: 'short', year: 'numeric',
-                  })}
-                </div>
-
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
-}
+// ── ASENTAMIENTOS DEL ABISMO ──────────────────────────────────────────────────
+export const ABYSS_SETTLEMENTS = [
+  {
+    id: 'settlement_aethel_linde',
+    name: 'Linde de Aethel',
+    type: 'village',
+    stratumId: 'stratum_01',
+    layerName: 'Raíces Ciegas',
+    zoneId: 'zone_blind_roots',
+    sectorId: 'sector_aethel_edge',
+    safetyLevel: 'safe',
+    services: ['refuge', 'basic_rest', 'rumors'],
+    visualTheme: 'casas bajas entre raíces, faroles cálidos, madera húmeda',
+    description: 'Primer asentamiento estable del descenso. Pequeño, humano y lleno de marcas de caravanas anteriores.',
+    populationTone: 'campesinos, guías, porteadores y familias acostumbradas al borde del Abismo',
+    unlocked: true,
+    tags: ['starter', 'root', 'safe'],
+  },
+  {
+    id: 'settlement_root_lantern_market',
+    name: 'Mercado de Raíz Vieja',
+    type: 'market',
+    stratumId: 'stratum_01',
+    layerName: 'Raíces Ciegas',
+    zoneId: 'zone_blind_roots',
+    sectorId: 'sector_mist_root',
+    safetyLevel: 'guarded',
+    services: ['trader', 'contracts', 'rumors'],
+    visualTheme: 'puestos de lona oscura, raíces como columnas, humo bajo',
+    description: 'Mercado subterráneo donde se venden mapas incompletos, madera rúnica y rumores baratos.',
+    populationTone: 'mercaderes, buscadores, timadores y cartógrafos de baja profundidad',
+    unlocked: false,
+    tags: ['market', 'root', 'trade'],
+  },
+  {
+    id: 'settlement_fogbreak_fort',
+    name: 'Fortín Quebrabruma',
+    type: 'fort',
+    stratumId: 'stratum_01',
+    layerName: 'Raíces Ciegas',
+    zoneId: 'zone_blind_roots',
+    sectorId: 'sector_runic_guard_ruins',
+    safetyLevel: 'guarded',
+    services: ['guard_post', 'combat_contracts', 'rest_limited'],
+    visualTheme: 'murallas rotas, piedra rúnica, braseros vigilados',
+    description: 'Puesto defensivo levantado sobre ruinas antiguas. Vigila rutas donde la niebla se rompe en oleadas.',
+    populationTone: 'guardias, veteranos, heridos, rastreadores y gente que no duerme demasiado',
+    unlocked: false,
+    tags: ['fort', 'ruins', 'combat'],
+  },
+  {
+    id: 'settlement_blind_lake_dock',
+    name: 'Muelle del Lago Ciego',
+    type: 'harbor',
+    stratumId: 'stratum_01',
+    layerName: 'Raíces Ciegas',
+    zoneId: 'zone_salt_corniche',
+    sectorId: 'sector_salt_beacon',
+    safetyLevel: 'unstable',
+    services: ['supply', 'rare_rumors', 'route_info'],
+    visualTheme: 'agua negra quieta, barcas atadas, faroles reflejados',
+    description: 'Pequeño muelle en un lago subterráneo sin cielo. Las barcas apenas se mueven, aunque el agua respira.',
+    populationTone: 'barqueros, pescadores de cueva, contrabandistas y guías salinos',
+    unlocked: false,
+    tags: ['lake', 'water', 'salt', 'harbor'],
+  },
+  {
+    id: 'settlement_dust_gate_caravanserai',
+    name: 'Caravasar del Polvo Bajo',
+    type: 'caravanserai',
+    stratumId: 'stratum_01',
+    layerName: 'Raíces Ciegas',
+    zoneId: 'zone_blind_roots',
+    sectorId: 'sector_mist_root',
+    safetyLevel: 'guarded',
+    services: ['inn', 'rest', 'contracts', 'supplies'],
+    visualTheme: 'patio circular excavado, telas ocres, animales de carga, pozo central',
+    description: 'Lugar de paso entre rutas tempranas. Más seco que el bosque, con polvo mineral y olor a cuero viejo.',
+    populationTone: 'caravaneros, posaderos, mozos de carga y exploradores novatos',
+    unlocked: false,
+    tags: ['inn', 'caravan', 'desert_hint', 'safe'],
+  },
+]
 </file>
 
 <file path="src/screens/MapScreen.jsx">
 import { useState } from 'react'
-import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA, WORLD_ROUTES, ABYSS_ZONES, WORLD_ROUTE_SEGMENTS } from '../data/gameData.js'
+import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA, WORLD_ROUTES, ABYSS_ZONES, WORLD_ROUTE_SEGMENTS, ABYSS_SETTLEMENTS } from '../data/gameData.js'
 import { getStratumProgress } from '../systems/abyssSystem.js'
 import {
   getWorldScaleSummary,
@@ -5778,9 +6193,41 @@ const BIOME_ICON_COLOR = {
   forge:  'var(--color-ember)',
 }
 
-export default function MapScreen({ sectors }) {
+const SAFETY_COLOR = {
+  safe:      'var(--color-xp)',
+  guarded:   'var(--color-gold)',
+  unstable:  'var(--color-mist)',
+  dangerous: 'var(--color-ember)',
+  hostile:   'var(--color-hp)',
+  mythic:    'var(--color-magic)',
+}
+
+const SETTLEMENT_TYPE_ICON = {
+  village:      '⌂',
+  market:       '⊞',
+  fort:         '▣',
+  harbor:       '⊕',
+  caravanserai: '⌀',
+  camp:         '△',
+  inn_town:     '⌂',
+  sanctuary:    '✦',
+  ruin_settlement: '◈',
+}
+
+// Positions for settlements (same sector = same pos as sector node but offset)
+const SETTLEMENT_POS = {
+  settlement_aethel_linde:         { x: 50, y: 10 },
+  settlement_root_lantern_market:  { x: 26, y: 26 },
+  settlement_fogbreak_fort:        { x: 20, y: 31 },
+  settlement_blind_lake_dock:      { x: 74, y: 39 },
+  settlement_dust_gate_caravanserai: { x: 30, y: 22 },
+}
+
+export default function MapScreen({ sectors, expedition, discoveredSegmentIds = [] }) {
   const [selectedId, setSelectedId] = useState(null)
   const [expandedRouteId, setExpandedRouteId] = useState(null)
+  const [mapZoomLevel, setMapZoomLevel] = useState('layers')
+  const [selectedSettlementId, setSelectedSettlementId] = useState(null)
 
   const rawSelected   = sectors.find(s => s.id === selectedId)
   const selected      = rawSelected ? withAbyssMeta(rawSelected) : null
@@ -5840,6 +6287,266 @@ export default function MapScreen({ sectors }) {
           {' · '}{scaleSummary.maxDepthMeters} m máx.
         </div>
       </div>
+
+      {/* Selector de zoom */}
+      <div style={{
+        display: 'flex', gap: 4, padding: '6px 12px',
+        borderBottom: '1px solid rgba(98,107,111,0.15)',
+        background: 'rgba(0,0,0,0.2)',
+      }}>
+        {[
+          { id: 'layers',   label: 'Capas' },
+          { id: 'routes',   label: 'Rutas' },
+          { id: 'segments', label: 'Tramos' },
+        ].map(z => (
+          <button
+            key={z.id}
+            onClick={() => { setMapZoomLevel(z.id); setSelectedId(null); setSelectedSettlementId(null) }}
+            style={{
+              flex: 1, padding: '5px 0', fontSize: '0.62rem',
+              background: mapZoomLevel === z.id ? 'rgba(79,143,149,0.2)' : 'transparent',
+              border: `1px solid ${mapZoomLevel === z.id ? 'var(--color-teal)' : 'rgba(98,107,111,0.25)'}`,
+              borderRadius: 4, color: mapZoomLevel === z.id ? 'var(--color-teal)' : 'var(--color-stone-light)',
+              cursor: 'pointer', letterSpacing: '0.04em',
+            }}
+          >
+            {z.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── VISTA: CAPAS ─────────────────────────────────────────────────────── */}
+      {mapZoomLevel === 'layers' && (
+        <div>
+          <div className="abyss-board" style={{ minHeight: 280 }}>
+            {STRATA_BANDS.map(st => (
+              <div key={st.id} className={`abyss-stratum-band ${st.cssClass}`} />
+            ))}
+            {STRATA_BANDS.map(st => (
+              <div key={st.id + '-label'} className="abyss-stratum-label" style={{ top: `${st.yMid}%` }}>
+                <div className="abyss-stratum-label-name">{st.label}</div>
+                <div className="abyss-stratum-label-depth">{st.depth}</div>
+              </div>
+            ))}
+            <div className="abyss-core" />
+            <div className="abyss-depth-line" />
+
+            {/* Asentamientos */}
+            {ABYSS_SETTLEMENTS.map(s => {
+              const pos = SETTLEMENT_POS[s.id]
+              if (!pos) return null
+              const sectorDisc = sectors.find(sec => sec.id === s.sectorId)?.discovered ?? false
+              const visible    = s.unlocked || sectorDisc
+              const icon       = SETTLEMENT_TYPE_ICON[s.type] ?? '◆'
+              const isSelected = selectedSettlementId === s.id
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setSelectedSettlementId(prev => prev === s.id ? null : s.id)}
+                  style={{
+                    position: 'absolute',
+                    top:  `calc(${pos.y}% - 26px)`,
+                    left: `${pos.x}%`,
+                    transform: 'translateX(-50%)',
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                    opacity: visible ? 1 : 0.35,
+                    zIndex: 5,
+                  }}
+                >
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 4,
+                    background: isSelected ? 'rgba(30,20,10,0.95)' : 'rgba(15,10,5,0.85)',
+                    border: `1.5px solid ${isSelected ? 'var(--color-gold)' : SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.78rem',
+                    boxShadow: isSelected ? `0 0 8px ${SAFETY_COLOR[s.safetyLevel]}44` : 'none',
+                    filter: visible ? 'none' : 'blur(0.5px) grayscale(0.8)',
+                  }}>
+                    {visible ? icon : '?'}
+                  </div>
+                  <div style={{
+                    fontSize: '0.48rem', color: visible ? 'var(--color-parchment)' : 'var(--color-stone-light)',
+                    textAlign: 'center', maxWidth: 54, lineHeight: 1.2,
+                  }}>
+                    {visible ? s.name : '—'}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Panel de detalle de asentamiento */}
+          {selectedSettlementId && (() => {
+            const s = ABYSS_SETTLEMENTS.find(x => x.id === selectedSettlementId)
+            if (!s) return null
+            const sectorDisc = sectors.find(sec => sec.id === s.sectorId)?.discovered ?? false
+            const visible    = s.unlocked || sectorDisc
+            return (
+              <div className="abyss-selected-panel">
+                {visible ? (
+                  <>
+                    <div className="abyss-detail-title" style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ fontSize:'1.1rem' }}>{SETTLEMENT_TYPE_ICON[s.type] ?? '◆'}</span>
+                      <span>{s.name}</span>
+                    </div>
+                    <div className="abyss-detail-row">
+                      <span className="abyss-detail-key">Tipo</span>
+                      <span style={{ textTransform:'capitalize' }}>{s.type.replace(/_/g,' ')}</span>
+                    </div>
+                    <div className="abyss-detail-row">
+                      <span className="abyss-detail-key">Seguridad</span>
+                      <span style={{ color: SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)', textTransform:'capitalize' }}>
+                        {s.safetyLevel}
+                      </span>
+                    </div>
+                    <div className="abyss-detail-row">
+                      <span className="abyss-detail-key">Estrato</span>
+                      <span>{s.layerName ?? s.stratumId}</span>
+                    </div>
+                    {s.description && (
+                      <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', fontStyle:'italic',
+                                    lineHeight:1.45, marginTop:6, opacity:0.85 }}>
+                        {s.description}
+                      </div>
+                    )}
+                    {s.services?.length > 0 && (
+                      <div className="abyss-detail-row" style={{ marginTop:4 }}>
+                        <span className="abyss-detail-key">Servicios</span>
+                        <span style={{ fontSize:'0.58rem' }}>
+                          {s.services.map(sv => sv.replace(/_/g,' ')).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="abyss-fog-text">
+                    <div>Asentamiento no descubierto.</div>
+                    <div style={{ fontSize:'0.58rem', marginTop:4, opacity:0.7 }}>
+                      Descubre el sector {s.sectorId.replace('sector_','').replace(/_/g,' ')} para revelar este lugar.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+      )}
+
+      {/* ── VISTA: TRAMOS ────────────────────────────────────────────────────── */}
+      {mapZoomLevel === 'segments' && (() => {
+        const activeRouteId = expedition?.routeRun?.routeId ?? expedition?.routeId ?? null
+        const activeRoute   = WORLD_ROUTES.find(r => r.id === activeRouteId)
+        const segs          = activeRoute
+          ? WORLD_ROUTE_SEGMENTS
+              .filter(s => s.routeId === activeRouteId)
+              .sort((a, b) => a.order - b.order)
+          : []
+        const currentSegId  = expedition?.routeSegmentId
+        const completedIds  = expedition?.routeRun?.completedSegmentIds ?? []
+
+        if (!activeRoute || segs.length === 0) {
+          return (
+            <div style={{ padding:'20px 14px', textAlign:'center' }}>
+              <div style={{ fontSize:'0.65rem', color:'var(--color-stone-light)', fontStyle:'italic' }}>
+                No hay expedición activa.
+              </div>
+              <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', marginTop:8, opacity:0.6 }}>
+                Inicia una marcha con ruta para ver los tramos internos.
+              </div>
+            </div>
+          )
+        }
+
+        const fromSector = sectors.find(s => s.id === expedition?.routeRun?.fromSectorId)
+        const toSector   = sectors.find(s => s.id === expedition?.routeRun?.toSectorId)
+
+        return (
+          <div style={{ padding:'10px 12px' }}>
+            <div style={{
+              fontSize:'0.68rem', color:'var(--color-gold)', fontWeight:600, marginBottom:4,
+            }}>
+              {activeRoute.name}
+            </div>
+            <div style={{
+              fontSize:'0.56rem', color:'var(--color-stone-light)', marginBottom:10,
+            }}>
+              {fromSector?.name ?? '—'} → {toSector?.name ?? '—'}
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+              {segs.map((seg, idx) => {
+                const isDone    = completedIds.includes(seg.id) || discoveredSegmentIds.includes(seg.id)
+                const isCurrent = seg.id === currentSegId
+                const isNext    = !isDone && !isCurrent && idx === segs.findIndex(s => !completedIds.includes(s.id) && s.id !== currentSegId)
+                const isHidden  = !isDone && !isCurrent
+
+                let nodeColor = 'rgba(98,107,111,0.3)'
+                let textColor = 'var(--color-stone-light)'
+                if (isDone)    { nodeColor = 'rgba(184,148,74,0.7)';  textColor = 'var(--color-gold)' }
+                if (isCurrent) { nodeColor = 'var(--color-teal)';     textColor = 'var(--color-parchment)' }
+
+                return (
+                  <div key={seg.id} style={{ display:'flex', alignItems:'stretch', gap:8 }}>
+                    {/* Línea vertical + nodo */}
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:18, flexShrink:0 }}>
+                      {idx > 0 && (
+                        <div style={{
+                          width: 1.5, flex:'0 0 8px',
+                          background: isDone ? 'rgba(184,148,74,0.5)' : 'rgba(98,107,111,0.2)',
+                          borderLeft: isDone ? 'none' : '1.5px dashed rgba(98,107,111,0.25)',
+                        }} />
+                      )}
+                      <div style={{
+                        width: 14, height: 14, borderRadius: isCurrent ? 3 : 7,
+                        border: `1.5px solid ${nodeColor}`,
+                        background: isDone ? 'rgba(184,148,74,0.18)' : isCurrent ? 'rgba(79,143,149,0.22)' : 'transparent',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        flexShrink: 0,
+                      }}>
+                        {isDone && (
+                          <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(184,148,74,0.8)' }} />
+                        )}
+                        {isCurrent && (
+                          <div style={{ width:4, height:4, borderRadius:1, background:'var(--color-teal)' }} />
+                        )}
+                      </div>
+                      {idx < segs.length - 1 && (
+                        <div style={{
+                          width: 1.5, flex:'0 0 20px',
+                          background: isDone ? 'rgba(184,148,74,0.35)' : 'rgba(98,107,111,0.15)',
+                          borderLeft: isDone ? 'none' : '1.5px dashed rgba(98,107,111,0.2)',
+                        }} />
+                      )}
+                    </div>
+
+                    {/* Texto del segmento */}
+                    <div style={{ flex:1, paddingBottom:idx < segs.length - 1 ? 0 : 2, paddingTop: idx === 0 ? 0 : 8 }}>
+                      <div style={{ fontSize:'0.68rem', color:textColor, fontWeight:isCurrent ? 600 : 400 }}>
+                        {isHidden && !isNext
+                          ? 'Tramo desconocido'
+                          : isNext
+                          ? `Siguiente tramo · ${seg.name}`
+                          : `${seg.order}. ${seg.name}`
+                        }
+                        {isCurrent && <span style={{ marginLeft:6, fontSize:'0.52rem', color:'var(--color-teal)' }}>← actual</span>}
+                      </div>
+                      {(isDone || isCurrent) && (
+                        <div style={{ fontSize:'0.55rem', color:'var(--color-stone-light)', marginTop:1, opacity:0.75 }}>
+                          {seg.stepMin}–{seg.stepMax} pasos · {seg.type}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── VISTA: RUTAS — usa el tablero original ───────────────────────────── */}
+      {mapZoomLevel === 'routes' && (<>
 
       {/* Tablero */}
       <div className="abyss-board">
@@ -6093,6 +6800,8 @@ export default function MapScreen({ sectors }) {
           )}
         </div>
       )}
+
+      </>)}
 
     </div>
   )
@@ -6588,6 +7297,7 @@ No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y
 | Zonas secretas funcionales | Primera versión implementada: Cueva de Setas Huecas (Estrato I), acceso por Velthar/Exploración o dominio de la Ruina (14A) |
 | World scale | Primera versión de zonas y rutas explícitas añadida (18A). El mapa queda preparado para múltiples rutas y futuros tramos por ruta. WORLD_ROUTES (8 rutas), ABYSS_ZONES (6 zonas), worldScaleSystem.js. |
 | Route segments | Tramos internos añadidos (18B). WORLD_ROUTE_SEGMENTS: 24 tramos (3 por ruta × 8 rutas). routeSegmentSystem.js con getSegmentsForRoute, getRouteSegmentsTotalSteps, getRouteSegmentSummary. MapScreen muestra conteo + pasos totales y lista expandible. CaravanScreen muestra preview compacto "Tramo estimado". Ruta secreta oculta nombres pero muestra conteo. |
+| Route segments gameplay | Primera versión jugable (18C). Las rutas pueden recorrerse por segmentos internos. La marcha avanza automáticamente de segmento a segmento sin botón intermedio. Al completar todos los segmentos, la caravana se mueve al sector destino, se aplica discovery/mastery allí, y el Diario registra "Ruta completada · NOMBRE". El combate dentro de un segmento no rompe el progreso de ruta. |
 | Contratos básicos | Implementados: encargos por lugar seguro, un contrato activo, resultado variable y diario (13A–13B) |
 | Subordinados y contratos complejos | No implementado |
 | Rangos | Base implementada como cálculo derivado — Rango I/II/III según XP, sectores y contratos (15A) |
@@ -6600,12 +7310,15 @@ No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y
 
 ---
 
+Map UX: mapa por zoom conceptual con tres vistas — Capas (asentamientos y grandes conexiones), Rutas (sectores y rutas visibles entre ellos) y Tramos (tramos internos de la expedición activa). Los tramos se descubren progresivamente: completados con nombre, actual marcado, siguiente como silueta, posteriores ocultos como niebla.
+
 *Este documento es una referencia de diseño viva. Se actualiza conforme el juego avanza.*
 </file>
 
 <file path="src/App.jsx">
 import { useState, useEffect, useRef } from 'react'
-import { ARCHETYPES, BIOMES, ENEMIES, INITIAL_SECTORS } from './data/gameData.js'
+import { ARCHETYPES, BIOMES, ENEMIES, INITIAL_SECTORS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS } from './data/gameData.js'
+import CombatAlertModal from './components/CombatAlertModal.jsx'
 import { emptyInventory, addResources } from './systems/inventorySystem.js'
 import { generateEvent, calculateRewards, buildDiaryEntry } from './systems/expeditionSystem.js'
 import { createCombatFromThreat, resolveCombatTurn } from './systems/combatSystem.js'
@@ -6624,6 +7337,11 @@ import {
   createPedometerState, processMotionSample,
 } from './systems/pedometerSystem.js'
 import { canUsePoiAction, resolvePoiAction } from './systems/poiSystem.js'
+import {
+  buildRouteRunState,
+  completeCurrentRouteSegment,
+  getSegmentsForRoute,
+} from './systems/routeSegmentSystem.js'
 import {
   createInitialContractState, sanitizeContractState,
   canStartContract, startContract, resolveContract, getContractSuccessChance,
@@ -6716,6 +7434,7 @@ export default function App() {
   const [lastPoiResult,             setLastPoiResult]             = useState(null)
   const [contractState,             setContractState]             = useState(createInitialContractState)
   const [lastContractResult,        setLastContractResult]        = useState(null)
+  const [discoveredSegmentIds,      setDiscoveredSegmentIds]      = useState([])
 
   const completionDone   = useRef(false)
   const combatTriggered  = useRef(new Set())
@@ -6765,6 +7484,7 @@ export default function App() {
     setLastEchoClaimAt(save.lastEchoClaimAt ?? null)
     setStepSource(sanitizeStepSource(save.stepSource))
     setContractState(sanitizeContractState(save.contractState ?? null))
+    setDiscoveredSegmentIds(save.discoveredSegmentIds ?? [])
     setPedometer(createPedometerState())  // pedometer always starts idle after reload
 
     completionDone.current  = false
@@ -6793,6 +7513,7 @@ export default function App() {
     setLastPoiResult(null)
     setContractState(createInitialContractState())
     setLastContractResult(null)
+    setDiscoveredSegmentIds([])
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
     if (motionHandlerRef.current) {
@@ -6860,20 +7581,77 @@ export default function App() {
   }
 
   // ── Handlers de caravana ─────────────────────────────────────────────────────
-  function handleAlzar() {
+  function handleAlzar(selectedRouteId) {
     completionDone.current  = false
     combatTriggered.current = new Set()
     setCombat(INITIAL_COMBAT)
     setRecoveredFromInterruption(false)
-    setExpedition(prev => ({
-      ...prev,
-      status:        'marching',
-      currentSteps:  0,
-      progress:      0,
-      events:        [],
-      rewards:       {},
-      combatResults: [],
-    }))
+
+    const currentSectorId = expedition.sectorId
+    const currentSector   = sectors.find(s => s.id === currentSectorId)
+
+    const selectedRoute =
+      WORLD_ROUTES.find(r => r.id === selectedRouteId) ??
+      WORLD_ROUTES.find(
+        r => (r.fromSectorId === currentSectorId || r.toSectorId === currentSectorId) &&
+             (r.status === 'open' || r.status === 'discovered') &&
+             r.type !== 'secret'
+      )
+
+    const routeSegs     = selectedRoute
+      ? getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: selectedRoute.id })
+      : []
+    const hasValidRoute = selectedRoute && routeSegs.length > 0
+
+    if (hasValidRoute) {
+      const routeRun     = buildRouteRunState({
+        route:           selectedRoute,
+        segments:        WORLD_ROUTE_SEGMENTS,
+        currentSectorId: currentSector?.id ?? currentSectorId,
+      })
+      const firstSegment = WORLD_ROUTE_SEGMENTS.find(s => s.id === routeRun.currentSegmentId)
+
+      setExpedition(prev => ({
+        ...prev,
+        status:                   'marching',
+        currentSteps:             0,
+        progress:                 0,
+        events:                   [],
+        rewards:                  {},
+        combatResults:            [],
+        routeId:                  selectedRoute.id,
+        routeName:                selectedRoute.name,
+        routeRun,
+        routeSegmentId:           firstSegment?.id    ?? null,
+        routeSegmentName:         firstSegment?.name  ?? null,
+        routeSegmentOrder:        firstSegment?.order ?? 1,
+        routeSegmentCount:        routeRun.totalSegments,
+        routeDestinationSectorId: routeRun.toSectorId,
+        targetSteps:              firstSegment?.stepMax ?? prev.targetSteps,
+        lockedModeId:             prev.modeId,
+        segmentTransition:        null,
+      }))
+    } else {
+      setExpedition(prev => ({
+        ...prev,
+        status:        'marching',
+        currentSteps:  0,
+        progress:      0,
+        events:        [],
+        rewards:       {},
+        combatResults: [],
+        routeId:       null,
+        routeName:     null,
+        routeRun:      null,
+        routeSegmentId:    null,
+        routeSegmentName:  null,
+        routeSegmentOrder: null,
+        routeSegmentCount: null,
+        routeDestinationSectorId: null,
+        lockedModeId:  null,
+        segmentTransition: null,
+      }))
+    }
   }
 
   function handleSelectMode(modeId) {
@@ -6948,6 +7726,59 @@ export default function App() {
   function handleContinueMarch() {
     setCombat(INITIAL_COMBAT)
     setExpedition(prev => ({ ...prev, status: 'marching' }))
+  }
+
+  function handleContinueToNextSegment() {
+    setExpedition(prev => {
+      const t = prev.segmentTransition
+      if (!t) return prev
+      return {
+        ...prev,
+        status:            'marching',
+        currentSteps:      0,
+        progress:          0,
+        events:            [],
+        rewards:           {},
+        combatResults:     [],
+        routeSegmentId:    t.nextSegmentId,
+        routeSegmentName:  t.nextSegmentName,
+        routeSegmentOrder: t.nextSegmentOrder,
+        targetSteps:       t.nextTargetSteps,
+        segmentTransition: null,
+      }
+    })
+    combatTriggered.current = new Set()
+  }
+
+  function handleAbandonExpedition() {
+    const routeName = expedition.routeName ?? expedition.routeId ?? 'ruta desconocida'
+    const confirmed = window.confirm(
+      `Abandonar la expedición?\nConservarás lo ya obtenido en tramos completados, pero no completarás la ruta ni descubrirás el destino.`
+    )
+    if (!confirmed) return
+
+    const entry = {
+      id:          `abandon-${Date.now()}`,
+      type:        'expedition_abandoned',
+      title:       `Expedición abandonada · ${routeName}`,
+      completedAt: new Date().toISOString(),
+      steps:       expedition.currentSteps ?? 0,
+      sectorId:    expedition.sectorId,
+      rewards:     { xp: 0, resources: {} },
+      events:      [],
+      summaryText: `La caravana abandonó la expedición tras ${expedition.routeRun?.completedSegmentIds?.length ?? 0} tramo(s) completado(s).`,
+    }
+    setDiary(prev => [...prev, entry])
+    setCombat(INITIAL_COMBAT)
+    setExpedition(prev => ({
+      ...INITIAL_EXPEDITION,
+      currentTramo: prev.currentTramo,
+      modeId:       prev.lockedModeId ?? prev.modeId,
+      sectorId:     prev.sectorId,
+      biomeId:      prev.biomeId,
+    }))
+    combatTriggered.current = new Set()
+    completionDone.current  = false
   }
 
   // ── Eco de Marcha ────────────────────────────────────────────────────────────
@@ -7150,6 +7981,54 @@ export default function App() {
 
         if (newSteps >= prev.targetSteps) {
           const rewards = calculateRewards(newEvents)
+
+          if (prev.routeRun && !prev.routeRun.completed) {
+            const route       = WORLD_ROUTES.find(r => r.id === prev.routeRun.routeId)
+            const nextRouteRun = completeCurrentRouteSegment({
+              routeRun: prev.routeRun,
+              route,
+              segments: WORLD_ROUTE_SEGMENTS,
+            })
+
+            if (!nextRouteRun.completed) {
+              const nextSeg = WORLD_ROUTE_SEGMENTS.find(s => s.id === nextRouteRun.currentSegmentId)
+              return {
+                ...prev,
+                currentSteps:  newSteps,
+                progress:      100,
+                events:        newEvents,
+                rewards,
+                routeRun:      nextRouteRun,
+                status:        'segment_transition',
+                segmentTransition: {
+                  completedSegmentId:   prev.routeRun.currentSegmentId,
+                  completedSegmentName: prev.routeSegmentName ?? '—',
+                  nextSegmentId:        nextRouteRun.currentSegmentId,
+                  nextSegmentName:      nextSeg?.name ?? '—',
+                  nextSegmentOrder:     nextRouteRun.currentSegmentOrder,
+                  nextTargetSteps:      nextSeg?.stepMax ?? prev.targetSteps,
+                  secondsRemaining:     20,
+                  startedAt:            new Date().toISOString(),
+                },
+              }
+            }
+
+            // All segments done — land at destination
+            const destId     = nextRouteRun.toSectorId ?? prev.routeDestinationSectorId
+            const destSector = INITIAL_SECTORS.find(s => s.id === destId)
+            return {
+              ...prev,
+              currentSteps: newSteps,
+              progress:     100,
+              events:       newEvents,
+              status:       'completed',
+              rewards,
+              routeRun:     nextRouteRun,
+              sectorId:     destId  ?? prev.sectorId,
+              biomeId:      destSector?.biomeId ?? prev.biomeId,
+            }
+          }
+
           return { ...prev, currentSteps: newSteps, progress: 100, events: newEvents, status: 'completed', rewards }
         }
 
@@ -7179,10 +8058,65 @@ export default function App() {
     setExpedition(prev => prev.status === 'marching' ? { ...prev, status: 'combat' } : prev)
   }, [expedition.events, expedition.status, combat.status, expedition.combatResults])
 
+  // ── Countdown y auto-avance de transición entre segmentos ───────────────────
+  useEffect(() => {
+    if (expedition.status !== 'segment_transition') return
+    if (!expedition.segmentTransition) return
+
+    // Tick every second, auto-advance at 0
+    const id = setInterval(() => {
+      setExpedition(prev => {
+        if (prev.status !== 'segment_transition' || !prev.segmentTransition) return prev
+        const next = prev.segmentTransition.secondsRemaining - 1
+        if (next <= 0) {
+          // Auto-advance to next segment
+          const t = prev.segmentTransition
+          return {
+            ...prev,
+            status:            'marching',
+            currentSteps:      0,
+            progress:          0,
+            events:            [],
+            rewards:           {},
+            combatResults:     [],
+            routeSegmentId:    t.nextSegmentId,
+            routeSegmentName:  t.nextSegmentName,
+            routeSegmentOrder: t.nextSegmentOrder,
+            targetSteps:       t.nextTargetSteps,
+            segmentTransition: null,
+          }
+        }
+        return { ...prev, segmentTransition: { ...prev.segmentTransition, secondsRemaining: next } }
+      })
+    }, 1000)
+
+    return () => clearInterval(id)
+  }, [expedition.status, expedition.segmentTransition?.startedAt])
+
+  // ── Añadir tramo completado a discoveredSegmentIds ───────────────────────────
+  useEffect(() => {
+    if (expedition.status !== 'segment_transition') return
+    const segId = expedition.segmentTransition?.completedSegmentId
+    if (!segId) return
+    setDiscoveredSegmentIds(prev =>
+      prev.includes(segId) ? prev : [...prev, segId]
+    )
+  }, [expedition.status, expedition.segmentTransition?.completedSegmentId])
+
   // ── Efectos de completado ────────────────────────────────────────────────────
   useEffect(() => {
     if (expedition.status !== 'completed' || completionDone.current || !player) return
     completionDone.current = true
+
+    // Mark the last segment as discovered (the one that finished the route)
+    if (expedition.routeRun?.completed && expedition.routeRun.currentSegmentId === null) {
+      const lastCompletedId = expedition.routeRun.completedSegmentIds?.at(-1)
+      if (lastCompletedId) {
+        setDiscoveredSegmentIds(prev =>
+          prev.includes(lastCompletedId) ? prev : [...prev, lastCompletedId]
+        )
+      }
+    }
 
     const completedSector = sectors.find(s => s.id === expedition.sectorId)
     const sectorName      = completedSector?.name
@@ -7199,14 +8133,36 @@ export default function App() {
     })
 
     // Apply mastery/visits update on top of any discovery update
-    const finalSectors = sectorsWithDiscovery.map(s => {
+    const masteryUpdated = sectorsWithDiscovery.map(s => {
       if (s.id !== expedition.sectorId) return s
       const newMastery = s.mastery + masteryGain
       return { ...s, visits: s.visits + 1, mastery: newMastery, masteryLevel: masteryLevelFromValue(newMastery) }
     })
+
+    // When completing a route, mark the destination sector as discovered
+    let finalSectors = masteryUpdated
+    if (expedition.routeRun?.completed) {
+      const destId = expedition.sectorId
+      const wasDiscovered = sectors.find(s => s.id === destId)?.discovered ?? false
+      if (!wasDiscovered) {
+        finalSectors = masteryUpdated.map(s =>
+          s.id === destId ? { ...s, discovered: true, recentlyDiscovered: true } : s
+        )
+      }
+    }
     setSectors(finalSectors)
 
-    const entry = buildDiaryEntry(expedition, sectorName, discovery, completedSector)
+    const rawEntry = buildDiaryEntry(expedition, sectorName, discovery, completedSector)
+    const fromSector = expedition.routeRun?.fromSectorId
+      ? sectors.find(s => s.id === expedition.routeRun.fromSectorId)
+      : null
+    const entry = expedition.routeRun?.completed
+      ? {
+          ...rawEntry,
+          title:       `Ruta completada · ${expedition.routeName ?? expedition.routeId ?? sectorName}`,
+          summaryText: `La caravana recorrió ${expedition.routeRun.totalSegments} tramos internos entre ${fromSector?.name ?? '—'} y ${sectorName ?? '—'}. ${rawEntry.summaryText}`,
+        }
+      : rawEntry
     setDiary(prev => [...prev, entry])
 
     if (expedition.rewards?.resources) {
@@ -7218,7 +8174,15 @@ export default function App() {
       setPlayer(prev => ({ ...prev, xp: Math.min(prev.xp + xpGain, prev.xpToNext) }))
     }
 
-    if (discovery) setLastDiscovery(discovery)
+    if (discovery) {
+      setLastDiscovery(discovery)
+    } else if (expedition.routeRun?.completed) {
+      const destId = expedition.sectorId
+      const destSector = sectors.find(s => s.id === destId)
+      if (destSector && !destSector.discovered) {
+        setLastDiscovery({ sectorId: destId, sectorName: destSector.name, biomeId: destSector.biomeId, reason: 'Ruta completada' })
+      }
+    }
   }, [expedition, player])
 
   // ── Autoguardado ─────────────────────────────────────────────────────────────
@@ -7236,6 +8200,7 @@ export default function App() {
       lastEchoClaimAt,
       stepSource,
       contractState,
+      discoveredSegmentIds,
     })
     writeSave(snapshot)
     setLastSaved(new Date())
@@ -7271,6 +8236,8 @@ export default function App() {
             onSelectSector={handleSelectSector}
             onResolveCombat={handleResolveCombat}
             onContinueMarch={handleContinueMarch}
+            onContinueToNextSegment={handleContinueToNextSegment}
+            onAbandonExpedition={handleAbandonExpedition}
             onPrepareNext={handlePrepareNext}
             onResetGame={resetGame}
             onClaimEcho={handleClaimMarchEcho}
@@ -7290,7 +8257,7 @@ export default function App() {
             onResolveActiveContract={handleResolveActiveContract}
           />
         )
-      case 'mapa':       return <MapScreen       sectors={sectors} />
+      case 'mapa':       return <MapScreen       sectors={sectors} expedition={expedition} discoveredSegmentIds={discoveredSegmentIds} />
       case 'diario':     return <DiaryScreen      diary={diary} />
       case 'inventario': return <InventoryScreen  inventory={inventory} />
       case 'criatura':   return <CreatureScreen   player={player} />
@@ -7322,6 +8289,14 @@ export default function App() {
   return (
     <AppShell currentTab={currentTab} onChangeTab={setCurrentTab}>
       {renderTab()}
+      {combat.status === 'awaiting_choice' && currentTab !== 'caravana' && (
+        <CombatAlertModal
+          combat={combat}
+          player={player}
+          onChooseStance={handleResolveCombat}
+          onGoToCaravan={() => setCurrentTab('caravana')}
+        />
+      )}
     </AppShell>
   )
 }
@@ -8277,7 +9252,7 @@ export default function CaravanScreen({
   player, expedition, sectors, combat,
   lastSaved, recoveredFromInterruption,
   onAlzar, onSelectMode, onSelectSector,
-  onResolveCombat, onContinueMarch, onPrepareNext,
+  onResolveCombat, onContinueMarch, onContinueToNextSegment, onAbandonExpedition, onPrepareNext,
   onResetGame,
   onClaimEcho, echoMessage, lastEchoResult,
   lastDiscovery,
@@ -8286,6 +9261,8 @@ export default function CaravanScreen({
   lastPoiResult, onUsePoiAction,
   contractState, lastContractResult, onStartContract, onResolveActiveContract,
 }) {
+  const [selectedRouteId, setSelectedRouteId] = useState(null)
+
   const archetype = ARCHETYPES.find(a => a.id === player?.archetypeId)
   const creature  = CREATURES.find(c => c.id === player?.creatureId)
   const sector    = sectors?.find(s => s.id === expedition?.sectorId)
@@ -8301,6 +9278,83 @@ export default function CaravanScreen({
         onResolveCombat={onResolveCombat}
         onContinueMarch={onContinueMarch}
       />
+    )
+  }
+
+  // ── SEGMENT TRANSITION ────────────────────────────────────────────────────
+  if (expedition?.status === 'segment_transition' && expedition.segmentTransition) {
+    const t       = expedition.segmentTransition
+    const biomeId = expedition.biomeId ?? 'forest'
+    const mistColor = biomeId === 'coast'
+      ? 'rgba(10,15,30,0.76)'
+      : biomeId === 'forge' ? 'rgba(20,10,5,0.8)' : 'rgba(10,18,10,0.76)'
+
+    return (
+      <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:'var(--color-bg)' }}>
+        <div className="march-scene" style={{ flex:'none' }}>
+          <BiomeMarchBackdrop biomeId={biomeId} />
+          <div className="march-road-wrap">
+            <div className="march-road-surface" />
+            <div className="march-road-marks" />
+          </div>
+          <div className="march-mist" style={{ background:`linear-gradient(to top, ${mistColor}, transparent)` }}/>
+          <div className="march-party">
+            <div className="march-creature"><CreatureToken creatureId={player.creatureId} size={62} /></div>
+            <div className="march-lantern"><LanternSVG /></div>
+            <div className="march-character"><ArchetypeToken archetypeId={player.archetypeId} size={70} /></div>
+          </div>
+          <div className="march-header-overlay">
+            <span style={{ color:'var(--color-gold)' }}>Tramo {expedition.currentTramo}</span>
+            <span style={{ color:'var(--color-parchment)', fontSize:'0.6rem' }}>{expedition.routeName}</span>
+            <span style={{ color:'var(--color-xp)', fontSize:'0.58rem' }}>
+              Tramo {expedition.routeSegmentOrder}/{expedition.routeSegmentCount} completado
+            </span>
+          </div>
+        </div>
+
+        <div style={{ flex:1, padding:'14px', display:'flex', flexDirection:'column', gap:10 }}>
+          <div className="panel" style={{ textAlign:'center' }}>
+            <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
+              Tramo completado
+            </div>
+            <div style={{ fontSize:'0.88rem', color:'var(--color-gold)', fontWeight:600, marginBottom:4 }}>
+              {t.completedSegmentName}
+            </div>
+            <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'8px 0' }} />
+            <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>
+              Siguiente tramo
+            </div>
+            <div style={{ fontSize:'0.82rem', color:'var(--color-parchment)', marginBottom:8 }}>
+              {t.nextSegmentName}
+            </div>
+
+            <div style={{ fontSize:'0.62rem', color:'var(--color-mist)', marginBottom:8 }}>
+              La caravana retomará la marcha en{' '}
+              <span style={{ color:'var(--color-parchment)', fontWeight:600 }}>{t.secondsRemaining} s</span>
+            </div>
+            <div style={{ height:3, background:'rgba(98,107,111,0.2)', borderRadius:2, margin:'0 0 12px', overflow:'hidden' }}>
+              <div style={{
+                height:'100%', borderRadius:2, background:'var(--color-teal)',
+                width:`${(t.secondsRemaining / 20) * 100}%`, transition:'width 1s linear',
+              }} />
+            </div>
+
+            <button className="btn btn-primary" onClick={onContinueToNextSegment}>
+              Siguiente tramo
+            </button>
+          </div>
+
+          <div style={{ textAlign:'center' }}>
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize:'0.6rem', opacity:0.7 }}
+              onClick={onAbandonExpedition}
+            >
+              Salir de expedición
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -8332,8 +9386,21 @@ export default function CaravanScreen({
           </div>
           <div className="march-header-overlay">
             <span style={{ color:'var(--color-gold)' }}>Tramo {expedition.currentTramo}</span>
-            <span style={{ color:'var(--color-parchment)' }}>{MODE_LABELS[expedition.modeId]}</span>
-            <span style={{ color:'var(--color-stone-light)' }}>{sector?.name}</span>
+            {expedition.routeName ? (
+              <span style={{ color:'var(--color-parchment)', fontSize:'0.6rem' }}>
+                {expedition.routeName}
+              </span>
+            ) : (
+              <span style={{ color:'var(--color-parchment)' }}>{MODE_LABELS[expedition.modeId]}</span>
+            )}
+            {expedition.routeSegmentName ? (
+              <span style={{ color:'var(--color-mist)', fontSize:'0.58rem' }}>
+                Tramo {expedition.routeSegmentOrder}/{expedition.routeSegmentCount}
+                {' · '}{expedition.routeSegmentName}
+              </span>
+            ) : (
+              <span style={{ color:'var(--color-stone-light)' }}>{sector?.name}</span>
+            )}
             <span style={{ color:'var(--color-stone-light)' }}>
               {expedition.currentSteps}&thinsp;/&thinsp;{expedition.targetSteps}
             </span>
@@ -8413,6 +9480,17 @@ export default function CaravanScreen({
             <StatBar label="HP" value={player.hp} max={player.maxHp} type="hp" />
             <StatBar label="XP" value={player.xp} max={player.xpToNext} type="xp" />
           </div>
+          {expedition.routeRun && !expedition.routeRun.completed && (
+            <div style={{ textAlign:'center', marginTop:8 }}>
+              <button
+                className="btn btn-secondary"
+                style={{ fontSize:'0.58rem', opacity:0.65 }}
+                onClick={onAbandonExpedition}
+              >
+                Salir de expedición
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -8613,6 +9691,19 @@ export default function CaravanScreen({
   const activeBiome       = BIOMES[activeSector?.biomeId ?? expedition?.biomeId ?? 'forest']
   const canAlzar          = !!activeSector
 
+  // Visible routes from current sector (not secret/hidden)
+  const visibleRoutes = activeSector
+    ? (WORLD_ROUTES ?? []).filter(
+        r => (r.fromSectorId === activeSector.id || r.toSectorId === activeSector.id) &&
+             (r.status === 'open' || r.status === 'discovered')
+      )
+    : []
+  const effectiveRoute   = (WORLD_ROUTES ?? []).find(r => r.id === selectedRouteId) ?? visibleRoutes[0] ?? null
+  const effectiveRouteId = effectiveRoute?.id ?? null
+  const effectiveSegs    = effectiveRoute
+    ? getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: effectiveRoute.id })
+    : []
+
   const prep     = getExpeditionPreparation({
     modeId:    expedition?.modeId ?? 'free_march',
     sector:    activeSector,
@@ -8714,27 +9805,46 @@ export default function CaravanScreen({
         </div>
       )}
 
-      {/* Tramo estimado */}
-      {activeSector && (() => {
-        const nextRoute = (WORLD_ROUTES ?? []).find(
-          r => (r.fromSectorId === activeSector.id || r.toSectorId === activeSector.id) &&
-               (r.status === 'open' || r.status === 'discovered')
-        )
-        if (!nextRoute) return null
-        const segs = getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: nextRoute.id })
-        const { min, max } = getRouteSegmentsTotalSteps(segs)
-        return (
-          <div className="route-segments-preview">
-            <div className="route-preview-name">{nextRoute.name}</div>
-            <div className="route-preview-meta">
-              {segs.length} tramos · {min}–{max} pasos
-            </div>
-            {segs[0] && (
-              <div className="route-preview-first">Primer tramo: {segs[0].name}</div>
+      {/* Tramo estimado — ruta seleccionada */}
+      {effectiveRoute && (
+        <div className="route-segments-preview">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div className="route-preview-name">{effectiveRoute.name}</div>
+            {visibleRoutes.length > 1 && (
+              <div style={{ display:'flex', gap:4 }}>
+                {visibleRoutes.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => setSelectedRouteId(r.id)}
+                    style={{
+                      fontSize:'0.48rem',
+                      padding:'2px 5px',
+                      borderRadius:3,
+                      border:`1px solid ${r.id === effectiveRouteId ? 'var(--color-teal)' : 'rgba(98,107,111,0.3)'}`,
+                      background: r.id === effectiveRouteId ? 'rgba(79,143,149,0.15)' : 'transparent',
+                      color: r.id === effectiveRouteId ? 'var(--color-teal)' : 'var(--color-stone-light)',
+                      cursor:'pointer',
+                    }}
+                  >
+                    {r.name.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-        )
-      })()}
+          {(() => {
+            const { min, max } = getRouteSegmentsTotalSteps(effectiveSegs)
+            return (
+              <div className="route-preview-meta">
+                {effectiveSegs.length} tramos · {min}–{max} pasos
+              </div>
+            )
+          })()}
+          {effectiveSegs[0] && (
+            <div className="route-preview-first">Primer tramo: {effectiveSegs[0].name}</div>
+          )}
+        </div>
+      )}
 
       {/* Strip de modos */}
       <div className="mode-strip">
@@ -8751,12 +9861,18 @@ export default function CaravanScreen({
           </button>
         ))}
       </div>
+      {expedition?.lockedModeId && (
+        <div style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', textAlign:'center',
+                      padding:'2px 0 4px', opacity:0.7, fontStyle:'italic' }}>
+          Modo bloqueado durante la expedición
+        </div>
+      )}
 
       {/* Iniciar la marcha */}
       <div className="alzar-caravana-panel">
         <button
           className="march-primary-button"
-          onClick={canAlzar ? onAlzar : undefined}
+          onClick={canAlzar ? () => onAlzar(effectiveRouteId) : undefined}
           disabled={!canAlzar}
         >
           {canAlzar ? 'Iniciar la marcha' : 'Elige un destino'}
@@ -12830,6 +13946,8 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 17A — Color Bible + Design Tokens: paleta funcional para sistemas, modos, estados, mapa, combate, contratos y UI principal
 - ✅ 18A — Escala del mundo: capas, zonas, rutas explícitas y visión de 20+ capas.
 - ✅ 18B — Tramos internos por ruta: routeSegmentSystem.js, 24 segmentos (8 rutas × 3), visualización en MapScreen y CaravanScreen.
+- ✅ 18C — Avance real por tramos internos: las rutas se recorren segmento a segmento y terminan en un sector destino.
+- ✅ 18D — Mapa vivo y asentamientos: zoom conceptual (Capas/Rutas/Tramos), tramos descubiertos progresivamente, pausa de 20 s entre tramos, modo bloqueado durante expedición, botón Salir de expedición, popup global de combate fuera de Caravana y primera capa con 5 asentamientos base.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
