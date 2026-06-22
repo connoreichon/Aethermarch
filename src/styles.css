@@ -5,31 +5,59 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 
 /* ── PALETTE ── */
 :root {
-  --color-bg:           #070807;
-  --color-bg-warm:      #0E0B08;
-  --color-leather-dark: #2A1A10;
-  --color-leather:      #3A2618;
-  --color-wood:         #4B321F;
-  --color-iron:         #5A5F61;
-  --color-iron-dark:    #383D3F;
-  --color-stone:        #2F3437;
-  --color-stone-light:  #626B6F;
-  --color-parchment:    #C8B88A;
-  --color-gold:         #B8944A;
-  --color-gold-dark:    #7A5F2A;
+  /* ── Paleta base ─────────────────────────────────────────────────────────── */
+  --color-abyss-black:      #070807;
+  --color-obsidian:         #0E0B08;
+  --color-panel:            #14100C;
+  --color-panel-soft:       #1B1510;
+  --color-leather-dark:     #21160F;
+  --color-leather:          #3A2618;
+  --color-wood:             #4B321F;
+  --color-iron:             #343A3D;
+  --color-iron-light:       #5A5F61;
+  --color-stone:            #252B2E;
+  --color-stone-light:      #8E9692;
+  --color-parchment:        #C8B88A;
+  --color-parchment-bright: #F3E6C8;
+
+  /* ── Colores funcionales ─────────────────────────────────────────────────── */
+  --color-hp:           #D62828;
+  --color-hp-dark:      #321010;
+  --color-xp:           #3FA34D;
+  --color-xp-dark:      #102A18;
+  --color-rank:         #B8944A;
+  --color-rank-bright:  #D6B35F;
+  --color-mist:         #4F8F95;
+  --color-mist-dark:    #193238;
+  --color-rune:         #6D5A9C;
+  --color-rune-bright:  #9A7BD1;
   --color-ember:        #D46A2D;
   --color-ember-dark:   #8A3F1D;
-  --color-hp:           #D62828;
-  --color-xp:           #3FA34D;
-  --color-magic:        #4F8F95;
-  --color-mist:         #6F9FA3;
-  --color-rune:         #6D5A9C;
-  --color-shadow:       rgba(0,0,0,0.55);
+  --color-danger:       #B63A2E;
+  --color-success:      #3FA34D;
+  --color-warning:      #B8944A;
+  --color-locked:       #5A5F61;
 
+  /* ── Modos de marcha ─────────────────────────────────────────────────────── */
+  --mode-free:    #B8944A;
+  --mode-explore: #6D5A9C;
+  --mode-gather:  #3FA34D;
+  --mode-hunt:    #B63A2E;
+  --mode-custom:  #5A5F61;
+
+  /* ── Aliases de compatibilidad (no rompen estilos existentes) ────────────── */
+  --color-bg:        var(--color-abyss-black);
+  --color-bg-warm:   var(--color-obsidian);
+  --color-gold:      var(--color-rank);
+  --color-gold-dark: #7A5F2A;
+  --color-magic:     var(--color-mist);
+  --color-iron-dark: #383D3F;
+  --color-shadow:    rgba(0,0,0,0.55);
+
+  /* ── Radios y bordes ─────────────────────────────────────────────────────── */
   --radius-sm:  4px;
   --radius-md:  8px;
   --radius-lg:  12px;
-
   --border-gold: 1px solid var(--color-gold-dark);
   --border-iron: 1px solid var(--color-iron-dark);
 }
@@ -49,7 +77,7 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 
 .app-header {
   flex-shrink: 0;
-  background: var(--color-leather-dark);
+  background: var(--color-panel);
   border-bottom: var(--border-gold);
   padding: 10px 16px 8px;
   text-align: center;
@@ -104,7 +132,7 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 
 /* ── PANELS ── */
 .panel {
-  background: var(--color-leather-dark);
+  background: var(--color-panel);
   border: var(--border-gold);
   border-radius: var(--radius-md);
   padding: 14px;
@@ -854,7 +882,7 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 
 .combat-result .result-hit {
   font-size: 0.74rem;
-  color: var(--color-ember);
+  color: var(--color-hp);
   line-height: 1.45;
   margin-bottom: 6px;
 }
@@ -923,7 +951,7 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 }
 .combat-timer-number {
   font-size: 1.8rem;
-  color: var(--color-gold);
+  color: var(--color-ember);
   text-align: center;
   line-height: 1;
   margin-bottom: 8px;
@@ -2149,7 +2177,7 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 }
 .abyss-node.discovered .abyss-node-circle {
   border-color: rgba(184,148,74,0.45);
-  background: var(--color-leather-dark);
+  background: var(--color-panel-soft);
 }
 .abyss-node.selected .abyss-node-circle {
   border-color: var(--color-gold);
@@ -2216,7 +2244,7 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 .abyss-selected-panel {
   flex-shrink: 0;
   padding: 12px 14px 16px;
-  background: var(--color-leather-dark);
+  background: var(--color-panel-soft);
   border-top: 1px solid rgba(184,148,74,0.14);
 }
 .abyss-detail-title {
@@ -2401,15 +2429,18 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 }
 .codex-entry.discovered {
   cursor: pointer;
-  border-color: rgba(98,107,111,0.28);
+  border-color: rgba(79,143,149,0.3);
+  border-left: 2px solid rgba(79,143,149,0.45);
 }
 .codex-entry.discovered:hover {
-  border-color: rgba(184,148,74,0.35);
-  background: rgba(42,26,16,0.85);
+  border-color: rgba(184,148,74,0.38);
+  border-left-color: rgba(184,148,74,0.6);
+  background: rgba(26,16,12,0.9);
 }
 .codex-entry.hidden {
-  opacity: 0.52;
+  opacity: 0.45;
   cursor: default;
+  border-left: 2px solid rgba(52,58,61,0.5);
 }
 .codex-entry-header {
   display: flex;
@@ -2736,8 +2767,8 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 
 /* ── 14A — Sectores secretos ── */
 .abyss-node.secret-discovered .abyss-node-circle {
-  border-color: rgba(184,148,74,0.55);
-  box-shadow: 0 0 10px rgba(184,148,74,0.18), 0 0 3px rgba(111,159,163,0.15);
+  border-color: var(--color-rune-bright);
+  box-shadow: 0 0 12px rgba(109,90,156,0.3), 0 0 4px rgba(154,123,209,0.18);
 }
 .abyss-node-secret-badge {
   position: absolute;
@@ -2745,9 +2776,9 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   left: 50%;
   transform: translateX(-50%);
   font-size: 0.37rem;
-  color: var(--color-gold);
-  background: rgba(26,18,8,0.92);
-  border: 1px solid rgba(184,148,74,0.38);
+  color: var(--color-rune-bright);
+  background: rgba(20,14,28,0.92);
+  border: 1px solid rgba(109,90,156,0.45);
   border-radius: 3px;
   padding: 1px 4px;
   white-space: nowrap;
@@ -2794,10 +2825,9 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 .march-primary-button {
   width: 100%;
   padding: 14px 20px;
-  background: linear-gradient(to bottom, #C45A20, #8A3F1D);
-  border: 1px solid rgba(212,106,45,0.6);
-  border-bottom-color: rgba(90,26,6,0.85);
-  color: #F5E8CC;
+  background: linear-gradient(135deg, #B63A2E, #D46A2D);
+  border: 1px solid rgba(214,106,45,0.65);
+  color: var(--color-parchment-bright);
   font-family: inherit;
   font-size: 0.95rem;
   font-weight: 600;
@@ -2805,19 +2835,23 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   text-transform: uppercase;
   border-radius: var(--radius-md);
   cursor: pointer;
-  box-shadow: 0 2px 14px rgba(212,106,45,0.28), inset 0 1px 0 rgba(255,210,140,0.14);
-  transition: opacity 0.15s;
+  box-shadow: 0 0 22px rgba(182,58,46,0.28), inset 0 1px 0 rgba(255,210,140,0.1);
+  transition: filter 0.15s, opacity 0.15s;
+}
+.march-primary-button:hover {
+  filter: brightness(1.06);
 }
 .march-primary-button:active {
   opacity: 0.82;
 }
 .march-primary-button:disabled {
-  background: rgba(42,26,16,0.5);
+  background: var(--color-iron);
   border-color: rgba(98,107,111,0.25);
   color: var(--color-stone-light);
   cursor: default;
   box-shadow: none;
-  opacity: 0.6;
+  opacity: 0.7;
+  filter: none;
 }
 
 /* ── Grid de info compacta ────────────────────────────────────────────────── */
@@ -2882,6 +2916,44 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 .mercenary-gate-card {}
 .mercenary-locked {}
 .mercenary-available {}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   17A — COLOR BIBLE + DESIGN TOKENS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Mode pills: color por modo ──────────────────────────────────────────── */
+.mode-pill[data-mode="free_march"].selected {
+  border-color: rgba(184,148,74,0.55);
+  color: var(--mode-free);
+  background: rgba(184,148,74,0.08);
+}
+.mode-pill[data-mode="explore"].selected {
+  border-color: rgba(109,90,156,0.55);
+  color: var(--mode-explore);
+  background: rgba(109,90,156,0.08);
+}
+.mode-pill[data-mode="gather"].selected {
+  border-color: rgba(63,163,77,0.55);
+  color: var(--mode-gather);
+  background: rgba(63,163,77,0.08);
+}
+.mode-pill[data-mode="hunt"].selected {
+  border-color: rgba(182,58,46,0.55);
+  color: var(--mode-hunt);
+  background: rgba(182,58,46,0.08);
+}
+.mode-pill[data-mode="custom"].selected {
+  border-color: rgba(90,95,97,0.55);
+  color: var(--mode-custom);
+  background: rgba(90,95,97,0.08);
+}
+
+/* ── Contratos: colores de resultado ya definidos, reforzamos chance ─────── */
+.contract-chance { color: var(--color-mist); }
+
+/* ── Conexiones del mapa con colores de tokens ───────────────────────────── */
+.abyss-connections line.discovered-link { stroke: rgba(79,143,149,0.42); }
+.abyss-connections line.hidden-link     { stroke: rgba(52,58,61,0.22); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    16A — MARCHA FLUIDA E INTERFAZ SIMPLE

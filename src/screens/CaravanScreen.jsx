@@ -1389,6 +1389,7 @@ export default function CaravanScreen({
           <button
             key={m.id}
             className={`mode-pill${expedition?.modeId === m.id ? ' selected' : ''}${m.locked ? ' locked' : ''}`}
+            data-mode={m.id}
             onClick={() => !m.locked && onSelectMode(m.id)}
             disabled={m.locked}
             title={MODE_SHORT[m.id] ?? m.description}

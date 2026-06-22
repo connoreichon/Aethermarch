@@ -85,7 +85,7 @@ function FogIcon() {
 
 const BIOME_ICON_COLOR = {
   forest: 'var(--color-xp)',
-  coast:  'var(--color-magic)',
+  coast:  'var(--color-mist)',
   forge:  'var(--color-ember)',
 }
 
@@ -168,7 +168,7 @@ export default function MapScreen({ sectors }) {
                 key={`${aId}-${bId}`}
                 x1={aPos.x} y1={aPos.y}
                 x2={bPos.x} y2={bPos.y}
-                stroke={both ? 'rgba(184,148,74,0.38)' : 'rgba(98,107,111,0.18)'}
+                stroke={both ? 'rgba(79,143,149,0.42)' : 'rgba(52,58,61,0.22)'}
                 strokeWidth="0.75"
                 strokeDasharray={both ? undefined : '1.8 2.2'}
               />

@@ -2,6 +2,9 @@
 
 > Documento complementario al PROJECT_BRIEF. Profundiza en el diseño del mundo, los estratos y los sistemas de exploración.
 > Para la biblia de mundo completa (estratos, facciones, lugares, NPCs, zonas secretas, reglas de contenido), ver `docs/WORLD_BIBLE.md`.
+> Para la paleta de color, tokens CSS y reglas de uso visual, ver `docs/COLOR_BIBLE.md`.
+>
+> **Identidad visual:** Color Bible inicial implementada como tokens CSS y reglas de uso (17A).
 
 ---
 
