@@ -40,6 +40,7 @@ export function createSaveSnapshot({
   lastEchoClaimAt,
   stepSource,
   contractState,
+  discoveredSegmentIds,
 }) {
   // Track whether the save was created while a run was active
   const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
@@ -63,10 +64,11 @@ export function createSaveSnapshot({
     inventory,
     diary,
     sectors,
-    expedition:       safeExp,
-    lastEchoClaimAt:  lastEchoClaimAt ?? null,
-    stepSource:       stepSource ?? null,
-    contractState:    contractState ?? null,
+    expedition:            safeExp,
+    lastEchoClaimAt:       lastEchoClaimAt ?? null,
+    stepSource:            stepSource ?? null,
+    contractState:         contractState ?? null,
+    discoveredSegmentIds:  Array.isArray(discoveredSegmentIds) ? discoveredSegmentIds : [],
     meta: {
       recoveredFromInterruptedRun: wasActive,
     },
@@ -104,6 +106,10 @@ export function sanitizeLoadedSave(rawSave) {
   if (wasInterrupted) {
     save.meta = { ...(save.meta ?? {}), recoveredFromInterruptedRun: true }
   }
+
+  save.discoveredSegmentIds = Array.isArray(save.discoveredSegmentIds)
+    ? save.discoveredSegmentIds
+    : []
 
   return save
 }

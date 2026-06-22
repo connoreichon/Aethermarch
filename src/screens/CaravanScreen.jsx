@@ -947,7 +947,7 @@ export default function CaravanScreen({
   player, expedition, sectors, combat,
   lastSaved, recoveredFromInterruption,
   onAlzar, onSelectMode, onSelectSector,
-  onResolveCombat, onContinueMarch, onPrepareNext,
+  onResolveCombat, onContinueMarch, onContinueToNextSegment, onAbandonExpedition, onPrepareNext,
   onResetGame,
   onClaimEcho, echoMessage, lastEchoResult,
   lastDiscovery,
@@ -973,6 +973,83 @@ export default function CaravanScreen({
         onResolveCombat={onResolveCombat}
         onContinueMarch={onContinueMarch}
       />
+    )
+  }
+
+  // ── SEGMENT TRANSITION ────────────────────────────────────────────────────
+  if (expedition?.status === 'segment_transition' && expedition.segmentTransition) {
+    const t       = expedition.segmentTransition
+    const biomeId = expedition.biomeId ?? 'forest'
+    const mistColor = biomeId === 'coast'
+      ? 'rgba(10,15,30,0.76)'
+      : biomeId === 'forge' ? 'rgba(20,10,5,0.8)' : 'rgba(10,18,10,0.76)'
+
+    return (
+      <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:'var(--color-bg)' }}>
+        <div className="march-scene" style={{ flex:'none' }}>
+          <BiomeMarchBackdrop biomeId={biomeId} />
+          <div className="march-road-wrap">
+            <div className="march-road-surface" />
+            <div className="march-road-marks" />
+          </div>
+          <div className="march-mist" style={{ background:`linear-gradient(to top, ${mistColor}, transparent)` }}/>
+          <div className="march-party">
+            <div className="march-creature"><CreatureToken creatureId={player.creatureId} size={62} /></div>
+            <div className="march-lantern"><LanternSVG /></div>
+            <div className="march-character"><ArchetypeToken archetypeId={player.archetypeId} size={70} /></div>
+          </div>
+          <div className="march-header-overlay">
+            <span style={{ color:'var(--color-gold)' }}>Tramo {expedition.currentTramo}</span>
+            <span style={{ color:'var(--color-parchment)', fontSize:'0.6rem' }}>{expedition.routeName}</span>
+            <span style={{ color:'var(--color-xp)', fontSize:'0.58rem' }}>
+              Tramo {expedition.routeSegmentOrder}/{expedition.routeSegmentCount} completado
+            </span>
+          </div>
+        </div>
+
+        <div style={{ flex:1, padding:'14px', display:'flex', flexDirection:'column', gap:10 }}>
+          <div className="panel" style={{ textAlign:'center' }}>
+            <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
+              Tramo completado
+            </div>
+            <div style={{ fontSize:'0.88rem', color:'var(--color-gold)', fontWeight:600, marginBottom:4 }}>
+              {t.completedSegmentName}
+            </div>
+            <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'8px 0' }} />
+            <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>
+              Siguiente tramo
+            </div>
+            <div style={{ fontSize:'0.82rem', color:'var(--color-parchment)', marginBottom:8 }}>
+              {t.nextSegmentName}
+            </div>
+
+            <div style={{ fontSize:'0.62rem', color:'var(--color-mist)', marginBottom:8 }}>
+              La caravana retomará la marcha en{' '}
+              <span style={{ color:'var(--color-parchment)', fontWeight:600 }}>{t.secondsRemaining} s</span>
+            </div>
+            <div style={{ height:3, background:'rgba(98,107,111,0.2)', borderRadius:2, margin:'0 0 12px', overflow:'hidden' }}>
+              <div style={{
+                height:'100%', borderRadius:2, background:'var(--color-teal)',
+                width:`${(t.secondsRemaining / 20) * 100}%`, transition:'width 1s linear',
+              }} />
+            </div>
+
+            <button className="btn btn-primary" onClick={onContinueToNextSegment}>
+              Siguiente tramo
+            </button>
+          </div>
+
+          <div style={{ textAlign:'center' }}>
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize:'0.6rem', opacity:0.7 }}
+              onClick={onAbandonExpedition}
+            >
+              Salir de expedición
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -1098,6 +1175,17 @@ export default function CaravanScreen({
             <StatBar label="HP" value={player.hp} max={player.maxHp} type="hp" />
             <StatBar label="XP" value={player.xp} max={player.xpToNext} type="xp" />
           </div>
+          {expedition.routeRun && !expedition.routeRun.completed && (
+            <div style={{ textAlign:'center', marginTop:8 }}>
+              <button
+                className="btn btn-secondary"
+                style={{ fontSize:'0.58rem', opacity:0.65 }}
+                onClick={onAbandonExpedition}
+              >
+                Salir de expedición
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -1468,6 +1556,12 @@ export default function CaravanScreen({
           </button>
         ))}
       </div>
+      {expedition?.lockedModeId && (
+        <div style={{ fontSize:'0.54rem', color:'var(--color-stone-light)', textAlign:'center',
+                      padding:'2px 0 4px', opacity:0.7, fontStyle:'italic' }}>
+          Modo bloqueado durante la expedición
+        </div>
+      )}
 
       {/* Iniciar la marcha */}
       <div className="alzar-caravana-panel">

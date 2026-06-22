@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { ARCHETYPES, BIOMES, ENEMIES, INITIAL_SECTORS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS } from './data/gameData.js'
+import CombatAlertModal from './components/CombatAlertModal.jsx'
 import { emptyInventory, addResources } from './systems/inventorySystem.js'
 import { generateEvent, calculateRewards, buildDiaryEntry } from './systems/expeditionSystem.js'
 import { createCombatFromThreat, resolveCombatTurn } from './systems/combatSystem.js'
@@ -115,6 +116,7 @@ export default function App() {
   const [lastPoiResult,             setLastPoiResult]             = useState(null)
   const [contractState,             setContractState]             = useState(createInitialContractState)
   const [lastContractResult,        setLastContractResult]        = useState(null)
+  const [discoveredSegmentIds,      setDiscoveredSegmentIds]      = useState([])
 
   const completionDone   = useRef(false)
   const combatTriggered  = useRef(new Set())
@@ -164,6 +166,7 @@ export default function App() {
     setLastEchoClaimAt(save.lastEchoClaimAt ?? null)
     setStepSource(sanitizeStepSource(save.stepSource))
     setContractState(sanitizeContractState(save.contractState ?? null))
+    setDiscoveredSegmentIds(save.discoveredSegmentIds ?? [])
     setPedometer(createPedometerState())  // pedometer always starts idle after reload
 
     completionDone.current  = false
@@ -192,6 +195,7 @@ export default function App() {
     setLastPoiResult(null)
     setContractState(createInitialContractState())
     setLastContractResult(null)
+    setDiscoveredSegmentIds([])
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
     if (motionHandlerRef.current) {
@@ -306,6 +310,8 @@ export default function App() {
         routeSegmentCount:        routeRun.totalSegments,
         routeDestinationSectorId: routeRun.toSectorId,
         targetSteps:              firstSegment?.stepMax ?? prev.targetSteps,
+        lockedModeId:             prev.modeId,
+        segmentTransition:        null,
       }))
     } else {
       setExpedition(prev => ({
@@ -324,6 +330,8 @@ export default function App() {
         routeSegmentOrder: null,
         routeSegmentCount: null,
         routeDestinationSectorId: null,
+        lockedModeId:  null,
+        segmentTransition: null,
       }))
     }
   }
@@ -400,6 +408,59 @@ export default function App() {
   function handleContinueMarch() {
     setCombat(INITIAL_COMBAT)
     setExpedition(prev => ({ ...prev, status: 'marching' }))
+  }
+
+  function handleContinueToNextSegment() {
+    setExpedition(prev => {
+      const t = prev.segmentTransition
+      if (!t) return prev
+      return {
+        ...prev,
+        status:            'marching',
+        currentSteps:      0,
+        progress:          0,
+        events:            [],
+        rewards:           {},
+        combatResults:     [],
+        routeSegmentId:    t.nextSegmentId,
+        routeSegmentName:  t.nextSegmentName,
+        routeSegmentOrder: t.nextSegmentOrder,
+        targetSteps:       t.nextTargetSteps,
+        segmentTransition: null,
+      }
+    })
+    combatTriggered.current = new Set()
+  }
+
+  function handleAbandonExpedition() {
+    const routeName = expedition.routeName ?? expedition.routeId ?? 'ruta desconocida'
+    const confirmed = window.confirm(
+      `Abandonar la expedición?\nConservarás lo ya obtenido en tramos completados, pero no completarás la ruta ni descubrirás el destino.`
+    )
+    if (!confirmed) return
+
+    const entry = {
+      id:          `abandon-${Date.now()}`,
+      type:        'expedition_abandoned',
+      title:       `Expedición abandonada · ${routeName}`,
+      completedAt: new Date().toISOString(),
+      steps:       expedition.currentSteps ?? 0,
+      sectorId:    expedition.sectorId,
+      rewards:     { xp: 0, resources: {} },
+      events:      [],
+      summaryText: `La caravana abandonó la expedición tras ${expedition.routeRun?.completedSegmentIds?.length ?? 0} tramo(s) completado(s).`,
+    }
+    setDiary(prev => [...prev, entry])
+    setCombat(INITIAL_COMBAT)
+    setExpedition(prev => ({
+      ...INITIAL_EXPEDITION,
+      currentTramo: prev.currentTramo,
+      modeId:       prev.lockedModeId ?? prev.modeId,
+      sectorId:     prev.sectorId,
+      biomeId:      prev.biomeId,
+    }))
+    combatTriggered.current = new Set()
+    completionDone.current  = false
   }
 
   // ── Eco de Marcha ────────────────────────────────────────────────────────────
@@ -615,17 +676,22 @@ export default function App() {
               const nextSeg = WORLD_ROUTE_SEGMENTS.find(s => s.id === nextRouteRun.currentSegmentId)
               return {
                 ...prev,
-                currentSteps:       0,
-                progress:           0,
-                events:             [],
-                rewards:            {},
-                combatResults:      [],
-                routeRun:           nextRouteRun,
-                routeSegmentId:     nextRouteRun.currentSegmentId,
-                routeSegmentName:   nextSeg?.name  ?? null,
-                routeSegmentOrder:  nextRouteRun.currentSegmentOrder,
-                targetSteps:        nextSeg?.stepMax ?? prev.targetSteps,
-                status:             'marching',
+                currentSteps:  newSteps,
+                progress:      100,
+                events:        newEvents,
+                rewards,
+                routeRun:      nextRouteRun,
+                status:        'segment_transition',
+                segmentTransition: {
+                  completedSegmentId:   prev.routeRun.currentSegmentId,
+                  completedSegmentName: prev.routeSegmentName ?? '—',
+                  nextSegmentId:        nextRouteRun.currentSegmentId,
+                  nextSegmentName:      nextSeg?.name ?? '—',
+                  nextSegmentOrder:     nextRouteRun.currentSegmentOrder,
+                  nextTargetSteps:      nextSeg?.stepMax ?? prev.targetSteps,
+                  secondsRemaining:     20,
+                  startedAt:            new Date().toISOString(),
+                },
               }
             }
 
@@ -674,10 +740,65 @@ export default function App() {
     setExpedition(prev => prev.status === 'marching' ? { ...prev, status: 'combat' } : prev)
   }, [expedition.events, expedition.status, combat.status, expedition.combatResults])
 
+  // ── Countdown y auto-avance de transición entre segmentos ───────────────────
+  useEffect(() => {
+    if (expedition.status !== 'segment_transition') return
+    if (!expedition.segmentTransition) return
+
+    // Tick every second, auto-advance at 0
+    const id = setInterval(() => {
+      setExpedition(prev => {
+        if (prev.status !== 'segment_transition' || !prev.segmentTransition) return prev
+        const next = prev.segmentTransition.secondsRemaining - 1
+        if (next <= 0) {
+          // Auto-advance to next segment
+          const t = prev.segmentTransition
+          return {
+            ...prev,
+            status:            'marching',
+            currentSteps:      0,
+            progress:          0,
+            events:            [],
+            rewards:           {},
+            combatResults:     [],
+            routeSegmentId:    t.nextSegmentId,
+            routeSegmentName:  t.nextSegmentName,
+            routeSegmentOrder: t.nextSegmentOrder,
+            targetSteps:       t.nextTargetSteps,
+            segmentTransition: null,
+          }
+        }
+        return { ...prev, segmentTransition: { ...prev.segmentTransition, secondsRemaining: next } }
+      })
+    }, 1000)
+
+    return () => clearInterval(id)
+  }, [expedition.status, expedition.segmentTransition?.startedAt])
+
+  // ── Añadir tramo completado a discoveredSegmentIds ───────────────────────────
+  useEffect(() => {
+    if (expedition.status !== 'segment_transition') return
+    const segId = expedition.segmentTransition?.completedSegmentId
+    if (!segId) return
+    setDiscoveredSegmentIds(prev =>
+      prev.includes(segId) ? prev : [...prev, segId]
+    )
+  }, [expedition.status, expedition.segmentTransition?.completedSegmentId])
+
   // ── Efectos de completado ────────────────────────────────────────────────────
   useEffect(() => {
     if (expedition.status !== 'completed' || completionDone.current || !player) return
     completionDone.current = true
+
+    // Mark the last segment as discovered (the one that finished the route)
+    if (expedition.routeRun?.completed && expedition.routeRun.currentSegmentId === null) {
+      const lastCompletedId = expedition.routeRun.completedSegmentIds?.at(-1)
+      if (lastCompletedId) {
+        setDiscoveredSegmentIds(prev =>
+          prev.includes(lastCompletedId) ? prev : [...prev, lastCompletedId]
+        )
+      }
+    }
 
     const completedSector = sectors.find(s => s.id === expedition.sectorId)
     const sectorName      = completedSector?.name
@@ -761,6 +882,7 @@ export default function App() {
       lastEchoClaimAt,
       stepSource,
       contractState,
+      discoveredSegmentIds,
     })
     writeSave(snapshot)
     setLastSaved(new Date())
@@ -796,6 +918,8 @@ export default function App() {
             onSelectSector={handleSelectSector}
             onResolveCombat={handleResolveCombat}
             onContinueMarch={handleContinueMarch}
+            onContinueToNextSegment={handleContinueToNextSegment}
+            onAbandonExpedition={handleAbandonExpedition}
             onPrepareNext={handlePrepareNext}
             onResetGame={resetGame}
             onClaimEcho={handleClaimMarchEcho}
@@ -815,7 +939,7 @@ export default function App() {
             onResolveActiveContract={handleResolveActiveContract}
           />
         )
-      case 'mapa':       return <MapScreen       sectors={sectors} />
+      case 'mapa':       return <MapScreen       sectors={sectors} expedition={expedition} discoveredSegmentIds={discoveredSegmentIds} />
       case 'diario':     return <DiaryScreen      diary={diary} />
       case 'inventario': return <InventoryScreen  inventory={inventory} />
       case 'criatura':   return <CreatureScreen   player={player} />
@@ -847,6 +971,14 @@ export default function App() {
   return (
     <AppShell currentTab={currentTab} onChangeTab={setCurrentTab}>
       {renderTab()}
+      {combat.status === 'awaiting_choice' && currentTab !== 'caravana' && (
+        <CombatAlertModal
+          combat={combat}
+          player={player}
+          onChooseStance={handleResolveCombat}
+          onGoToCaravan={() => setCurrentTab('caravana')}
+        />
+      )}
     </AppShell>
   )
 }

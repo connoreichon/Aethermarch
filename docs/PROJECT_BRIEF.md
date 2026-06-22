@@ -682,6 +682,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 18A — Escala del mundo: capas, zonas, rutas explícitas y visión de 20+ capas.
 - ✅ 18B — Tramos internos por ruta: routeSegmentSystem.js, 24 segmentos (8 rutas × 3), visualización en MapScreen y CaravanScreen.
 - ✅ 18C — Avance real por tramos internos: las rutas se recorren segmento a segmento y terminan en un sector destino.
+- ✅ 18D — Mapa vivo y asentamientos: zoom conceptual (Capas/Rutas/Tramos), tramos descubiertos progresivamente, pausa de 20 s entre tramos, modo bloqueado durante expedición, botón Salir de expedición, popup global de combate fuera de Caravana y primera capa con 5 asentamientos base.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas

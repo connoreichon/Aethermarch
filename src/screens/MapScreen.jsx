@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA, WORLD_ROUTES, ABYSS_ZONES, WORLD_ROUTE_SEGMENTS } from '../data/gameData.js'
+import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA, WORLD_ROUTES, ABYSS_ZONES, WORLD_ROUTE_SEGMENTS, ABYSS_SETTLEMENTS } from '../data/gameData.js'
 import { getStratumProgress } from '../systems/abyssSystem.js'
 import {
   getWorldScaleSummary,
@@ -101,9 +101,41 @@ const BIOME_ICON_COLOR = {
   forge:  'var(--color-ember)',
 }
 
-export default function MapScreen({ sectors }) {
+const SAFETY_COLOR = {
+  safe:      'var(--color-xp)',
+  guarded:   'var(--color-gold)',
+  unstable:  'var(--color-mist)',
+  dangerous: 'var(--color-ember)',
+  hostile:   'var(--color-hp)',
+  mythic:    'var(--color-magic)',
+}
+
+const SETTLEMENT_TYPE_ICON = {
+  village:      '⌂',
+  market:       '⊞',
+  fort:         '▣',
+  harbor:       '⊕',
+  caravanserai: '⌀',
+  camp:         '△',
+  inn_town:     '⌂',
+  sanctuary:    '✦',
+  ruin_settlement: '◈',
+}
+
+// Positions for settlements (same sector = same pos as sector node but offset)
+const SETTLEMENT_POS = {
+  settlement_aethel_linde:         { x: 50, y: 10 },
+  settlement_root_lantern_market:  { x: 26, y: 26 },
+  settlement_fogbreak_fort:        { x: 20, y: 31 },
+  settlement_blind_lake_dock:      { x: 74, y: 39 },
+  settlement_dust_gate_caravanserai: { x: 30, y: 22 },
+}
+
+export default function MapScreen({ sectors, expedition, discoveredSegmentIds = [] }) {
   const [selectedId, setSelectedId] = useState(null)
   const [expandedRouteId, setExpandedRouteId] = useState(null)
+  const [mapZoomLevel, setMapZoomLevel] = useState('layers')
+  const [selectedSettlementId, setSelectedSettlementId] = useState(null)
 
   const rawSelected   = sectors.find(s => s.id === selectedId)
   const selected      = rawSelected ? withAbyssMeta(rawSelected) : null
@@ -163,6 +195,266 @@ export default function MapScreen({ sectors }) {
           {' · '}{scaleSummary.maxDepthMeters} m máx.
         </div>
       </div>
+
+      {/* Selector de zoom */}
+      <div style={{
+        display: 'flex', gap: 4, padding: '6px 12px',
+        borderBottom: '1px solid rgba(98,107,111,0.15)',
+        background: 'rgba(0,0,0,0.2)',
+      }}>
+        {[
+          { id: 'layers',   label: 'Capas' },
+          { id: 'routes',   label: 'Rutas' },
+          { id: 'segments', label: 'Tramos' },
+        ].map(z => (
+          <button
+            key={z.id}
+            onClick={() => { setMapZoomLevel(z.id); setSelectedId(null); setSelectedSettlementId(null) }}
+            style={{
+              flex: 1, padding: '5px 0', fontSize: '0.62rem',
+              background: mapZoomLevel === z.id ? 'rgba(79,143,149,0.2)' : 'transparent',
+              border: `1px solid ${mapZoomLevel === z.id ? 'var(--color-teal)' : 'rgba(98,107,111,0.25)'}`,
+              borderRadius: 4, color: mapZoomLevel === z.id ? 'var(--color-teal)' : 'var(--color-stone-light)',
+              cursor: 'pointer', letterSpacing: '0.04em',
+            }}
+          >
+            {z.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── VISTA: CAPAS ─────────────────────────────────────────────────────── */}
+      {mapZoomLevel === 'layers' && (
+        <div>
+          <div className="abyss-board" style={{ minHeight: 280 }}>
+            {STRATA_BANDS.map(st => (
+              <div key={st.id} className={`abyss-stratum-band ${st.cssClass}`} />
+            ))}
+            {STRATA_BANDS.map(st => (
+              <div key={st.id + '-label'} className="abyss-stratum-label" style={{ top: `${st.yMid}%` }}>
+                <div className="abyss-stratum-label-name">{st.label}</div>
+                <div className="abyss-stratum-label-depth">{st.depth}</div>
+              </div>
+            ))}
+            <div className="abyss-core" />
+            <div className="abyss-depth-line" />
+
+            {/* Asentamientos */}
+            {ABYSS_SETTLEMENTS.map(s => {
+              const pos = SETTLEMENT_POS[s.id]
+              if (!pos) return null
+              const sectorDisc = sectors.find(sec => sec.id === s.sectorId)?.discovered ?? false
+              const visible    = s.unlocked || sectorDisc
+              const icon       = SETTLEMENT_TYPE_ICON[s.type] ?? '◆'
+              const isSelected = selectedSettlementId === s.id
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setSelectedSettlementId(prev => prev === s.id ? null : s.id)}
+                  style={{
+                    position: 'absolute',
+                    top:  `calc(${pos.y}% - 26px)`,
+                    left: `${pos.x}%`,
+                    transform: 'translateX(-50%)',
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                    opacity: visible ? 1 : 0.35,
+                    zIndex: 5,
+                  }}
+                >
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 4,
+                    background: isSelected ? 'rgba(30,20,10,0.95)' : 'rgba(15,10,5,0.85)',
+                    border: `1.5px solid ${isSelected ? 'var(--color-gold)' : SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.78rem',
+                    boxShadow: isSelected ? `0 0 8px ${SAFETY_COLOR[s.safetyLevel]}44` : 'none',
+                    filter: visible ? 'none' : 'blur(0.5px) grayscale(0.8)',
+                  }}>
+                    {visible ? icon : '?'}
+                  </div>
+                  <div style={{
+                    fontSize: '0.48rem', color: visible ? 'var(--color-parchment)' : 'var(--color-stone-light)',
+                    textAlign: 'center', maxWidth: 54, lineHeight: 1.2,
+                  }}>
+                    {visible ? s.name : '—'}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Panel de detalle de asentamiento */}
+          {selectedSettlementId && (() => {
+            const s = ABYSS_SETTLEMENTS.find(x => x.id === selectedSettlementId)
+            if (!s) return null
+            const sectorDisc = sectors.find(sec => sec.id === s.sectorId)?.discovered ?? false
+            const visible    = s.unlocked || sectorDisc
+            return (
+              <div className="abyss-selected-panel">
+                {visible ? (
+                  <>
+                    <div className="abyss-detail-title" style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ fontSize:'1.1rem' }}>{SETTLEMENT_TYPE_ICON[s.type] ?? '◆'}</span>
+                      <span>{s.name}</span>
+                    </div>
+                    <div className="abyss-detail-row">
+                      <span className="abyss-detail-key">Tipo</span>
+                      <span style={{ textTransform:'capitalize' }}>{s.type.replace(/_/g,' ')}</span>
+                    </div>
+                    <div className="abyss-detail-row">
+                      <span className="abyss-detail-key">Seguridad</span>
+                      <span style={{ color: SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)', textTransform:'capitalize' }}>
+                        {s.safetyLevel}
+                      </span>
+                    </div>
+                    <div className="abyss-detail-row">
+                      <span className="abyss-detail-key">Estrato</span>
+                      <span>{s.layerName ?? s.stratumId}</span>
+                    </div>
+                    {s.description && (
+                      <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', fontStyle:'italic',
+                                    lineHeight:1.45, marginTop:6, opacity:0.85 }}>
+                        {s.description}
+                      </div>
+                    )}
+                    {s.services?.length > 0 && (
+                      <div className="abyss-detail-row" style={{ marginTop:4 }}>
+                        <span className="abyss-detail-key">Servicios</span>
+                        <span style={{ fontSize:'0.58rem' }}>
+                          {s.services.map(sv => sv.replace(/_/g,' ')).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="abyss-fog-text">
+                    <div>Asentamiento no descubierto.</div>
+                    <div style={{ fontSize:'0.58rem', marginTop:4, opacity:0.7 }}>
+                      Descubre el sector {s.sectorId.replace('sector_','').replace(/_/g,' ')} para revelar este lugar.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+      )}
+
+      {/* ── VISTA: TRAMOS ────────────────────────────────────────────────────── */}
+      {mapZoomLevel === 'segments' && (() => {
+        const activeRouteId = expedition?.routeRun?.routeId ?? expedition?.routeId ?? null
+        const activeRoute   = WORLD_ROUTES.find(r => r.id === activeRouteId)
+        const segs          = activeRoute
+          ? WORLD_ROUTE_SEGMENTS
+              .filter(s => s.routeId === activeRouteId)
+              .sort((a, b) => a.order - b.order)
+          : []
+        const currentSegId  = expedition?.routeSegmentId
+        const completedIds  = expedition?.routeRun?.completedSegmentIds ?? []
+
+        if (!activeRoute || segs.length === 0) {
+          return (
+            <div style={{ padding:'20px 14px', textAlign:'center' }}>
+              <div style={{ fontSize:'0.65rem', color:'var(--color-stone-light)', fontStyle:'italic' }}>
+                No hay expedición activa.
+              </div>
+              <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', marginTop:8, opacity:0.6 }}>
+                Inicia una marcha con ruta para ver los tramos internos.
+              </div>
+            </div>
+          )
+        }
+
+        const fromSector = sectors.find(s => s.id === expedition?.routeRun?.fromSectorId)
+        const toSector   = sectors.find(s => s.id === expedition?.routeRun?.toSectorId)
+
+        return (
+          <div style={{ padding:'10px 12px' }}>
+            <div style={{
+              fontSize:'0.68rem', color:'var(--color-gold)', fontWeight:600, marginBottom:4,
+            }}>
+              {activeRoute.name}
+            </div>
+            <div style={{
+              fontSize:'0.56rem', color:'var(--color-stone-light)', marginBottom:10,
+            }}>
+              {fromSector?.name ?? '—'} → {toSector?.name ?? '—'}
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+              {segs.map((seg, idx) => {
+                const isDone    = completedIds.includes(seg.id) || discoveredSegmentIds.includes(seg.id)
+                const isCurrent = seg.id === currentSegId
+                const isNext    = !isDone && !isCurrent && idx === segs.findIndex(s => !completedIds.includes(s.id) && s.id !== currentSegId)
+                const isHidden  = !isDone && !isCurrent
+
+                let nodeColor = 'rgba(98,107,111,0.3)'
+                let textColor = 'var(--color-stone-light)'
+                if (isDone)    { nodeColor = 'rgba(184,148,74,0.7)';  textColor = 'var(--color-gold)' }
+                if (isCurrent) { nodeColor = 'var(--color-teal)';     textColor = 'var(--color-parchment)' }
+
+                return (
+                  <div key={seg.id} style={{ display:'flex', alignItems:'stretch', gap:8 }}>
+                    {/* Línea vertical + nodo */}
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:18, flexShrink:0 }}>
+                      {idx > 0 && (
+                        <div style={{
+                          width: 1.5, flex:'0 0 8px',
+                          background: isDone ? 'rgba(184,148,74,0.5)' : 'rgba(98,107,111,0.2)',
+                          borderLeft: isDone ? 'none' : '1.5px dashed rgba(98,107,111,0.25)',
+                        }} />
+                      )}
+                      <div style={{
+                        width: 14, height: 14, borderRadius: isCurrent ? 3 : 7,
+                        border: `1.5px solid ${nodeColor}`,
+                        background: isDone ? 'rgba(184,148,74,0.18)' : isCurrent ? 'rgba(79,143,149,0.22)' : 'transparent',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        flexShrink: 0,
+                      }}>
+                        {isDone && (
+                          <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(184,148,74,0.8)' }} />
+                        )}
+                        {isCurrent && (
+                          <div style={{ width:4, height:4, borderRadius:1, background:'var(--color-teal)' }} />
+                        )}
+                      </div>
+                      {idx < segs.length - 1 && (
+                        <div style={{
+                          width: 1.5, flex:'0 0 20px',
+                          background: isDone ? 'rgba(184,148,74,0.35)' : 'rgba(98,107,111,0.15)',
+                          borderLeft: isDone ? 'none' : '1.5px dashed rgba(98,107,111,0.2)',
+                        }} />
+                      )}
+                    </div>
+
+                    {/* Texto del segmento */}
+                    <div style={{ flex:1, paddingBottom:idx < segs.length - 1 ? 0 : 2, paddingTop: idx === 0 ? 0 : 8 }}>
+                      <div style={{ fontSize:'0.68rem', color:textColor, fontWeight:isCurrent ? 600 : 400 }}>
+                        {isHidden && !isNext
+                          ? 'Tramo desconocido'
+                          : isNext
+                          ? `Siguiente tramo · ${seg.name}`
+                          : `${seg.order}. ${seg.name}`
+                        }
+                        {isCurrent && <span style={{ marginLeft:6, fontSize:'0.52rem', color:'var(--color-teal)' }}>← actual</span>}
+                      </div>
+                      {(isDone || isCurrent) && (
+                        <div style={{ fontSize:'0.55rem', color:'var(--color-stone-light)', marginTop:1, opacity:0.75 }}>
+                          {seg.stepMin}–{seg.stepMax} pasos · {seg.type}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── VISTA: RUTAS — usa el tablero original ───────────────────────────── */}
+      {mapZoomLevel === 'routes' && (<>
 
       {/* Tablero */}
       <div className="abyss-board">
@@ -416,6 +708,8 @@ export default function MapScreen({ sectors }) {
           )}
         </div>
       )}
+
+      </>)}
 
     </div>
   )

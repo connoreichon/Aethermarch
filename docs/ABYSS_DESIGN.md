@@ -499,4 +499,6 @@ No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y
 
 ---
 
+Map UX: mapa por zoom conceptual con tres vistas — Capas (asentamientos y grandes conexiones), Rutas (sectores y rutas visibles entre ellos) y Tramos (tramos internos de la expedición activa). Los tramos se descubren progresivamente: completados con nombre, actual marcado, siguiente como silueta, posteriores ocultos como niebla.
+
 *Este documento es una referencia de diseño viva. Se actualiza conforme el juego avanza.*

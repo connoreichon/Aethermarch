@@ -972,6 +972,69 @@ La lógica de marcha (`App.jsx`) recorre los tramos uno a uno automáticamente (
 
 ---
 
+## Progresión de asentamientos por profundidad
+
+Las ciudades y asentamientos del Abismo no desaparecen conforme se desciende — se vuelven más escasos, peligrosos y extraños.
+
+**Capas tempranas (Estratos I-II):**
+- Muchos asentamientos estables: aldeas, posadas, mercados, caravasares, fortines.
+- El jugador puede descansare curar en múltiples puntos.
+- Presencia humana mayoritaria. Idioma, moneda y costumbres reconocibles.
+- Rumores, contratos sencillos, guías disponibles.
+
+**Capas medias (Estratos III-V):**
+- Menos posadas. Más puestos especializados: forjas, mercados de sal, campamentos de rastreadores.
+- Asentamientos más pequeños. Algunos semidesiertos o vigilados por facciones no humanas.
+- El jugador siente alivio al encontrar un refugio. No puede darlo por sentado.
+- Contratos más rentables pero más peligrosos.
+
+**Capas profundas (Estratos VI+):**
+- Pocos lugares seguros. Los que existen son raros, extraños o condicionados.
+- Ciudades semivivas, santuarios, ruinas habitadas, refugios míticos.
+- Algunos requieren rango, reputación o rutas especiales para acceder.
+- El jugador debe planificar el descenso para no quedarse sin refugio.
+
+**Regla de diseño:** el jugador siempre debe sentir que encontrar un lugar seguro profundo es un logro, no un derecho.
+
+---
+
+## Progresión de biomas
+
+La fantasía del Abismo aumenta gradualmente con la profundidad. No se pasa de bosque normal a locura cósmica de golpe.
+
+**Capas tempranas:**
+- Bosques rúnicos oscuros, montañas, lagos subterráneos, ríos, cuevas.
+- Desiertos de polvo mineral, ruinas humanas, caminos de piedra.
+- Referencia visual: mundo natural con toques de magia antigua.
+
+**Capas medias:**
+- Sal negra, hongos gigantes bioluminiscentes, resina petrificada.
+- Forjas antiguas, colonias insectoides, ruinas sumergidas, mares interiores.
+- Cavernas con «cielo falso» de cristal o vapor.
+- La magia ya no es sutil — es parte del paisaje.
+
+**Capas profundas:**
+- Bosques de cristal, desiertos eléctricos, océanos verticales, ciudades fósiles.
+- Campos de gravedad alterada, catedrales de raíz petrificada.
+- Mares de piedra líquida, zonas imposibles, abismos dentro del Abismo.
+- El entorno actúa. Las reglas físicas se doblan.
+
+---
+
+## Primera capa — 5 asentamientos iniciales (Estrato I · Raíces Ciegas)
+
+| ID | Nombre | Tipo | Seguridad |
+|----|--------|------|-----------|
+| `settlement_aethel_linde` | Linde de Aethel | Aldea | Seguro |
+| `settlement_root_lantern_market` | Mercado de Raíz Vieja | Mercado | Vigilado |
+| `settlement_fogbreak_fort` | Fortín Quebrabruma | Fortín | Vigilado |
+| `settlement_blind_lake_dock` | Muelle del Lago Ciego | Puerto | Inestable |
+| `settlement_dust_gate_caravanserai` | Caravasar del Polvo Bajo | Caravasar | Vigilado |
+
+Los cinco están en el Estrato I. El jugador parte desde Linde de Aethel (desbloqueado por defecto). Los demás se revelan conforme se descubren sus sectores.
+
+---
+
 *Este documento es la base de diseño del mundo de Aethermarch. Se actualiza conforme el juego avanza.*
 *Para estado de implementación técnica, ver `docs/ABYSS_DESIGN.md`.*
 *Para roadmap de bloques, ver `docs/PROJECT_BRIEF.md`.*

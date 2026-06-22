@@ -1,5 +1,5 @@
 // ── Constante de decisión ──────────────────────────────────────────────────────
-export const COMBAT_DECISION_SECONDS = 5
+export const COMBAT_DECISION_SECONDS = 6
 
 // ── Posturas disponibles ──────────────────────────────────────────────────────
 export const STANCES = [
