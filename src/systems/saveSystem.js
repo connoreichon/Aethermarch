@@ -4,7 +4,7 @@ export const SAVE_VERSION = 1
 // Statuses that indicate an active session (march / combat in progress)
 const ACTIVE_STATUSES = ['marching', 'combat']
 // Statuses that must be sanitized to 'resting' before writing
-const UNSAFE_STATUSES = ['marching', 'combat', 'awaiting_choice', 'resolved', 'completed']
+const UNSAFE_STATUSES = ['marching', 'combat', 'awaiting_choice', 'resolved', 'completed', 'segment_transition']
 
 // ── Acceso a localStorage ─────────────────────────────────────────────────────
 

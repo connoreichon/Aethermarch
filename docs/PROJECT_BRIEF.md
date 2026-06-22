@@ -516,7 +516,7 @@ No es modal encima de la ruta. Es una escena propia.
 ## Mapa — Hacia el Abismo en Espiral
 
 ### Estado actual
-Mapa visual del Abismo implementado en versión inicial (9A): tablero vertical con bandas de estrato, nodos en espiral, panel de detalle, niebla para zonas no descubiertas. Los 6 sectores actuales están distribuidos en 3 estratos.
+Mapa visual interactivo implementado (19A): navegación por tres niveles (Abismo → Capa → Ruta), asentamientos como nodos SVG con iconos por tipo, rutas como trazados curvos Bézier, niebla de descubrimiento por segmento, pan/arrastre con discriminación tap/drag, y breadcrumb de navegación.
 
 ### Dirección futura
 El mapa evolucionará conforme se añadan estratos y sectores:
@@ -683,11 +683,12 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 18B — Tramos internos por ruta: routeSegmentSystem.js, 24 segmentos (8 rutas × 3), visualización en MapScreen y CaravanScreen.
 - ✅ 18C — Avance real por tramos internos: las rutas se recorren segmento a segmento y terminan en un sector destino.
 - ✅ 18D — Mapa vivo y asentamientos: zoom conceptual (Capas/Rutas/Tramos), tramos descubiertos progresivamente, pausa de 20 s entre tramos, modo bloqueado durante expedición, botón Salir de expedición, popup global de combate fuera de Caravana y primera capa con 5 asentamientos base.
+- ✅ 19A — Mapa visual interactivo: navegación Abismo → Capa → Ruta con asentamientos SVG, rutas curvas, tramos dibujados, niebla de descubrimiento y pan/arrastre.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
 - 🔲 15B — Primer estrato completo con contenido funcional diferenciado
-- 🔲 19A — Primer NPC contratable funcional
+- 🔲 19B — Primer NPC contratable funcional
 
 ### Largo Plazo
 - 🔲 Múltiples estratos con biomas propios

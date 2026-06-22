@@ -499,6 +499,20 @@ No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y
 
 ---
 
-Map UX: mapa por zoom conceptual con tres vistas — Capas (asentamientos y grandes conexiones), Rutas (sectores y rutas visibles entre ellos) y Tramos (tramos internos de la expedición activa). Los tramos se descubren progresivamente: completados con nombre, actual marcado, siguiente como silueta, posteriores ocultos como niebla.
+## UX del Mapa Visual (19A)
+
+El mapa del Abismo es una pantalla SVG interactiva con navegación en tres niveles:
+
+**Nivel Abismo** — vista general: tres bandas de estrato con colores de bioma, profundidad en metros, recuento de asentamientos y rutas. Toca una banda para descender.
+
+**Nivel Capa** — vista de capa: asentamientos como nodos SVG con iconos por tipo (aldea, mercado, fuerte, puerto, caravansarai). Las rutas entre asentamientos son trazados curvos Bézier con color por nivel de peligro. Los asentamientos no descubiertos aparecen como niebla (`?`). Toca una ruta para ver sus tramos.
+
+**Nivel Ruta** — vista de ruta: los tramos se distribuyen en curva suave. Completados muestran nombre, el actual está marcado, el siguiente tiene silueta, los posteriores son niebla (`?`). Toca un tramo para ver su detalle.
+
+Interacción:
+- Pan/arrastre sin librerías externas (pointer events, ref `didDragRef` para discriminar tap vs. drag)
+- Botón "Centrar" resetea pan sin recargar
+- Breadcrumb "El Abismo / Capa / Ruta" con botón "← Volver"
+- Panel de detalle inferior al seleccionar un nodo
 
 *Este documento es una referencia de diseño viva. Se actualiza conforme el juego avanza.*

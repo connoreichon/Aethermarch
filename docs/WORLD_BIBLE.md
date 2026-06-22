@@ -1035,6 +1035,25 @@ Los cinco están en el Estrato I. El jugador parte desde Linde de Aethel (desblo
 
 ---
 
+## Lectura visual del mapa (19A)
+
+El mapa del Abismo se lee en tres niveles de zoom:
+
+**Abismo** — bandas de estrato coloreadas por bioma. Verde (Raíces), Azul marino (Sal Negra), Rojo ladrillo (Hornacinas). Cada banda muestra profundidad, número de asentamientos y rutas disponibles.
+
+**Capa** — asentamientos como nodos con icono de tipo:
+- Aldea → tejado triangular
+- Mercado → toldo en arco
+- Fuerte → muros almenados
+- Puerto → mástil y barco
+- Caravasar → círculo concéntrico
+
+Las rutas entre asentamientos son curvas Bézier. El color indica el peligro: dorado (bajo), naranja (medio). Las rutas secretas son violeta discontinuo. Los nodos no descubiertos aparecen como círculo rayado con `?`.
+
+**Ruta** — tramos distribuidos en curva suave. Completados con nombre, actual marcado con `← actual`, siguiente con silueta, posteriores como `?`. El panel inferior muestra detalle del tramo seleccionado.
+
+---
+
 *Este documento es la base de diseño del mundo de Aethermarch. Se actualiza conforme el juego avanza.*
 *Para estado de implementación técnica, ver `docs/ABYSS_DESIGN.md`.*
 *Para roadmap de bloques, ver `docs/PROJECT_BRIEF.md`.*
