@@ -3307,3 +3307,56 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   border-top: 1px solid rgba(98,107,111,0.12);
   flex-shrink: 0;
 }
+
+/* ── Abismo espiral ── */
+
+.abyss-wall-left,
+.abyss-wall-right {
+  fill: rgba(14,10,6,0.92);
+}
+
+.abyss-spiral-road {
+  fill: none;
+  stroke: rgba(148,122,60,0.55);
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+}
+
+.abyss-spiral-road-shadow {
+  fill: none;
+  stroke: rgba(0,0,0,0.7);
+  stroke-width: 6px;
+  stroke-linecap: round;
+}
+
+.abyss-layer-node { cursor: default; }
+.abyss-layer-node.unlocked { cursor: pointer; }
+
+.abyss-layer-label {
+  fill: rgba(180,162,110,0.7);
+  font-family: Georgia, serif;
+}
+
+.abyss-layer-depth {
+  fill: rgba(140,125,90,0.4);
+  font-family: Georgia, serif;
+}
+
+.abyss-cornice {
+  stroke-linecap: round;
+}
+
+.abyss-fog-band { fill: rgba(5,6,4,0.55); }
+.abyss-locked-fog { opacity: 0.7; }
+
+.abyss-route-curve { stroke-linecap: round; }
+.abyss-route-curve.selected { filter: drop-shadow(0 0 3px rgba(79,143,149,0.4)); }
+
+.abyss-segment-dot { cursor: pointer; }
+.abyss-segment-dot.current circle { filter: drop-shadow(0 0 4px rgba(79,143,149,0.5)); }
+
+.abyss-scroll-hint {
+  fill: rgba(98,107,111,0.35);
+  font-family: Georgia, serif;
+  letter-spacing: 0.04em;
+}

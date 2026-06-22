@@ -1054,6 +1054,27 @@ Las rutas entre asentamientos son curvas Bézier. El color indica el peligro: do
 
 ---
 
+## Lectura visual del mapa (19B)
+
+La vista Abismo cambió en 19B de bandas de colores a una sima vertical real:
+
+El jugador ve un pozo oscuro de profundidad. Un camino dorado en espiral desciende por sus paredes, alternando de izquierda a derecha cada nivel. Las paredes de la sima son orgánicas, irregulares, como una cueva viva. El fondo se pierde en la oscuridad.
+
+Los nodos de capa aparecen como círculos en las cornisas del camino espiral:
+- Desbloqueados: círculo claro, nombre e icono de nivel visible, cursor de mano
+- Bloqueados: círculo oscuro con niebla encima, profundidad indicada, sin acceso
+
+Al tocar una capa bloqueada, aparece un panel de detalle con el nombre de la capa y el texto:
+> "Profundidad no cartografiada — nadie que haya bajado hasta aquí ha vuelto según constan los archivos."
+
+El jugador puede arrastrar hacia abajo para explorar la profundidad visual del Abismo antes de tener acceso a esas capas. Es la fantasía de asomarse a un abismo sin fondo.
+
+Al entrar a la Capa (Estrato I), la vista cambia a un interior de cueva: paredes irregulares, estalactitas, agua oscura para el lago, resplandor radial desde Aethel Linde. Los asentamientos descansan sobre cornisas de piedra.
+
+La ruta Senda de los Faroles Bajos tiene ahora 12 tramos dibujados como puntos en curva suave. Los completados muestran nombre, los no descubiertos aparecen como puntos en niebla.
+
+---
+
 *Este documento es la base de diseño del mundo de Aethermarch. Se actualiza conforme el juego avanza.*
 *Para estado de implementación técnica, ver `docs/ABYSS_DESIGN.md`.*
 *Para roadmap de bloques, ver `docs/PROJECT_BRIEF.md`.*

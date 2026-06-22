@@ -692,27 +692,90 @@ export const ABYSS_ZONES = [
 ]
 
 export const WORLD_ROUTE_SEGMENTS = [
-  // route_aethel_to_mist — Senda de los Faroles Bajos
+  // route_aethel_to_mist — Senda de los Faroles Bajos (12 tramos)
   {
     id: 'seg_afm_01', routeId: 'route_aethel_to_mist', order: 1,
     name: 'Faroles hundidos',
-    description: 'Farolillos de hueso enterrados en el suelo, camino de tierra firme.',
-    type: 'approach', danger: 'low', stepMin: 180, stepMax: 300,
+    description: 'Farolillos de hueso enterrados en el suelo. Camino de tierra firme, el más concurrido del primer descenso.',
+    type: 'approach', danger: 'low', stepMin: 250, stepMax: 380,
     eventBias: { resource: 0.4, exploration: 0.3, creature: 0.1, threat: 0.05, microevent: 0.15 },
   },
   {
     id: 'seg_afm_02', routeId: 'route_aethel_to_mist', order: 2,
     name: 'Raíces de paso',
     description: 'Red de raíces que forma un puente natural sobre la grieta de niebla.',
-    type: 'crossing', danger: 'low', stepMin: 220, stepMax: 360,
+    type: 'crossing', danger: 'low', stepMin: 300, stepMax: 450,
     eventBias: { resource: 0.2, exploration: 0.4, creature: 0.2, threat: 0.1, microevent: 0.1 },
   },
   {
-    id: 'seg_afm_03', routeId: 'route_aethel_to_mist', order: 3,
+    id: 'seg_afm_04', routeId: 'route_aethel_to_mist', order: 3,
+    name: 'Puente de corteza vieja',
+    description: 'Una corteza de árbol milenario atraviesa el vacío. Cruje, pero ha aguantado a todos los que han pasado antes.',
+    type: 'crossing', danger: 'low', stepMin: 350, stepMax: 500,
+    eventBias: { resource: 0.15, exploration: 0.4, creature: 0.2, threat: 0.1, microevent: 0.15 },
+  },
+  {
+    id: 'seg_afm_05', routeId: 'route_aethel_to_mist', order: 4,
+    name: 'Nido de bruma baja',
+    description: 'La niebla se espesa a la altura de los tobillos. Las pisadas se oyen amplificadas.',
+    type: 'approach', danger: 'low', stepMin: 300, stepMax: 480,
+    eventBias: { resource: 0.3, exploration: 0.35, creature: 0.15, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_afm_06', routeId: 'route_aethel_to_mist', order: 5,
+    name: 'Cruce del tronco hueco',
+    description: 'Un tronco caído de dimensiones enormes sirve de pasarela. En su interior se han encontrado marcas de criatura.',
+    type: 'crossing', danger: 'medium', stepMin: 380, stepMax: 560,
+    eventBias: { resource: 0.1, exploration: 0.45, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_afm_07', routeId: 'route_aethel_to_mist', order: 6,
+    name: 'Balcón de musgo negro',
+    description: 'Cornisa abierta al vacío del Abismo. El musgo negro amortigua el sonido y la roca brilla levemente.',
+    type: 'landmark', danger: 'medium', stepMin: 420, stepMax: 600,
+    eventBias: { resource: 0.2, exploration: 0.4, creature: 0.2, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_afm_08', routeId: 'route_aethel_to_mist', order: 7,
+    name: 'Grieta de las campanas pequeñas',
+    description: 'Un pasillo estrecho donde cristales de cuarzo producen un tintineo constante con las corrientes de aire.',
+    type: 'crossing', danger: 'medium', stepMin: 450, stepMax: 650,
+    eventBias: { resource: 0.15, exploration: 0.5, creature: 0.15, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_afm_09', routeId: 'route_aethel_to_mist', order: 8,
+    name: 'Sendero de raíces tensas',
+    description: 'Las raíces se tensan desde las paredes como cuerdas de arpa. Hay que agacharse en varios puntos.',
+    type: 'approach', danger: 'medium', stepMin: 500, stepMax: 720,
+    eventBias: { resource: 0.1, exploration: 0.4, creature: 0.3, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_afm_10', routeId: 'route_aethel_to_mist', order: 9,
+    name: 'Mirador del primer descenso',
+    description: 'Un claro en la roca donde la sima se abre. El primer vistazo real al Abismo profundo.',
+    type: 'landmark', danger: 'medium', stepMin: 550, stepMax: 780,
+    eventBias: { resource: 0.05, exploration: 0.6, creature: 0.15, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_afm_03', routeId: 'route_aethel_to_mist', order: 10,
     name: 'Boca de niebla',
-    description: 'Entrada al Sector Raíz de Niebla; la bruma sube hasta la cintura.',
-    type: 'landmark', danger: 'medium', stepMin: 200, stepMax: 340,
+    description: 'La bruma sube hasta la cintura y el camino se bifurca. Solo queda seguir el hilo de faroles.',
+    type: 'landmark', danger: 'medium', stepMin: 400, stepMax: 600,
     eventBias: { resource: 0.1, exploration: 0.5, creature: 0.2, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_afm_11', routeId: 'route_aethel_to_mist', order: 11,
+    name: 'Umbral de Raíz Vieja',
+    description: 'Arco de raíz fosilizada que marca el límite del territorio conocido. Los faroles terminan aquí.',
+    type: 'descent', danger: 'medium', stepMin: 600, stepMax: 900,
+    eventBias: { resource: 0.05, exploration: 0.45, creature: 0.3, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_afm_12', routeId: 'route_aethel_to_mist', order: 12,
+    name: 'Entrada al Sector Raíz de Niebla',
+    description: 'El Sector Raíz de Niebla. El suelo cambia, la niebla es constante, y los faroles de Aethel ya no se ven.',
+    type: 'landmark', danger: 'high', stepMin: 700, stepMax: 1000,
+    eventBias: { resource: 0.05, exploration: 0.5, creature: 0.25, threat: 0.15, microevent: 0.05 },
   },
 
   // route_aethel_to_salt — Bajada a la Cornisa

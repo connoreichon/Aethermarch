@@ -515,4 +515,41 @@ Interacción:
 - Breadcrumb "El Abismo / Capa / Ruta" con botón "← Volver"
 - Panel de detalle inferior al seleccionar un nodo
 
+---
+
+## UX del Mapa Visual (19B)
+
+La vista Abismo se rediseñó completamente para transmitir la sensación de una sima vertical real.
+
+**Espiral del Abismo:**
+- 20 capas visuales alternando izquierda (x=128) y derecha (x=352) cada 76 px de descenso vertical
+- Las capas se conectan mediante curvas S Bézier cúbicas generadas proceduralmente por `buildAbyssSpiral()`
+- El trazado principal tiene un shadow trail oscuro (grosor 6) y encima la ruta dorada (grosor 2.5, opacidad 0.55)
+- Paredes orgánicas de cueva a izquierda y derecha del canvas usando `path` con bordes irregulares
+- Gradiente oscuro en la parte superior refuerza la profundidad visual
+
+**Capas:**
+- Las 3 primeras capas son reales (stratum_01–03) y se desbloquean según sectores descubiertos
+- Las 17 capas restantes son visuales: aparecen con fog-band semi-transparente y círculo bloqueado
+- Tocar una capa desbloqueada → entra a la vista de capa (interior de cueva con asentamientos)
+- Tocar una capa bloqueada → muestra panel de detalle con nombre y "Profundidad no cartografiada — nadie que haya bajado hasta aquí ha vuelto según constan los archivos" sin entrar ni hacer crash
+
+**Pan vertical:**
+- Solo eje Y, clampeado entre `minY: -1210` y `maxY: 48`
+- El eje X se fija a 0 (la sima es vertical, no horizontal)
+- Gradiente + texto "Arrastra para explorar el Abismo ↓" al pie como hint de scroll
+
+**Vista de Capa (interior):**
+- Fondo de cueva con paredes izquierda/derecha orgánicas, estalactitas desde arriba
+- Zona de agua oscura para el puerto/lago de Aethel Linde (Estrato I)
+- Resplandor radial desde el centro del asentamiento principal
+- Cornisa de piedra bajo cada asentamiento
+- Los asentamientos no descubiertos aparecen como `?` en niebla
+
+**Ruta con 12 tramos:**
+- `route_aethel_to_mist` (Senda de los Faroles Bajos) expandida de 3 a 12 tramos
+- Nuevos IDs: seg_afm_04 al seg_afm_12; seg_afm_03 reubicado a orden 10
+- Compatible con saves anteriores (el campo `order` cambió, no el `id`)
+- Con n>8 tramos: radio de punto reducido a 7, labels solo para actual/seleccionado/último completado
+
 *Este documento es una referencia de diseño viva. Se actualiza conforme el juego avanza.*

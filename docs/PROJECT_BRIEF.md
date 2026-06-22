@@ -516,7 +516,9 @@ No es modal encima de la ruta. Es una escena propia.
 ## Mapa — Hacia el Abismo en Espiral
 
 ### Estado actual
-Mapa visual interactivo implementado (19A): navegación por tres niveles (Abismo → Capa → Ruta), asentamientos como nodos SVG con iconos por tipo, rutas como trazados curvos Bézier, niebla de descubrimiento por segmento, pan/arrastre con discriminación tap/drag, y breadcrumb de navegación.
+Mapa visual interactivo implementado (19A–19B): navegación por tres niveles (Abismo → Capa → Ruta), asentamientos como nodos SVG con iconos por tipo, rutas como trazados curvos Bézier, niebla de descubrimiento por segmento, pan/arrastre con discriminación tap/drag, y breadcrumb de navegación.
+
+Vista Abismo rediseñada en 19B como sima vertical: espiral S-curve con 20 capas alternando izquierda/derecha, paredes orgánicas de cueva, pan vertical clampeado, nodos de capa en cornisas, fog-band en capas bloqueadas, y detalle narrativo "Profundidad no cartografiada" al tocar una capa futura. La ruta `route_aethel_to_mist` se amplió de 3 a 12 tramos con identificadores compatibles con saves anteriores.
 
 ### Dirección futura
 El mapa evolucionará conforme se añadan estratos y sectores:
@@ -684,11 +686,12 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 18C — Avance real por tramos internos: las rutas se recorren segmento a segmento y terminan en un sector destino.
 - ✅ 18D — Mapa vivo y asentamientos: zoom conceptual (Capas/Rutas/Tramos), tramos descubiertos progresivamente, pausa de 20 s entre tramos, modo bloqueado durante expedición, botón Salir de expedición, popup global de combate fuera de Caravana y primera capa con 5 asentamientos base.
 - ✅ 19A — Mapa visual interactivo: navegación Abismo → Capa → Ruta con asentamientos SVG, rutas curvas, tramos dibujados, niebla de descubrimiento y pan/arrastre.
+- ✅ 19B — Abismo como sima vertical: espiral S-curve de 20 capas, paredes orgánicas de cueva, pan vertical, capas bloqueadas con detalle "Profundidad no cartografiada", Senda de los Faroles Bajos expandida a 12 tramos.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
 - 🔲 15B — Primer estrato completo con contenido funcional diferenciado
-- 🔲 19B — Primer NPC contratable funcional
+- 🔲 20A — Primer NPC contratable funcional
 
 ### Largo Plazo
 - 🔲 Múltiples estratos con biomas propios
