@@ -484,6 +484,7 @@ No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y
 | Enemigos por estrato (enemyPool) | Implementado en base inicial (9B) |
 | Códice del Abismo | Implementado en primera versión — 6 categorías (10A) |
 | Zonas secretas funcionales | Primera versión implementada: Cueva de Setas Huecas (Estrato I), acceso por Velthar/Exploración o dominio de la Ruina (14A) |
+| World scale | Primera versión de zonas y rutas explícitas añadida (18A). El mapa queda preparado para múltiples rutas y futuros tramos por ruta. WORLD_ROUTES (8 rutas), ABYSS_ZONES (6 zonas), worldScaleSystem.js. |
 | Contratos básicos | Implementados: encargos por lugar seguro, un contrato activo, resultado variable y diario (13A–13B) |
 | Subordinados y contratos complejos | No implementado |
 | Rangos | Base implementada como cálculo derivado — Rango I/II/III según XP, sectores y contratos (15A) |

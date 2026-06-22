@@ -893,6 +893,54 @@ Estado actual y gaps de los primeros 3 estratos.
 
 ---
 
+---
+
+## 18. Escala futura del Abismo
+
+El Abismo está pensado para crecer por encima de 20 capas jugables. Las primeras capas (actualmente I–III) son solo el arranque del descenso.
+
+Cada capa puede tener zonas, rutas, tramos, secretos y lugares seguros propios. No todas estarán implementadas desde el principio: el juego añade capas nuevas conforme el contenido existente se estabiliza.
+
+El objetivo es una sensación de **viaje largo**: meses de progresión, mapa ramificado, profundidad real y siempre la pregunta "¿qué hay más abajo?". No se trata de un mapa pequeño con 8 nodos, sino de un mundo vertical que crece hacia lo desconocido.
+
+### Lista provisional de 20 capas
+
+> Esta lista es provisional. Los nombres y el orden definitivo se fijarán durante el diseño de contenido.
+
+1. I · Linde de las Raíces Ciegas
+2. II · Cornisa de la Sal Negra
+3. III · Hornacinas de Ceniza
+4. IV · Cámara de la Colmena Roja
+5. V · Galerías de Espora Muerta
+6. VI · Acueductos Hundidos
+7. VII · Jardines sin Sol
+8. VIII · Foso de Resina Negra
+9. IX · Bastiones del Hueso Antiguo
+10. X · Desierto de Hielo Bajo
+11. XI · Claustros de Vidrio
+12. XII · Umbral de las Campanas Rotas
+13. XIII · Forjas del Hierro Vivo
+14. XIV · Caverna de los Titanes Dormidos
+15. XV · Mar Interior de Piedra
+16. XVI · Campo del Cristal Vivo
+17. XVII · Catedral de Raíz Fósil
+18. XVIII · Cámara de los Nombres Perdidos
+19. XIX · Garganta del Primer Farol
+20. XX · Fondo sin Cielo
+
+Las capas 4–20 están reservadas para contenido futuro. No se implementan todavía en código.
+
+### Estructura de una capa madura
+
+Cada capa jugable completa tendrá:
+- **Zonas** (2–4 por capa): áreas navegables con identidad propia.
+- **Rutas** (1–3 por zona): trayectos definidos con tipo, pasos, peligro y posibles requisitos.
+- **Tramos** (1–N por ruta): segmentos de marcha con eventos propios.
+- **Secretos** (1–2 por capa): zonas ocultas con condición de acceso no trivial.
+- **Lugares seguros** (al menos 1 por capa): refugio, posada, forja o puesto.
+
+---
+
 *Este documento es la base de diseño del mundo de Aethermarch. Se actualiza conforme el juego avanza.*
 *Para estado de implementación técnica, ver `docs/ABYSS_DESIGN.md`.*
 *Para roadmap de bloques, ver `docs/PROJECT_BRIEF.md`.*

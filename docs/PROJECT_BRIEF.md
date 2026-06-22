@@ -679,11 +679,12 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 15A — Pulido de Caravana, CTA "Iniciar la marcha", base de rangos y bloqueo visual de exploradores contratables
 - ✅ 16A — Marcha fluida: auto-retorno tras combate (1200 ms), paneles plegables, ruta compacta, strip de modos
 - ✅ 17A — Color Bible + Design Tokens: paleta funcional para sistemas, modos, estados, mapa, combate, contratos y UI principal
+- ✅ 18A — Escala del mundo: capas, zonas, rutas explícitas y visión de 20+ capas.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
 - 🔲 15B — Primer estrato completo con contenido funcional diferenciado
-- 🔲 18A — Primer NPC contratable funcional
+- 🔲 19A — Primer NPC contratable funcional
 
 ### Largo Plazo
 - 🔲 Múltiples estratos con biomas propios

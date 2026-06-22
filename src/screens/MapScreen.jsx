@@ -1,6 +1,13 @@
 import { useState } from 'react'
-import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA } from '../data/gameData.js'
+import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA, WORLD_ROUTES, ABYSS_ZONES } from '../data/gameData.js'
 import { getStratumProgress } from '../systems/abyssSystem.js'
+import {
+  getWorldScaleSummary,
+  getRoutesFromSector,
+  getRouteTypeLabel,
+  getRouteDangerLabel,
+  getRouteStepRangeLabel,
+} from '../systems/worldScaleSystem.js'
 
 const THREAT_LABEL  = { low: 'Baja', medium: 'Media', high: 'Alta' }
 const MASTERY_LABEL = ['Sin rastro', 'Conocido', 'Familiar', 'Dominado', 'Legendario']
@@ -39,19 +46,19 @@ const STRATA_BANDS = [
 // Fallback para saves sin campos de Abismo (merge en handleContinue lo resuelve,
 // pero se mantiene por seguridad en renderizado).
 const STRATUM_FALLBACK = {
-  sector_aethel_edge:          { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 120, lootTier: 1 },
-  sector_mist_root:            { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 180, lootTier: 1 },
-  sector_runic_guard_ruins:    { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 210, lootTier: 1 },
-  sector_hollow_mushroom_cave: { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 235, lootTier: 1 },
-  sector_salt_beacon:          { stratumId: 'stratum_02', stratumName: 'Estrato II · Cornisa Salina',   depth: 2, depthMeters: 340, lootTier: 2 },
-  sector_tide_rock:            { stratumId: 'stratum_02', stratumName: 'Estrato II · Cornisa Salina',   depth: 2, depthMeters: 410, lootTier: 2 },
-  sector_sleeping_forge:       { stratumId: 'stratum_03', stratumName: 'Estrato III · Forjas Hundidas', depth: 3, depthMeters: 690, lootTier: 3 },
-  sector_coal_bastion:         { stratumId: 'stratum_03', stratumName: 'Estrato III · Forjas Hundidas', depth: 3, depthMeters: 760, lootTier: 3 },
+  sector_aethel_edge:          { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 120, lootTier: 1 },
+  sector_mist_root:            { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 180, lootTier: 1 },
+  sector_runic_guard_ruins:    { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 210, lootTier: 1 },
+  sector_hollow_mushroom_cave: { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 235, lootTier: 1 },
+  sector_salt_beacon:          { stratumId: 'stratum_02', stratumName: 'II · Cornisa de la Sal Negra',   depth: 2, depthMeters: 340, lootTier: 2 },
+  sector_tide_rock:            { stratumId: 'stratum_02', stratumName: 'II · Cornisa de la Sal Negra',   depth: 2, depthMeters: 410, lootTier: 2 },
+  sector_sleeping_forge:       { stratumId: 'stratum_03', stratumName: 'III · Hornacinas de Ceniza', depth: 3, depthMeters: 690, lootTier: 3 },
+  sector_coal_bastion:         { stratumId: 'stratum_03', stratumName: 'III · Hornacinas de Ceniza', depth: 3, depthMeters: 760, lootTier: 3 },
 }
 
 function withAbyssMeta(sector) {
   if (sector.stratumId) return sector
-  return { ...sector, ...(STRATUM_FALLBACK[sector.id] ?? { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz', depth: 1, depthMeters: 120, lootTier: 1 }) }
+  return { ...sector, ...(STRATUM_FALLBACK[sector.id] ?? { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas', depth: 1, depthMeters: 120, lootTier: 1 }) }
 }
 
 function BiomeIcon({ biomeId }) {
@@ -105,6 +112,21 @@ export default function MapScreen({ sectors }) {
     return `${st.shortName} ${prog.discovered}/${prog.total}`
   }).join(' · ')
 
+  // Escala del mundo
+  const scaleSummary = getWorldScaleSummary({
+    sectors,
+    routes: WORLD_ROUTES,
+    zones: ABYSS_ZONES,
+    strata: ABYSS_STRATA,
+  })
+
+  // Rutas desde el sector seleccionado
+  const selectedRoutes = selectedId
+    ? getRoutesFromSector({ routes: WORLD_ROUTES, sectorId: selectedId }).filter(
+        r => r.status === 'open' || r.status === 'discovered' || r.type === 'secret'
+      )
+    : []
+
   function handleSelect(id) {
     setSelectedId(prev => prev === id ? null : id)
   }
@@ -129,6 +151,10 @@ export default function MapScreen({ sectors }) {
         <div className="abyss-title">El Abismo</div>
         <div className="abyss-subtitle">
           {discoveredCount} / {sectors.length} zonas · {strataProgress}
+        </div>
+        <div className="abyss-scale-summary">
+          {scaleSummary.knownStrataCount} capas · {scaleSummary.zoneCount} zonas · {scaleSummary.sectorCount} sectores · {scaleSummary.routeCount} rutas
+          {' · '}{scaleSummary.maxDepthMeters} m máx.
         </div>
       </div>
 
@@ -298,6 +324,29 @@ export default function MapScreen({ sectors }) {
                   </span>
                 </div>
               )}
+              {/* Rutas desde aquí */}
+              {selectedRoutes.length > 0 && (
+                <div className="world-routes-section">
+                  <div className="world-routes-label">Rutas desde aquí</div>
+                  {selectedRoutes.map(r => {
+                    const isSecretHidden = r.type === 'secret' && r.status === 'hidden'
+                    return isSecretHidden ? (
+                      <div key={r.id} className="world-route-item world-route-hidden">
+                        <div className="world-route-name">Ruta oculta</div>
+                        <div className="world-route-meta">Condición desconocida</div>
+                      </div>
+                    ) : (
+                      <div key={r.id} className="world-route-item">
+                        <div className="world-route-name">{r.name}</div>
+                        <div className="world-route-meta">
+                          {getRouteTypeLabel(r.type)} · {getRouteStepRangeLabel(r)} · {getRouteDangerLabel(r)}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
               {selected.secret && (
                 <div className="secret-discovery-note">
                   Zona secreta · acceso por senda oculta

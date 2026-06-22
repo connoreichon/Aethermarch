@@ -3103,3 +3103,44 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 .collapsible-panel-body {
   padding: 0 14px 12px;
 }
+
+/* ── ESCALA DEL MUNDO — 18A ─────────────────────────────────────────────── */
+.abyss-scale-summary {
+  font-size: 0.54rem;
+  color: var(--color-mist);
+  opacity: 0.72;
+  margin-top: 3px;
+  letter-spacing: 0.01em;
+}
+.world-routes-section {
+  margin-top: 10px;
+  border-top: 1px solid rgba(98,107,111,0.15);
+  padding-top: 8px;
+}
+.world-routes-label {
+  font-size: 0.56rem;
+  color: var(--color-stone-light);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+.world-route-item {
+  margin-bottom: 6px;
+}
+.world-route-name {
+  font-size: 0.66rem;
+  color: var(--color-parchment);
+  font-weight: 500;
+}
+.world-route-meta {
+  font-size: 0.56rem;
+  color: var(--color-stone-light);
+  margin-top: 1px;
+}
+.world-route-hidden .world-route-name {
+  color: var(--color-rune);
+  font-style: italic;
+}
+.world-route-hidden .world-route-meta {
+  color: rgba(109,90,156,0.6);
+}
