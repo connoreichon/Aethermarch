@@ -61,6 +61,7 @@ src/components/tokens/ArchetypeToken.jsx
 src/components/tokens/CreatureToken.jsx
 src/components/tokens/EnemyToken.jsx
 src/components/tokens/ResourceNode.jsx
+src/components/VisualMapCanvas.jsx
 src/data/gameData.js
 src/main.jsx
 src/screens/CaravanScreen.jsx
@@ -1242,6 +1243,679 @@ export default function ResourceNode({ resourceId, size = 48 }) {
       <rect x="12" y="12" width="24" height="24" rx="4" fill="#383D3F" />
       <text x="18" y="30" fontSize="14" fill="#626B6F">?</text>
     </svg>
+  )
+}
+</file>
+
+<file path="src/components/VisualMapCanvas.jsx">
+import { useState, useRef, useEffect } from 'react'
+import { ABYSS_STRATA } from '../data/gameData.js'
+import { getSegmentsForRoute } from '../systems/routeSegmentSystem.js'
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const SAFETY_COLOR = {
+  safe:      'var(--color-xp)',
+  guarded:   'var(--color-gold)',
+  unstable:  'var(--color-mist)',
+  dangerous: 'var(--color-ember)',
+  hostile:   'var(--color-hp)',
+  mythic:    'var(--color-magic)',
+}
+
+// Positions for strata in ABYSS view
+const STRATUM_BLOCKS = {
+  stratum_01: { x: 36, y: 44,  w: 408, h: 106, fillColor: 'rgba(20,36,14,0.62)', borderColor: 'rgba(63,163,77,0.35)' },
+  stratum_02: { x: 36, y: 192, w: 408, h: 106, fillColor: 'rgba(8,20,34,0.62)',  borderColor: 'rgba(79,143,149,0.35)' },
+  stratum_03: { x: 36, y: 340, w: 408, h: 106, fillColor: 'rgba(30,14,6,0.66)',  borderColor: 'rgba(180,80,40,0.35)' },
+}
+
+// Settlement positions in LAYER view (stratum_01 canvas 480×480)
+const SETTLEMENT_POS = {
+  settlement_aethel_linde:           { x: 76,  y: 205 },
+  settlement_root_lantern_market:    { x: 238, y: 112 },
+  settlement_fogbreak_fort:          { x: 398, y: 148 },
+  settlement_blind_lake_dock:        { x: 408, y: 322 },
+  settlement_dust_gate_caravanserai: { x: 232, y: 362 },
+}
+
+// Sector fallback positions for strata 2 & 3 layer views
+const SECTOR_POS = {
+  stratum_02: {
+    sector_salt_beacon: { x: 148, y: 210 },
+    sector_tide_rock:   { x: 332, y: 270 },
+  },
+  stratum_03: {
+    sector_sleeping_forge: { x: 155, y: 220 },
+    sector_coal_bastion:   { x: 325, y: 220 },
+  },
+}
+
+// Visual route connections per stratum
+const STRATUM_CONNECTIONS = {
+  stratum_01: [
+    { from: 'settlement_aethel_linde',           to: 'settlement_root_lantern_market',   routeId: 'route_aethel_to_mist',  bend:  0.22, danger: 'low' },
+    { from: 'settlement_root_lantern_market',    to: 'settlement_fogbreak_fort',          routeId: 'route_mist_to_ruins',   bend: -0.18, danger: 'medium' },
+    { from: 'settlement_aethel_linde',           to: 'settlement_blind_lake_dock',        routeId: 'route_aethel_to_salt',  bend: -0.2,  danger: 'medium' },
+    { from: 'settlement_aethel_linde',           to: 'settlement_dust_gate_caravanserai', routeId: null,                    bend:  0.15, danger: 'low' },
+    { from: 'settlement_dust_gate_caravanserai', to: 'settlement_blind_lake_dock',        routeId: null,                    bend:  0.2,  danger: 'low' },
+  ],
+  stratum_02: [
+    { from: 'sector_salt_beacon', to: 'sector_tide_rock', routeId: 'route_salt_to_tide', bend: 0.2, danger: 'medium', nodeType: 'sector' },
+  ],
+  stratum_03: [
+    { from: 'sector_sleeping_forge', to: 'sector_coal_bastion', routeId: 'route_forge_to_coal', bend: -0.18, danger: 'medium', nodeType: 'sector' },
+  ],
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function createCurvedPath(from, to, bend = 0.25) {
+  const mx = (from.x + to.x) / 2
+  const my = (from.y + to.y) / 2
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const len = Math.sqrt(dx * dx + dy * dy) || 1
+  const px = -dy / len
+  const py =  dx / len
+  return `M ${from.x} ${from.y} Q ${mx + px * len * bend} ${my + py * len * bend}, ${to.x} ${to.y}`
+}
+
+function getSegmentPositions(segs) {
+  if (segs.length === 0) return []
+  const padding = 72
+  const spacing = segs.length === 1 ? 0 : (480 - padding * 2) / (segs.length - 1)
+  return segs.map((_, i) => ({
+    x: padding + i * spacing,
+    y: 230 + Math.sin(i * 0.85) * 42,
+  }))
+}
+
+// ── Settlement icon (inline SVG shapes, no external assets) ─────────────────
+
+function SettlementShape({ type, cx, cy, color, r = 11 }) {
+  if (type === 'village') return (
+    <g>
+      <polygon
+        points={`${cx},${cy - r} ${cx - r * 0.75},${cy - r * 0.1} ${cx + r * 0.75},${cy - r * 0.1}`}
+        fill={color} fillOpacity={0.8}/>
+      <rect x={cx - r * 0.5} y={cy - r * 0.15} width={r} height={r * 0.72}
+            fill={color} fillOpacity={0.65} rx={1}/>
+    </g>
+  )
+  if (type === 'market') return (
+    <g>
+      <path d={`M ${cx - r * 0.85} ${cy - r * 0.2} Q ${cx} ${cy - r} ${cx + r * 0.85} ${cy - r * 0.2}`}
+            fill={color} fillOpacity={0.5} stroke={color} strokeWidth={1.2}/>
+      <rect x={cx - r * 0.85} y={cy - r * 0.2} width={r * 1.7} height={r * 0.65}
+            fill={color} fillOpacity={0.55} rx={1}/>
+    </g>
+  )
+  if (type === 'fort') return (
+    <g>
+      <rect x={cx - r * 0.72} y={cy - r * 0.85} width={r * 1.44} height={r * 1.15}
+            fill={color} fillOpacity={0.55} rx={1}/>
+      <rect x={cx - r * 0.9}  y={cy - r}    width={r * 0.42} height={r * 0.38} fill={color} fillOpacity={0.8}/>
+      <rect x={cx + r * 0.48} y={cy - r}    width={r * 0.42} height={r * 0.38} fill={color} fillOpacity={0.8}/>
+    </g>
+  )
+  if (type === 'harbor') return (
+    <g>
+      <line x1={cx} y1={cy - r * 0.82} x2={cx} y2={cy + r * 0.42}
+            stroke={color} strokeWidth={1.5} strokeLinecap="round"/>
+      <line x1={cx - r * 0.6} y1={cy - r * 0.3} x2={cx + r * 0.6} y2={cy - r * 0.3}
+            stroke={color} strokeWidth={1.2} strokeLinecap="round"/>
+      <path d={`M ${cx - r * 0.82} ${cy + r * 0.1} Q ${cx} ${cy + r} ${cx + r * 0.82} ${cy + r * 0.1}`}
+            stroke={color} strokeWidth={1.2} fill={color} fillOpacity={0.22}/>
+    </g>
+  )
+  if (type === 'caravanserai') return (
+    <g>
+      <circle cx={cx} cy={cy} r={r * 0.72} stroke={color} strokeWidth={1.4} fill={color} fillOpacity={0.18}/>
+      <circle cx={cx} cy={cy} r={r * 0.28} fill={color} fillOpacity={0.72}/>
+    </g>
+  )
+  return <circle cx={cx} cy={cy} r={r * 0.5} fill={color} fillOpacity={0.6}/>
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
+
+export default function VisualMapCanvas({
+  viewLevel,
+  selectedLayerId,
+  selectedRouteId,
+  sectors,
+  routes,
+  routeSegments,
+  settlements,
+  discoveredSegmentIds,
+  expedition,
+  onSelectLayer,
+  onSelectSettlement,
+  onSelectRoute,
+  centerTrigger,
+}) {
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const isDownRef      = useRef(false)
+  const didDragRef     = useRef(false)
+  const dragStartRef   = useRef(null)
+  const [selectedNodeId, setSelectedNodeId]   = useState(null)
+  const [detailSettlement, setDetailSettlement] = useState(null)
+  const [detailSegment, setDetailSegment]       = useState(null)
+
+  // Reset pan when centerTrigger changes
+  useEffect(() => {
+    setPan({ x: 0, y: 0 })
+  }, [centerTrigger])
+
+  // Reset selection when view changes
+  useEffect(() => {
+    setSelectedNodeId(null)
+    setDetailSettlement(null)
+    setDetailSegment(null)
+  }, [viewLevel, selectedLayerId, selectedRouteId])
+
+  function onPointerDown(e) {
+    isDownRef.current  = true
+    didDragRef.current = false
+    dragStartRef.current = { panX: pan.x, panY: pan.y, originX: e.clientX, originY: e.clientY }
+  }
+
+  function onPointerMove(e) {
+    if (!isDownRef.current || !dragStartRef.current) return
+    const dx = e.clientX - dragStartRef.current.originX
+    const dy = e.clientY - dragStartRef.current.originY
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) didDragRef.current = true
+    setPan({ x: dragStartRef.current.panX + dx, y: dragStartRef.current.panY + dy })
+  }
+
+  function onPointerUp() {
+    isDownRef.current  = false
+    dragStartRef.current = null
+  }
+
+  function isSettlementVisible(s) {
+    const sec = sectors.find(sec => sec.id === s.sectorId)
+    return s.unlocked || (sec?.discovered ?? false)
+  }
+
+  // ── ABYSS render ────────────────────────────────────────────────────────────
+
+  function renderAbyssView() {
+    return (
+      <>
+        {/* Depth shaft */}
+        <path d="M 240 0 C 236 130,244 300,240 480"
+              stroke="rgba(6,4,2,0.92)" strokeWidth={10} fill="none"/>
+        <path d="M 240 20 C 238 140,242 290,240 470"
+              stroke="rgba(30,22,10,0.5)" strokeWidth={1.5} fill="none"
+              strokeDasharray="5 10"/>
+
+        {/* Depth markers */}
+        {[{ y: 97, label: '0 m' }, { y: 245, label: '250 m' }, { y: 393, label: '500 m' }].map(m => (
+          <g key={m.y}>
+            <line x1={206} y1={m.y} x2={274} y2={m.y}
+                  stroke="rgba(98,107,111,0.28)" strokeWidth={0.6}/>
+            <text x={210} y={m.y - 4} fontSize={8}
+                  style={{ fill: 'rgba(140,130,100,0.45)', fontFamily: 'Georgia,serif' }}>
+              {m.label}
+            </text>
+          </g>
+        ))}
+
+        {/* Stratum blocks */}
+        {ABYSS_STRATA.map(stratum => {
+          const b = STRATUM_BLOCKS[stratum.id]
+          if (!b) return null
+          const knownCount = settlements.filter(s =>
+            s.stratumId === stratum.id && isSettlementVisible(s)
+          ).length
+          const openRoutes = routes.filter(r =>
+            (r.status === 'open' || r.status === 'discovered') &&
+            (sectors.find(s => s.id === r.fromSectorId)?.discovered ||
+             sectors.find(s => s.id === r.toSectorId)?.discovered)
+          ).length
+
+          return (
+            <g key={stratum.id}
+               onClick={() => { if (!didDragRef.current) onSelectLayer(stratum.id) }}
+               style={{ cursor: 'pointer' }}>
+              {/* Hit area */}
+              <rect x={b.x - 4} y={b.y - 4} width={b.w + 8} height={b.h + 8}
+                    rx={14} fill="transparent"/>
+              {/* Block */}
+              <rect x={b.x} y={b.y} width={b.w} height={b.h}
+                    rx={10} fill={b.fillColor} stroke={b.borderColor} strokeWidth={1}/>
+              {/* Roman numeral */}
+              <text x={b.x + 22} y={b.y + 40} fontSize={24}
+                    style={{ fill: b.borderColor, fontFamily: 'Georgia,serif', opacity: 0.75 }}>
+                {stratum.number}
+              </text>
+              {/* Name */}
+              <text x={b.x + 60} y={b.y + 32} fontSize={14}
+                    style={{ fill: 'var(--color-parchment)', fontFamily: 'Georgia,serif', fontWeight: 600 }}>
+                {stratum.shortName}
+              </text>
+              {/* Depth */}
+              <text x={b.x + 60} y={b.y + 48} fontSize={9}
+                    style={{ fill: 'rgba(140,130,100,0.7)', fontFamily: 'Georgia,serif' }}>
+                {stratum.depthRange}
+              </text>
+              {/* Stats */}
+              <text x={b.x + 60} y={b.y + 66} fontSize={8}
+                    style={{ fill: 'rgba(140,130,100,0.5)' }}>
+                {knownCount > 0 ? `${knownCount} asentamiento${knownCount !== 1 ? 's' : ''}` : 'Sin explorar'}
+                {' · '}{openRoutes > 0 ? `${openRoutes} ruta${openRoutes !== 1 ? 's' : ''}` : 'rutas desconocidas'}
+              </text>
+              {/* Arrow cue */}
+              <text x={b.x + b.w - 20} y={b.y + b.h / 2 + 6} fontSize={14}
+                    style={{ fill: b.borderColor, opacity: 0.8 }}>
+                ›
+              </text>
+            </g>
+          )
+        })}
+
+        <text x={240} y={468} fontSize={8} textAnchor="middle"
+              style={{ fill: 'rgba(98,107,111,0.3)', fontFamily: 'Georgia,serif' }}>
+          ∞ profundidades sin cartografiar
+        </text>
+      </>
+    )
+  }
+
+  // ── LAYER render ────────────────────────────────────────────────────────────
+
+  function renderLayerView() {
+    const connections = STRATUM_CONNECTIONS[selectedLayerId] ?? []
+
+    // Get node position (settlement or sector fallback)
+    function getPos(nodeId) {
+      if (SETTLEMENT_POS[nodeId]) return SETTLEMENT_POS[nodeId]
+      const sectorPosMap = SECTOR_POS[selectedLayerId] ?? {}
+      return sectorPosMap[nodeId] ?? null
+    }
+
+    // Resolve route status for styling
+    function routeStyle(conn) {
+      const route = routes.find(r => r.id === conn.routeId)
+      const isActive = expedition?.routeRun?.routeId === conn.routeId ||
+                       expedition?.routeId === conn.routeId
+      const isSelected = selectedNodeId === `conn_${conn.routeId}`
+      if (!conn.routeId || !route) {
+        return { stroke: 'rgba(98,107,111,0.22)', dash: '3 6', width: 1.2, clickable: false }
+      }
+      let stroke = conn.danger === 'medium' ? 'rgba(214,104,40,0.42)' : 'rgba(184,148,74,0.42)'
+      if (route.type === 'secret')    stroke = 'rgba(140,80,180,0.45)'
+      if (route.type === 'dangerous') stroke = 'rgba(200,60,40,0.45)'
+      if (isActive)   stroke = 'rgba(79,143,149,0.75)'
+      if (isSelected) stroke = 'var(--color-teal)'
+      return {
+        stroke,
+        dash: route.type === 'secret' ? '4 5' : undefined,
+        width: isSelected ? 3 : isActive ? 2.5 : 1.8,
+        clickable: true,
+      }
+    }
+
+    // Settlements for this layer
+    const layerSettlements = settlements.filter(s => s.stratumId === selectedLayerId)
+    // Sector nodes (for strata without explicit settlement positions)
+    const sectorPosMap = SECTOR_POS[selectedLayerId] ?? {}
+
+    return (
+      <>
+        {/* Background grid lines */}
+        {[80, 160, 240, 320, 400].map(x => (
+          <line key={x} x1={x} y1={0} x2={x} y2={480}
+                stroke="rgba(98,107,111,0.04)" strokeWidth={1}/>
+        ))}
+
+        {/* Route connections */}
+        {connections.map((conn, i) => {
+          const fromPos = getPos(conn.from)
+          const toPos   = getPos(conn.to)
+          if (!fromPos || !toPos) return null
+          const st = routeStyle(conn)
+          return (
+            <path
+              key={i}
+              d={createCurvedPath(fromPos, toPos, conn.bend ?? 0.22)}
+              stroke={st.stroke}
+              strokeWidth={st.width}
+              strokeDasharray={st.dash}
+              fill="none"
+              strokeLinecap="round"
+              style={{ cursor: st.clickable ? 'pointer' : 'default' }}
+              onClick={() => {
+                if (didDragRef.current || !st.clickable) return
+                setSelectedNodeId(`conn_${conn.routeId}`)
+                setDetailSegment(null)
+                setDetailSettlement(null)
+                onSelectRoute(conn.routeId)
+              }}
+            />
+          )
+        })}
+
+        {/* Sector nodes (for strata 2 & 3) */}
+        {Object.entries(sectorPosMap).map(([secId, pos]) => {
+          const sec = sectors.find(s => s.id === secId)
+          const discovered = sec?.discovered ?? false
+          return (
+            <g key={secId}>
+              <circle cx={pos.x} cy={pos.y} r={18}
+                      fill="rgba(12,10,7,0.88)"
+                      stroke={discovered ? 'rgba(184,148,74,0.55)' : 'rgba(98,107,111,0.3)'}
+                      strokeWidth={1.2}/>
+              <text x={pos.x} y={pos.y + 4} textAnchor="middle" fontSize={9}
+                    style={{ fill: discovered ? 'var(--color-gold)' : 'rgba(98,107,111,0.45)' }}>
+                {discovered ? '⬡' : '?'}
+              </text>
+              <text x={pos.x} y={pos.y + 30} textAnchor="middle" fontSize={7.5}
+                    style={{ fill: discovered ? 'var(--color-parchment)' : 'rgba(98,107,111,0.4)', fontFamily: 'Georgia,serif' }}>
+                {discovered ? (sec?.name ?? secId) : '—'}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* Settlement nodes */}
+        {layerSettlements.map(s => {
+          const pos = SETTLEMENT_POS[s.id]
+          if (!pos) return null
+          const visible   = isSettlementVisible(s)
+          const isSelected = selectedNodeId === s.id
+          const safeColor  = SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)'
+          const nodeColor  = visible ? safeColor : 'rgba(98,107,111,0.3)'
+
+          return (
+            <g key={s.id}
+               style={{ cursor: 'pointer' }}
+               onClick={() => {
+                 if (didDragRef.current) return
+                 const next = selectedNodeId === s.id ? null : s.id
+                 setSelectedNodeId(next)
+                 setDetailSettlement(next ? s : null)
+                 setDetailSegment(null)
+                 onSelectSettlement(s.id)
+               }}>
+              {/* Selection ring */}
+              {isSelected && (
+                <circle cx={pos.x} cy={pos.y} r={28}
+                        fill="none" stroke={safeColor} strokeWidth={1.2}
+                        strokeOpacity={0.45} strokeDasharray="3 4"/>
+              )}
+              {/* Outer circle */}
+              <circle cx={pos.x} cy={pos.y} r={20}
+                      fill={visible ? 'rgba(12,9,4,0.92)' : 'rgba(8,7,5,0.82)'}
+                      stroke={nodeColor}
+                      strokeWidth={visible ? 1.6 : 0.7}
+                      strokeOpacity={visible ? 1 : 0.35}/>
+              {/* Icon */}
+              <g opacity={visible ? 1 : 0.25}>
+                <SettlementShape type={s.type} cx={pos.x} cy={pos.y} color={nodeColor} r={11}/>
+              </g>
+              {/* Fog */}
+              {!visible && (
+                <text x={pos.x} y={pos.y + 4} textAnchor="middle" fontSize={12}
+                      style={{ fill: 'rgba(98,107,111,0.4)' }}>?</text>
+              )}
+              {/* Label */}
+              <text x={pos.x} y={pos.y + 35} textAnchor="middle" fontSize={7.5}
+                    style={{
+                      fill: visible ? 'var(--color-parchment)' : 'rgba(98,107,111,0.38)',
+                      fontFamily: 'Georgia,serif',
+                    }}>
+                {visible ? s.name : '—'}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* Empty state for strata without data */}
+        {layerSettlements.length === 0 && Object.keys(sectorPosMap).length === 0 && (
+          <text x={240} y={240} textAnchor="middle" fontSize={11}
+                style={{ fill: 'var(--color-stone-light)', fontStyle: 'italic', fontFamily: 'Georgia,serif' }}>
+            Esta capa no tiene datos visuales aún
+          </text>
+        )}
+      </>
+    )
+  }
+
+  // ── ROUTE render ────────────────────────────────────────────────────────────
+
+  function renderRouteView() {
+    const route = routes.find(r => r.id === selectedRouteId)
+    if (!route) return (
+      <text x={240} y={240} textAnchor="middle" fontSize={11}
+            style={{ fill: 'var(--color-stone-light)' }}>
+        Ruta no encontrada
+      </text>
+    )
+
+    const segs        = getSegmentsForRoute({ segments: routeSegments, routeId: selectedRouteId })
+                          .sort((a, b) => a.order - b.order)
+    const positions   = getSegmentPositions(segs)
+    const currentId   = expedition?.routeSegmentId
+    const completedIds = expedition?.routeRun?.completedSegmentIds ?? []
+
+    // Base path through positions
+    let basePath = ''
+    if (positions.length >= 2) {
+      basePath = `M ${positions[0].x} ${positions[0].y}`
+      for (let i = 1; i < positions.length; i++) {
+        const p = positions[i - 1], c = positions[i]
+        basePath += ` Q ${(p.x + c.x) / 2} ${p.y}, ${c.x} ${c.y}`
+      }
+    }
+
+    // From/To sector names
+    const fromSec = sectors.find(s => s.id === route.fromSectorId)
+    const toSec   = sectors.find(s => s.id === route.toSectorId)
+
+    return (
+      <>
+        {/* Route name */}
+        <text x={240} y={50} textAnchor="middle" fontSize={11}
+              style={{ fill: 'var(--color-gold)', fontFamily: 'Georgia,serif', fontWeight: 600 }}>
+          {route.name}
+        </text>
+        <text x={240} y={66} textAnchor="middle" fontSize={8}
+              style={{ fill: 'rgba(140,130,100,0.6)', fontFamily: 'Georgia,serif' }}>
+          {fromSec?.name ?? '—'} → {toSec?.name ?? '—'}
+        </text>
+
+        {/* Base path */}
+        {basePath && (
+          <path d={basePath} stroke="rgba(98,107,111,0.22)" strokeWidth={4}
+                fill="none" strokeLinecap="round"/>
+        )}
+
+        {/* Segment nodes */}
+        {segs.map((seg, idx) => {
+          const pos       = positions[idx]
+          if (!pos) return null
+
+          const isDone    = completedIds.includes(seg.id) || discoveredSegmentIds.includes(seg.id)
+          const isCurrent = seg.id === currentId
+          const firstHiddenIdx = segs.findIndex(s => !completedIds.includes(s.id) && s.id !== currentId)
+          const isNext    = !isDone && !isCurrent && idx === firstHiddenIdx
+          const isHidden  = !isDone && !isCurrent && !isNext
+          const isSelected = selectedNodeId === seg.id
+
+          let nodeStroke = 'rgba(98,107,111,0.3)'
+          let labelFill  = 'rgba(98,107,111,0.5)'
+          let nodeR      = 12
+          if (isDone)    { nodeStroke = 'rgba(184,148,74,0.8)'; labelFill = 'var(--color-gold)' }
+          if (isCurrent) { nodeStroke = 'var(--color-teal)';    labelFill = 'var(--color-parchment)'; nodeR = 15 }
+          if (isNext)    { nodeStroke = 'rgba(79,143,149,0.4)'; labelFill = 'var(--color-mist)' }
+          if (isSelected) nodeStroke = 'var(--color-gold)'
+
+          const displayText = isHidden ? '?' : isCurrent ? seg.name : isNext ? 'Siguiente' : seg.name
+          const shortText   = displayText.length > 13 ? displayText.slice(0, 11) + '…' : displayText
+
+          return (
+            <g key={seg.id}
+               style={{ cursor: 'pointer' }}
+               onClick={() => {
+                 if (didDragRef.current) return
+                 const next = selectedNodeId === seg.id ? null : seg.id
+                 setSelectedNodeId(next)
+                 setDetailSegment(next ? { seg, isDone, isCurrent, isHidden } : null)
+                 setDetailSettlement(null)
+               }}>
+              {/* Connector line from previous */}
+              {idx > 0 && positions[idx - 1] && (
+                <line x1={positions[idx - 1].x} y1={positions[idx - 1].y}
+                      x2={pos.x} y2={pos.y}
+                      stroke={isDone ? 'rgba(184,148,74,0.35)' : 'rgba(98,107,111,0.18)'}
+                      strokeWidth={2}
+                      strokeDasharray={isDone ? undefined : '3 5'}/>
+              )}
+
+              {/* Pulse ring for current segment */}
+              {isCurrent && (
+                <circle cx={pos.x} cy={pos.y} r={nodeR + 7}
+                        fill="none" stroke="rgba(79,143,149,0.2)" strokeWidth={2}/>
+              )}
+
+              {/* Node */}
+              <circle cx={pos.x} cy={pos.y} r={nodeR}
+                      fill="rgba(10,8,5,0.92)"
+                      stroke={nodeStroke}
+                      strokeWidth={isDone || isCurrent ? 1.8 : 1}/>
+
+              {/* Interior dot */}
+              {isDone    && <circle cx={pos.x} cy={pos.y} r={4.5} fill="rgba(184,148,74,0.65)"/>}
+              {isCurrent && <rect x={pos.x - 3.5} y={pos.y - 3.5} width={7} height={7} rx={1.5}
+                                  fill="var(--color-teal)"/>}
+              {isHidden  && (
+                <text x={pos.x} y={pos.y + 4.5} textAnchor="middle" fontSize={12}
+                      style={{ fill: 'rgba(98,107,111,0.45)' }}>?</text>
+              )}
+
+              {/* Label below */}
+              <text x={pos.x} y={pos.y + nodeR + 14} textAnchor="middle" fontSize={8}
+                    style={{ fill: labelFill, fontFamily: 'Georgia,serif' }}>
+                {shortText}
+              </text>
+
+              {/* "← actual" marker */}
+              {isCurrent && (
+                <text x={pos.x} y={pos.y - nodeR - 6} textAnchor="middle" fontSize={7}
+                      style={{ fill: 'var(--color-teal)' }}>
+                  ← actual
+                </text>
+              )}
+            </g>
+          )
+        })}
+
+        {segs.length === 0 && (
+          <text x={240} y={240} textAnchor="middle" fontSize={10}
+                style={{ fill: 'var(--color-stone-light)', fontStyle: 'italic', fontFamily: 'Georgia,serif' }}>
+            Sin tramos conocidos en esta ruta
+          </text>
+        )}
+      </>
+    )
+  }
+
+  // ── Detail panel ─────────────────────────────────────────────────────────────
+
+  function renderDetail() {
+    if (detailSettlement) {
+      const s = detailSettlement
+      const visible = isSettlementVisible(s)
+      if (!visible) return (
+        <div className="visual-map-detail-panel">
+          <span style={{ fontSize: '0.62rem', color: 'var(--color-stone-light)', fontStyle: 'italic' }}>
+            Lugar en niebla — explora el sector para revelar este asentamiento.
+          </span>
+        </div>
+      )
+      return (
+        <div className="visual-map-detail-panel">
+          <div style={{ fontSize: '0.72rem', color: 'var(--color-gold)', fontWeight: 600, marginBottom: 2 }}>
+            {s.name}
+          </div>
+          <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', textTransform: 'capitalize', marginBottom: 2 }}>
+            {s.type.replace(/_/g, ' ')} · {s.layerName}
+          </div>
+          <div style={{ fontSize: '0.6rem', color: SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)', marginBottom: 3, textTransform: 'capitalize' }}>
+            Seguridad: {s.safetyLevel}
+          </div>
+          {s.description && (
+            <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', fontStyle: 'italic', lineHeight: 1.45 }}>
+              {s.description}
+            </div>
+          )}
+          {s.services?.length > 0 && (
+            <div style={{ fontSize: '0.55rem', color: 'var(--color-mist)', marginTop: 4 }}>
+              {s.services.map(sv => sv.replace(/_/g, ' ')).join(' · ')}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    if (detailSegment) {
+      const { seg, isDone, isCurrent, isHidden } = detailSegment
+      if (isHidden) return (
+        <div className="visual-map-detail-panel">
+          <span style={{ fontSize: '0.62rem', color: 'var(--color-stone-light)', fontStyle: 'italic' }}>
+            Tramo desconocido — completa los anteriores para revelar este camino.
+          </span>
+        </div>
+      )
+      return (
+        <div className="visual-map-detail-panel">
+          <div style={{ fontSize: '0.72rem', color: isCurrent ? 'var(--color-teal)' : 'var(--color-gold)', fontWeight: 600, marginBottom: 2 }}>
+            {seg.name}
+          </div>
+          <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', marginBottom: 3 }}>
+            {seg.stepMin}–{seg.stepMax} pasos · {seg.type}
+          </div>
+          {isCurrent && <div style={{ fontSize: '0.6rem', color: 'var(--color-teal)' }}>Tramo en curso</div>}
+          {isDone && !isCurrent && <div style={{ fontSize: '0.6rem', color: 'var(--color-xp)' }}>Tramo completado</div>}
+        </div>
+      )
+    }
+
+    return (
+      <div className="visual-map-empty-detail">
+        {viewLevel === 'abyss' && 'Toca una capa para explorar el Abismo'}
+        {viewLevel === 'layer' && 'Toca un asentamiento o una ruta'}
+        {viewLevel === 'route' && 'Toca un tramo para ver su detalle'}
+      </div>
+    )
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="visual-map-shell">
+      <svg
+        className="visual-map-svg"
+        viewBox="0 0 480 480"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+        onPointerCancel={onPointerUp}
+        style={{ touchAction: 'none', cursor: dragStartRef.current ? 'grabbing' : 'grab' }}
+      >
+        <g transform={`translate(${pan.x}, ${pan.y})`}>
+          {viewLevel === 'abyss'  && renderAbyssView()}
+          {viewLevel === 'layer'  && renderLayerView()}
+          {viewLevel === 'route'  && renderRouteView()}
+        </g>
+      </svg>
+
+      {renderDetail()}
+    </div>
   )
 }
 </file>
@@ -3755,124 +4429,6 @@ export default defineConfig({
 })
 </file>
 
-<file path="src/systems/saveSystem.js">
-export const SAVE_KEY     = 'aethermarch_save_v1'
-export const SAVE_VERSION = 1
-
-// Statuses that indicate an active session (march / combat in progress)
-const ACTIVE_STATUSES = ['marching', 'combat']
-// Statuses that must be sanitized to 'resting' before writing
-const UNSAFE_STATUSES = ['marching', 'combat', 'awaiting_choice', 'resolved', 'completed']
-
-// ── Acceso a localStorage ─────────────────────────────────────────────────────
-
-export function hasSave() {
-  try { return !!localStorage.getItem(SAVE_KEY) } catch { return false }
-}
-
-export function loadSave() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch { return null }
-}
-
-export function writeSave(saveData) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(saveData)) } catch { /* quota / privacy */ }
-}
-
-export function clearSave() {
-  try { localStorage.removeItem(SAVE_KEY) } catch { /* ignore */ }
-}
-
-// ── Crear snapshot serializable desde el estado de App ────────────────────────
-
-export function createSaveSnapshot({
-  player,
-  selectedArchetypeId,
-  selectedCreatureId,
-  inventory,
-  diary,
-  sectors,
-  expedition,
-  lastEchoClaimAt,
-  stepSource,
-  contractState,
-  discoveredSegmentIds,
-}) {
-  // Track whether the save was created while a run was active
-  const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
-
-  const safeExp = { ...(expedition ?? {}) }
-  if (UNSAFE_STATUSES.includes(safeExp.status)) {
-    safeExp.status        = 'resting'
-    safeExp.currentSteps  = 0
-    safeExp.progress      = 0
-    safeExp.events        = []
-    safeExp.rewards       = {}
-    safeExp.combatResults = []
-  }
-
-  return {
-    version:             SAVE_VERSION,
-    savedAt:             new Date().toISOString(),
-    player,
-    selectedArchetypeId,
-    selectedCreatureId,
-    inventory,
-    diary,
-    sectors,
-    expedition:            safeExp,
-    lastEchoClaimAt:       lastEchoClaimAt ?? null,
-    stepSource:            stepSource ?? null,
-    contractState:         contractState ?? null,
-    discoveredSegmentIds:  Array.isArray(discoveredSegmentIds) ? discoveredSegmentIds : [],
-    meta: {
-      recoveredFromInterruptedRun: wasActive,
-    },
-  }
-}
-
-// ── Validar y sanear partida cargada ──────────────────────────────────────────
-
-export function sanitizeLoadedSave(rawSave) {
-  if (!rawSave || rawSave.version !== SAVE_VERSION) return null
-  if (!rawSave.player || typeof rawSave.player !== 'object') return null
-  if (!rawSave.selectedArchetypeId || !rawSave.selectedCreatureId) return null
-  if (!rawSave.inventory || typeof rawSave.inventory !== 'object') return null
-  if (!Array.isArray(rawSave.diary)) return null
-  if (!Array.isArray(rawSave.sectors) || rawSave.sectors.length === 0) return null
-
-  const save = JSON.parse(JSON.stringify(rawSave))  // deep clone
-
-  // Safety net: sanitize dangerous statuses that should not have been saved
-  const exp            = save.expedition ?? {}
-  const wasInterrupted = ACTIVE_STATUSES.includes(exp.status)
-  const needsSanitize  = UNSAFE_STATUSES.includes(exp.status)
-
-  if (needsSanitize) {
-    save.expedition = {
-      ...exp,
-      status:        'resting',
-      currentSteps:  0,
-      progress:      0,
-      events:        [],
-      rewards:       {},
-      combatResults: [],
-    }
-  }
-  if (wasInterrupted) {
-    save.meta = { ...(save.meta ?? {}), recoveredFromInterruptedRun: true }
-  }
-
-  save.discoveredSegmentIds = Array.isArray(save.discoveredSegmentIds)
-    ? save.discoveredSegmentIds
-    : []
-
-  return save
-}
-</file>
-
 <file path="src/screens/DiaryScreen.jsx">
 import { RESOURCES, BIOMES } from '../data/gameData.js'
 
@@ -4079,6 +4635,1089 @@ export default function DiaryScreen({ diary }) {
     </div>
   )
 }
+</file>
+
+<file path="src/systems/saveSystem.js">
+export const SAVE_KEY     = 'aethermarch_save_v1'
+export const SAVE_VERSION = 1
+
+// Statuses that indicate an active session (march / combat in progress)
+const ACTIVE_STATUSES = ['marching', 'combat']
+// Statuses that must be sanitized to 'resting' before writing
+const UNSAFE_STATUSES = ['marching', 'combat', 'awaiting_choice', 'resolved', 'completed', 'segment_transition']
+
+// ── Acceso a localStorage ─────────────────────────────────────────────────────
+
+export function hasSave() {
+  try { return !!localStorage.getItem(SAVE_KEY) } catch { return false }
+}
+
+export function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+export function writeSave(saveData) {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(saveData)) } catch { /* quota / privacy */ }
+}
+
+export function clearSave() {
+  try { localStorage.removeItem(SAVE_KEY) } catch { /* ignore */ }
+}
+
+// ── Crear snapshot serializable desde el estado de App ────────────────────────
+
+export function createSaveSnapshot({
+  player,
+  selectedArchetypeId,
+  selectedCreatureId,
+  inventory,
+  diary,
+  sectors,
+  expedition,
+  lastEchoClaimAt,
+  stepSource,
+  contractState,
+  discoveredSegmentIds,
+}) {
+  // Track whether the save was created while a run was active
+  const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
+
+  const safeExp = { ...(expedition ?? {}) }
+  if (UNSAFE_STATUSES.includes(safeExp.status)) {
+    safeExp.status        = 'resting'
+    safeExp.currentSteps  = 0
+    safeExp.progress      = 0
+    safeExp.events        = []
+    safeExp.rewards       = {}
+    safeExp.combatResults = []
+  }
+
+  return {
+    version:             SAVE_VERSION,
+    savedAt:             new Date().toISOString(),
+    player,
+    selectedArchetypeId,
+    selectedCreatureId,
+    inventory,
+    diary,
+    sectors,
+    expedition:            safeExp,
+    lastEchoClaimAt:       lastEchoClaimAt ?? null,
+    stepSource:            stepSource ?? null,
+    contractState:         contractState ?? null,
+    discoveredSegmentIds:  Array.isArray(discoveredSegmentIds) ? discoveredSegmentIds : [],
+    meta: {
+      recoveredFromInterruptedRun: wasActive,
+    },
+  }
+}
+
+// ── Validar y sanear partida cargada ──────────────────────────────────────────
+
+export function sanitizeLoadedSave(rawSave) {
+  if (!rawSave || rawSave.version !== SAVE_VERSION) return null
+  if (!rawSave.player || typeof rawSave.player !== 'object') return null
+  if (!rawSave.selectedArchetypeId || !rawSave.selectedCreatureId) return null
+  if (!rawSave.inventory || typeof rawSave.inventory !== 'object') return null
+  if (!Array.isArray(rawSave.diary)) return null
+  if (!Array.isArray(rawSave.sectors) || rawSave.sectors.length === 0) return null
+
+  const save = JSON.parse(JSON.stringify(rawSave))  // deep clone
+
+  // Safety net: sanitize dangerous statuses that should not have been saved
+  const exp            = save.expedition ?? {}
+  const wasInterrupted = ACTIVE_STATUSES.includes(exp.status)
+  const needsSanitize  = UNSAFE_STATUSES.includes(exp.status)
+
+  if (needsSanitize) {
+    save.expedition = {
+      ...exp,
+      status:        'resting',
+      currentSteps:  0,
+      progress:      0,
+      events:        [],
+      rewards:       {},
+      combatResults: [],
+    }
+  }
+  if (wasInterrupted) {
+    save.meta = { ...(save.meta ?? {}), recoveredFromInterruptedRun: true }
+  }
+
+  save.discoveredSegmentIds = Array.isArray(save.discoveredSegmentIds)
+    ? save.discoveredSegmentIds
+    : []
+
+  return save
+}
+</file>
+
+<file path="src/data/gameData.js">
+// ── ARQUETIPOS ──────────────────────────────────────────────────────────────
+export const ARCHETYPES = [
+  {
+    id: 'guardian',
+    name: 'Guardián del Camino',
+    role: 'Defensa y resistencia',
+    passiveName: 'Paso Firme',
+    passiveDescription: 'Resiste mejor los peligros del camino.',
+    visualSummary: 'Capa pesada, hierro viejo, cuero oscuro, escudo abollado y farol cálido.',
+    hpBonus: 5,
+  },
+  {
+    id: 'runario',
+    name: 'Runario Errante',
+    role: 'Magia antigua y secretos',
+    passiveName: 'Lectura de Sellos',
+    passiveDescription: 'Percibe marcas antiguas, ruinas y señales ocultas.',
+    visualSummary: 'Capucha profunda, bastón, talismán, pergaminos y runas tenues.',
+    hpBonus: 0,
+  },
+  {
+    id: 'rastreador',
+    name: 'Rastreador de Bruma',
+    role: 'Exploración y rutas',
+    passiveName: 'Senda Oculta',
+    passiveDescription: 'Encuentra pasos, rastros y caminos que otros no ven.',
+    visualSummary: 'Capa larga, botas de marcha, cuerda, mapa enrollado y cuchillo corto.',
+    hpBonus: 0,
+  },
+]
+
+// ── CRIATURAS ────────────────────────────────────────────────────────────────
+export const CREATURES = [
+  {
+    id: 'velthar',
+    name: 'Velthar',
+    role: 'Exploración',
+    passiveName: 'Instinto de Niebla',
+    passiveDescription: 'Mejora la detección de rutas, secretos y señales del bosque.',
+    description: 'Pequeño ciervo rúnico de bosque y niebla. Intuitivo, noble, silencioso.',
+  },
+  {
+    id: 'brontik',
+    name: 'Brontik',
+    role: 'Defensa',
+    passiveName: 'Coraza de Ruta',
+    passiveDescription: 'Reduce ligeramente el daño recibido.',
+    description: 'Bestia acorazada de camino: jabalí, armadillo y draco terrestre. Protector, testarudo, firme.',
+  },
+  {
+    id: 'lumora',
+    name: 'Lúmora',
+    role: 'Recolección',
+    passiveName: 'Eco de Cristal',
+    passiveDescription: 'Mejora la obtención de materiales y recursos.',
+    description: 'Familiar cristalino de luz antigua. Curioso, sensible, luminoso.',
+  },
+]
+
+// ── BIOMAS ───────────────────────────────────────────────────────────────────
+export const BIOMES = {
+  forest: {
+    id: 'forest',
+    name: 'Bosque Rúnico',
+    description: 'Bosque nocturno antiguo. Camino estrecho, raíces, niebla baja, piedras rúnicas, árboles altos.',
+    palette: { bg: '#0B0F09', mid: '#1A2A14', accent: '#3FA34D' },
+    resourceIds: ['runic_wood', 'aethel_root', 'lumi_leaf'],
+    enemyIds: ['runic_raider', 'fracture_beast'],
+  },
+  coast: {
+    id: 'coast',
+    name: 'Costa Arcana',
+    description: 'Costa nocturna fría. Rocas, agua oscura, bruma marina, cristales naturales apagados.',
+    palette: { bg: '#090B10', mid: '#0F1A24', accent: '#4F8F95' },
+    resourceIds: ['arcane_salt', 'tide_crystal', 'nacre_scale'],
+    enemyIds: ['fracture_beast', 'fracture_guardian'],
+  },
+  forge: {
+    id: 'forge',
+    name: 'Forja Arcanista',
+    description: 'Ruinas de forja medieval. Piedra, hierro viejo, brasas, humo, columnas rotas.',
+    palette: { bg: '#0F0B07', mid: '#1A1208', accent: '#D46A2D' },
+    resourceIds: ['forge_mineral', 'ancient_plate', 'resonant_coal'],
+    enemyIds: ['sleeping_golem', 'fracture_guardian'],
+  },
+}
+
+// ── RECURSOS ─────────────────────────────────────────────────────────────────
+export const RESOURCES = {
+  runic_wood: {
+    id: 'runic_wood',
+    name: 'Madera Rúnica',
+    biomeId: 'forest',
+    rarity: 'comun',
+    type: 'material',
+    utility: 'Mejoras de refugios, bastones y estructuras de madera.',
+    visualDescription: 'Rama curva con runa dorada tallada en la corteza.',
+  },
+  aethel_root: {
+    id: 'aethel_root',
+    name: 'Raíz de Aethel',
+    biomeId: 'forest',
+    rarity: 'comun',
+    type: 'natural',
+    utility: 'Curación, vínculo de criatura y tónicos.',
+    visualDescription: 'Raíz en forma de S con punta de brillo mágico apagado.',
+  },
+  lumi_leaf: {
+    id: 'lumi_leaf',
+    name: 'Hoja Luminaria',
+    biomeId: 'forest',
+    rarity: 'comun',
+    type: 'natural',
+    utility: 'Recetas, rastreo y consumibles.',
+    visualDescription: 'Hoja lanceolada con borde dorado apagado.',
+  },
+  arcane_salt: {
+    id: 'arcane_salt',
+    name: 'Sal Arcana',
+    biomeId: 'coast',
+    rarity: 'comun',
+    type: 'mineral',
+    utility: 'Conservación, rituales y mejoras de posadas costeras.',
+    visualDescription: 'Pequeño depósito de sal con cristales bajos, color marfil.',
+  },
+  tide_crystal: {
+    id: 'tide_crystal',
+    name: 'Cristal de Marea',
+    biomeId: 'coast',
+    rarity: 'poco_comun',
+    type: 'cristal',
+    utility: 'Mejoras mágicas, reliquias y rutas costeras.',
+    visualDescription: 'Cristal triangular natural, azul grisáceo con base de roca.',
+  },
+  nacre_scale: {
+    id: 'nacre_scale',
+    name: 'Escama Nácar',
+    biomeId: 'coast',
+    rarity: 'poco_comun',
+    type: 'organico',
+    utility: 'Armaduras ligeras y reliquias.',
+    visualDescription: 'Forma de gota curva, marfil con interior azul grisáceo.',
+  },
+  forge_mineral: {
+    id: 'forge_mineral',
+    name: 'Mineral de Forja',
+    biomeId: 'forge',
+    rarity: 'comun',
+    type: 'mineral',
+    utility: 'Armas, armaduras y forjas.',
+    visualDescription: 'Roca angular con veta metálica y grieta naranja de brasa.',
+  },
+  ancient_plate: {
+    id: 'ancient_plate',
+    name: 'Placa Antigua',
+    biomeId: 'forge',
+    rarity: 'poco_comun',
+    type: 'metal',
+    utility: 'Armaduras y reparación de estructuras.',
+    visualDescription: 'Placa de metal oxidada con remaches y arañazo.',
+  },
+  resonant_coal: {
+    id: 'resonant_coal',
+    name: 'Carbón Resonante',
+    biomeId: 'forge',
+    rarity: 'comun',
+    type: 'mineral',
+    utility: 'Forja, calor y producción.',
+    visualDescription: 'Roca negra irregular con grieta naranja y humo sutil.',
+  },
+}
+
+// ── ENEMIGOS ──────────────────────────────────────────────────────────────────
+export const ENEMIES = {
+  runic_raider: {
+    id: 'runic_raider',
+    name: 'Saqueador Rúnico',
+    concept: 'Bandido de caminos que saquea ruinas y marcas antiguas.',
+    biomeIds: ['forest'],
+    visualDescription: 'Humanoide delgado con capucha rota, capa rasgada, daga corta y runa roja apagada.',
+    attacks: [
+      { id: 'quick_stab', name: 'Estocada rápida', baseDamage: 6, bestStance: 'prudente', description: 'Ataque rápido con daga corta.' },
+      { id: 'rune_trap',  name: 'Trampa rúnica',   baseDamage: 8, bestStance: 'equilibrada', description: 'Marca rúnica rota bajo la party.' },
+    ],
+  },
+  fracture_beast: {
+    id: 'fracture_beast',
+    name: 'Bestia de Fractura',
+    concept: 'Criatura salvaje deformada por magia antigua.',
+    biomeIds: ['forest', 'coast'],
+    visualDescription: 'Cuerpo bajo, lomo arqueado, garras, placas irregulares y grietas violeta/rojo apagado.',
+    attacks: [
+      { id: 'slash',    name: 'Zarpazo',          baseDamage: 8,  bestStance: 'equilibrada', description: 'Zarpazo con garras.' },
+      { id: 'charge',   name: 'Embestida salvaje', baseDamage: 10, bestStance: 'prudente',    description: 'Carga con polvo e impacto.' },
+    ],
+  },
+  sleeping_golem: {
+    id: 'sleeping_golem',
+    name: 'Gólem Dormido',
+    concept: 'Constructo de piedra y hierro. Estatua de forja abandonada que despierta.',
+    biomeIds: ['forge'],
+    visualDescription: 'Hombros anchos, torso-bloque, brazos como pilares, grietas de brasa.',
+    attacks: [
+      { id: 'heavy_blow', name: 'Golpe pesado',    baseDamage: 12, bestStance: 'prudente', description: 'Levanta brazo-pilar.' },
+      { id: 'stomp',      name: 'Pisotón sísmico', baseDamage: 13, bestStance: 'audaz',    description: 'Onda de grietas bajo los pies.' },
+    ],
+  },
+  fracture_guardian: {
+    id: 'fracture_guardian',
+    name: 'Guardián de Fractura',
+    concept: 'Reliquia o estatua cristalina rota.',
+    biomeIds: ['coast', 'forge'],
+    visualDescription: 'Torso vertical, núcleo fracturado, corona rota, cristales en hombros y fragmentos flotantes.',
+    attacks: [
+      { id: 'fracture_ray',  name: 'Rayo de fractura',  baseDamage: 14, bestStance: 'equilibrada', description: 'Grieta mágica irregular.' },
+      { id: 'crystal_pulse', name: 'Pulso cristalino',   baseDamage: 15, bestStance: 'prudente',    description: 'Anillo irregular de cristal.' },
+    ],
+  },
+}
+
+// ── MODOS DE EXPEDICIÓN ───────────────────────────────────────────────────────
+export const EXPEDITION_MODES = [
+  {
+    id: 'free_march',
+    name: 'Marcha Libre',
+    description: 'Equilibrado. Mezcla exploración, recursos, amenazas y micros.',
+  },
+  {
+    id: 'hunt',
+    name: 'Caza',
+    description: 'Más amenazas y combates. Más XP y botín de combate.',
+  },
+  {
+    id: 'gather',
+    name: 'Recolección',
+    description: 'Más nodos de recurso. Menos combates. Más materiales.',
+  },
+  {
+    id: 'explore',
+    name: 'Exploración',
+    description: 'Más rutas, niebla, sectores y secretos.',
+  },
+  {
+    id: 'custom',
+    name: 'Personalizada',
+    description: '(Próximamente) Ajusta los pesos de cada tipo de evento.',
+    locked: true,
+  },
+]
+
+// ── ESTRATOS DEL ABISMO ───────────────────────────────────────────────────────
+export const ABYSS_STRATA = [
+  {
+    id: 'stratum_01',
+    number: 1,
+    name: 'I · Linde de las Raíces Ciegas',
+    shortName: 'Raíces Ciegas',
+    depthRange: '0-250 m',
+    theme: 'Bosque subterráneo de raíces gigantes, bruma baja y faroles antiguos.',
+    dangerRank: 'low',
+    lootTier: 1,
+    biomeIds: ['forest'],
+    resourcePool: ['runic_wood', 'aethel_root', 'lumi_leaf'],
+    enemyPool: ['runic_raider', 'fracture_beast'],
+    futureSecrets: ['raíces huecas', 'marcas antiguas', 'senderos cubiertos por musgo'],
+  },
+  {
+    id: 'stratum_02',
+    number: 2,
+    name: 'II · Cornisa de la Sal Negra',
+    shortName: 'Sal Negra',
+    depthRange: '250-500 m',
+    theme: 'Cornisas húmedas, sal arcana, roca fría y viento de profundidad.',
+    dangerRank: 'medium',
+    lootTier: 2,
+    biomeIds: ['coast'],
+    resourcePool: ['arcane_salt', 'tide_crystal', 'nacre_scale'],
+    enemyPool: ['fracture_beast', 'fracture_guardian'],
+    futureSecrets: ['grutas de sal', 'pasos bajo la marea', 'altares de nácar'],
+  },
+  {
+    id: 'stratum_03',
+    number: 3,
+    name: 'III · Hornacinas de Ceniza',
+    shortName: 'Hornacinas',
+    depthRange: '500-850 m',
+    theme: 'Forjas abandonadas, hierro viejo, humo bajo y brasas enterradas.',
+    dangerRank: 'high',
+    lootTier: 3,
+    biomeIds: ['forge'],
+    resourcePool: ['forge_mineral', 'ancient_plate', 'resonant_coal'],
+    enemyPool: ['sleeping_golem', 'fracture_guardian'],
+    futureSecrets: ['muros agrietados', 'hornos sellados', 'pasadizos bajo escoria'],
+  },
+]
+
+// ── POIS ─────────────────────────────────────────────────────────────────────
+export const POIS = {
+  inn:     { id: 'inn',     name: 'Posada',               icon: '🏚', description: 'Descanso, recuperación y buffs temporales.' },
+  forge:   { id: 'forge',   name: 'Forja',                icon: '⚒',  description: 'Mejora armas, armaduras y equipamiento.' },
+  shelter: { id: 'shelter', name: 'Refugio',               icon: '⛺', description: 'Seguridad y descanso básico.' },
+  trader:  { id: 'trader',  name: 'Mercader',              icon: '🎒', description: 'Compra y venta de materiales.' },
+  tavern:  { id: 'tavern',  name: 'Taberna',               icon: '🍺', description: 'Rumores y encargos.' },
+  supply:  { id: 'supply',  name: 'Puesto de suministros', icon: '📦', description: 'Consumibles y preparación de expedición.' },
+}
+
+// ── SECTORES INICIALES ────────────────────────────────────────────────────────
+export const INITIAL_SECTORS = [
+  {
+    id: 'sector_aethel_edge',
+    name: 'Linde de Aethel',
+    biomeId: 'forest',
+    discovered: true,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['runic_wood', 'aethel_root'],
+    threat: 'low',
+    poiId: 'shelter',
+    connections: ['sector_mist_root', 'sector_salt_beacon'],
+    stratumId: 'stratum_01',
+    stratumName: 'I · Linde de las Raíces Ciegas',
+    depth: 1,
+    depthMeters: 120,
+    abyssRing: 1,
+    spiralOrder: 1,
+    lootTier: 1,
+    dangerRank: 'low',
+    enemyPool: ['runic_raider'],
+  },
+  {
+    id: 'sector_mist_root',
+    name: 'Raíz de Niebla',
+    biomeId: 'forest',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['aethel_root', 'lumi_leaf'],
+    threat: 'medium',
+    poiId: 'trader',
+    connections: ['sector_aethel_edge', 'sector_sleeping_forge', 'sector_runic_guard_ruins'],
+    stratumId: 'stratum_01',
+    stratumName: 'I · Linde de las Raíces Ciegas',
+    depth: 1,
+    depthMeters: 180,
+    abyssRing: 1,
+    spiralOrder: 2,
+    lootTier: 1,
+    dangerRank: 'medium',
+    enemyPool: ['runic_raider', 'fracture_beast'],
+  },
+  {
+    id: 'sector_salt_beacon',
+    name: 'Faro de Sal',
+    biomeId: 'coast',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['arcane_salt', 'tide_crystal'],
+    threat: 'low',
+    poiId: 'inn',
+    connections: ['sector_aethel_edge', 'sector_tide_rock'],
+    stratumId: 'stratum_02',
+    stratumName: 'II · Cornisa de la Sal Negra',
+    depth: 2,
+    depthMeters: 340,
+    abyssRing: 2,
+    spiralOrder: 3,
+    lootTier: 2,
+    dangerRank: 'medium',
+    enemyPool: ['fracture_beast'],
+  },
+  {
+    id: 'sector_tide_rock',
+    name: 'Roca de Marea',
+    biomeId: 'coast',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['tide_crystal', 'nacre_scale'],
+    threat: 'high',
+    poiId: 'tavern',
+    connections: ['sector_salt_beacon', 'sector_coal_bastion'],
+    stratumId: 'stratum_02',
+    stratumName: 'II · Cornisa de la Sal Negra',
+    depth: 2,
+    depthMeters: 410,
+    abyssRing: 2,
+    spiralOrder: 4,
+    lootTier: 2,
+    dangerRank: 'high',
+    enemyPool: ['fracture_beast', 'fracture_guardian'],
+  },
+  {
+    id: 'sector_sleeping_forge',
+    name: 'Fragua Dormida',
+    biomeId: 'forge',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['forge_mineral', 'ancient_plate'],
+    threat: 'high',
+    poiId: 'forge',
+    connections: ['sector_mist_root', 'sector_coal_bastion'],
+    stratumId: 'stratum_03',
+    stratumName: 'III · Hornacinas de Ceniza',
+    depth: 3,
+    depthMeters: 690,
+    abyssRing: 3,
+    spiralOrder: 5,
+    lootTier: 3,
+    dangerRank: 'high',
+    enemyPool: ['sleeping_golem', 'fracture_guardian'],
+  },
+  {
+    id: 'sector_coal_bastion',
+    name: 'Bastión de Carbón',
+    biomeId: 'forge',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['resonant_coal', 'forge_mineral'],
+    threat: 'medium',
+    poiId: 'supply',
+    connections: ['sector_sleeping_forge', 'sector_tide_rock'],
+    stratumId: 'stratum_03',
+    stratumName: 'III · Hornacinas de Ceniza',
+    depth: 3,
+    depthMeters: 760,
+    abyssRing: 3,
+    spiralOrder: 6,
+    lootTier: 3,
+    dangerRank: 'medium',
+    enemyPool: ['sleeping_golem'],
+  },
+  {
+    id: 'sector_runic_guard_ruins',
+    name: 'Ruina de Guardia Rúnica',
+    biomeId: 'forest',
+    discovered: false,
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['runic_wood', 'lumi_leaf'],
+    threat: 'medium',
+    poiId: null,
+    connections: ['sector_mist_root', 'sector_hollow_mushroom_cave'],
+    stratumId: 'stratum_01',
+    stratumName: 'I · Linde de las Raíces Ciegas',
+    depth: 1,
+    depthMeters: 210,
+    abyssRing: 1,
+    spiralOrder: 3,
+    lootTier: 1,
+    dangerRank: 'medium',
+    enemyPool: ['runic_raider', 'fracture_beast'],
+    loreTag: 'runic_guard',
+  },
+  {
+    id: 'sector_hollow_mushroom_cave',
+    name: 'Cueva de Setas Huecas',
+    biomeId: 'forest',
+    discovered: false,
+    secret: true,
+    secretType: 'creature_or_mastery',
+    visits: 0,
+    mastery: 0,
+    masteryLevel: 0,
+    resources: ['lumi_leaf', 'aethel_root'],
+    threat: 'low',
+    poiId: null,
+    connections: ['sector_runic_guard_ruins'],
+    stratumId: 'stratum_01',
+    stratumName: 'I · Linde de las Raíces Ciegas',
+    depth: 1,
+    depthMeters: 235,
+    abyssRing: 1,
+    spiralOrder: 4,
+    lootTier: 1,
+    dangerRank: 'low',
+    enemyPool: ['fracture_beast'],
+    loreTag: 'hollow_mushrooms',
+  },
+]
+
+// ── RUTAS DEL MUNDO ───────────────────────────────────────────────────────────
+// Capa de diseño explícita de rutas. No sustituye sector.connections todavía.
+export const WORLD_ROUTES = [
+  {
+    id: 'route_aethel_to_mist',
+    name: 'Senda de los Faroles Bajos',
+    fromSectorId: 'sector_aethel_edge',
+    toSectorId: 'sector_mist_root',
+    type: 'main',
+    status: 'open',
+    stratumId: 'stratum_01',
+    zoneId: 'zone_root_lanterns',
+    stepMin: 600,
+    stepMax: 1000,
+    danger: 'low',
+    description: 'Camino marcado con faroles viejos entre raíces húmedas. Es la primera ruta real del descenso.',
+    requirements: [],
+    tags: ['forest', 'starter', 'marked'],
+  },
+  {
+    id: 'route_aethel_to_salt',
+    name: 'Bajada de la Sal Fría',
+    fromSectorId: 'sector_aethel_edge',
+    toSectorId: 'sector_salt_beacon',
+    type: 'descent',
+    status: 'open',
+    stratumId: 'stratum_01',
+    zoneId: 'zone_outer_descent',
+    stepMin: 900,
+    stepMax: 1300,
+    danger: 'medium',
+    description: 'Una bajada húmeda donde el olor del bosque se mezcla con sal negra y viento subterráneo.',
+    requirements: [],
+    tags: ['descent', 'coast', 'salt'],
+  },
+  {
+    id: 'route_mist_to_ruins',
+    name: 'Paso de las Piedras Marcadas',
+    fromSectorId: 'sector_mist_root',
+    toSectorId: 'sector_runic_guard_ruins',
+    type: 'main',
+    status: 'hidden',
+    stratumId: 'stratum_01',
+    zoneId: 'zone_runic_ruins',
+    stepMin: 700,
+    stepMax: 1100,
+    danger: 'medium',
+    description: 'Un sendero cubierto por raíces que conduce a una antigua guardia rúnica.',
+    requirements: [],
+    tags: ['forest', 'ruin', 'rune'],
+  },
+  {
+    id: 'route_ruins_to_mushroom',
+    name: 'Grieta de las Setas Huecas',
+    fromSectorId: 'sector_runic_guard_ruins',
+    toSectorId: 'sector_hollow_mushroom_cave',
+    type: 'secret',
+    status: 'hidden',
+    stratumId: 'stratum_01',
+    zoneId: 'zone_runic_ruins',
+    stepMin: 500,
+    stepMax: 800,
+    danger: 'low',
+    description: 'Una entrada oculta tras raíces compactas. La cueva no aparece en mapas comunes.',
+    requirements: ['Velthar + Exploración', 'o dominio suficiente de la Ruina'],
+    tags: ['secret', 'forest', 'creature', 'mushroom'],
+  },
+  {
+    id: 'route_mist_to_forge',
+    name: 'Desvío del Hierro Dormido',
+    fromSectorId: 'sector_mist_root',
+    toSectorId: 'sector_sleeping_forge',
+    type: 'dangerous',
+    status: 'hidden',
+    stratumId: 'stratum_01',
+    zoneId: 'zone_deep_crack',
+    stepMin: 1200,
+    stepMax: 1700,
+    danger: 'high',
+    description: 'Una ruta mala, empinada y demasiado silenciosa. Baja hacia restos de forja antes de tiempo.',
+    requirements: [],
+    tags: ['dangerous', 'forge', 'early_deep'],
+  },
+  {
+    id: 'route_salt_to_tide',
+    name: 'Cornisa de la Marea Negra',
+    fromSectorId: 'sector_salt_beacon',
+    toSectorId: 'sector_tide_rock',
+    type: 'main',
+    status: 'open',
+    stratumId: 'stratum_02',
+    zoneId: 'zone_salt_cornice',
+    stepMin: 700,
+    stepMax: 1100,
+    danger: 'high',
+    description: 'Cornisa mojada, estrecha y abierta al rumor de agua negra.',
+    requirements: [],
+    tags: ['coast', 'salt', 'danger'],
+  },
+  {
+    id: 'route_tide_to_coal',
+    name: 'Bajada del Carbón Húmedo',
+    fromSectorId: 'sector_tide_rock',
+    toSectorId: 'sector_coal_bastion',
+    type: 'descent',
+    status: 'hidden',
+    stratumId: 'stratum_02',
+    zoneId: 'zone_salt_descent',
+    stepMin: 1000,
+    stepMax: 1500,
+    danger: 'high',
+    description: 'Una bajada negra donde la humedad se convierte poco a poco en humo y polvo de carbón.',
+    requirements: [],
+    tags: ['descent', 'forge', 'coal'],
+  },
+  {
+    id: 'route_forge_to_coal',
+    name: 'Galería de las Brasas Muertas',
+    fromSectorId: 'sector_sleeping_forge',
+    toSectorId: 'sector_coal_bastion',
+    type: 'main',
+    status: 'open',
+    stratumId: 'stratum_03',
+    zoneId: 'zone_sunken_forges',
+    stepMin: 800,
+    stepMax: 1300,
+    danger: 'medium',
+    description: 'Galería entre hornos apagados, columnas rotas y carbón resonante.',
+    requirements: [],
+    tags: ['forge', 'coal', 'main'],
+  },
+]
+
+// ── ZONAS DEL ABISMO ──────────────────────────────────────────────────────────
+export const ABYSS_ZONES = [
+  {
+    id: 'zone_root_lanterns',
+    stratumId: 'stratum_01',
+    name: 'Faroles de Raíz',
+    shortName: 'Faroles',
+    description: 'Primer anillo habitable del Abismo. Raíces, faroles viejos, refugios y señales de expediciones anteriores.',
+    visualTheme: 'verde oscuro, cuero, niebla baja, faroles cálidos',
+    danger: 'low',
+    sectorIds: ['sector_aethel_edge', 'sector_mist_root'],
+    routeIds: ['route_aethel_to_mist'],
+  },
+  {
+    id: 'zone_runic_ruins',
+    stratumId: 'stratum_01',
+    name: 'Ruinas Rúnicas',
+    shortName: 'Ruinas',
+    description: 'Restos de guardias antiguas y piedras marcadas. La niebla se comporta de forma extraña alrededor de las runas.',
+    visualTheme: 'piedra antigua, violeta rúnico, raíces partidas',
+    danger: 'medium',
+    sectorIds: ['sector_runic_guard_ruins', 'sector_hollow_mushroom_cave'],
+    routeIds: ['route_mist_to_ruins', 'route_ruins_to_mushroom'],
+  },
+  {
+    id: 'zone_outer_descent',
+    stratumId: 'stratum_01',
+    name: 'Umbral de Sal',
+    shortName: 'Umbral',
+    description: 'La primera bajada donde el bosque empieza a desaparecer y aparece la sal negra.',
+    visualTheme: 'verde apagado, azul niebla, piedra húmeda',
+    danger: 'medium',
+    sectorIds: ['sector_aethel_edge', 'sector_salt_beacon'],
+    routeIds: ['route_aethel_to_salt'],
+  },
+  {
+    id: 'zone_salt_cornice',
+    stratumId: 'stratum_02',
+    name: 'Cornisa de Sal Negra',
+    shortName: 'Sal Negra',
+    description: 'Cornisas húmedas, faros apagados, roca fría y viento de profundidad.',
+    visualTheme: 'azul niebla, sal blanca apagada, roca negra',
+    danger: 'medium',
+    sectorIds: ['sector_salt_beacon', 'sector_tide_rock'],
+    routeIds: ['route_salt_to_tide'],
+  },
+  {
+    id: 'zone_salt_descent',
+    stratumId: 'stratum_02',
+    name: 'Descenso del Carbón',
+    shortName: 'Carbón',
+    description: 'Bajada de transición entre sal, humedad y humo.',
+    visualTheme: 'azul oscuro, negro carbón, brasa tenue',
+    danger: 'high',
+    sectorIds: ['sector_tide_rock', 'sector_coal_bastion'],
+    routeIds: ['route_tide_to_coal'],
+  },
+  {
+    id: 'zone_sunken_forges',
+    stratumId: 'stratum_03',
+    name: 'Hornacinas de Ceniza',
+    shortName: 'Ceniza',
+    description: 'Forjas hundidas, hierro viejo, hornos apagados y brasas que aún respiran.',
+    visualTheme: 'brasa, hierro oscuro, piedra caliente',
+    danger: 'high',
+    sectorIds: ['sector_sleeping_forge', 'sector_coal_bastion'],
+    routeIds: ['route_forge_to_coal'],
+  },
+]
+
+export const WORLD_ROUTE_SEGMENTS = [
+  // route_aethel_to_mist — Senda de los Faroles Bajos
+  {
+    id: 'seg_afm_01', routeId: 'route_aethel_to_mist', order: 1,
+    name: 'Faroles hundidos',
+    description: 'Farolillos de hueso enterrados en el suelo, camino de tierra firme.',
+    type: 'approach', danger: 'low', stepMin: 180, stepMax: 300,
+    eventBias: { resource: 0.4, exploration: 0.3, creature: 0.1, threat: 0.05, microevent: 0.15 },
+  },
+  {
+    id: 'seg_afm_02', routeId: 'route_aethel_to_mist', order: 2,
+    name: 'Raíces de paso',
+    description: 'Red de raíces que forma un puente natural sobre la grieta de niebla.',
+    type: 'crossing', danger: 'low', stepMin: 220, stepMax: 360,
+    eventBias: { resource: 0.2, exploration: 0.4, creature: 0.2, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_afm_03', routeId: 'route_aethel_to_mist', order: 3,
+    name: 'Boca de niebla',
+    description: 'Entrada al Sector Raíz de Niebla; la bruma sube hasta la cintura.',
+    type: 'landmark', danger: 'medium', stepMin: 200, stepMax: 340,
+    eventBias: { resource: 0.1, exploration: 0.5, creature: 0.2, threat: 0.1, microevent: 0.1 },
+  },
+
+  // route_aethel_to_salt — Bajada a la Cornisa
+  {
+    id: 'seg_ats_01', routeId: 'route_aethel_to_salt', order: 1,
+    name: 'Piedra húmeda',
+    description: 'Escalones tallados en roca negra cubiertos de humedad constante.',
+    type: 'approach', danger: 'low', stepMin: 280, stepMax: 400,
+    eventBias: { resource: 0.3, exploration: 0.3, creature: 0.2, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_ats_02', routeId: 'route_aethel_to_salt', order: 2,
+    name: 'Primer olor a sal',
+    description: 'La roca cambia de color; se detecta el aroma salino de las capas inferiores.',
+    type: 'crossing', danger: 'medium', stepMin: 310, stepMax: 430,
+    eventBias: { resource: 0.25, exploration: 0.35, creature: 0.2, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ats_03', routeId: 'route_aethel_to_salt', order: 3,
+    name: 'Bajada fría',
+    description: 'Pendiente pronunciada donde el viento de profundidad corta el aliento.',
+    type: 'descent', danger: 'medium', stepMin: 310, stepMax: 470,
+    eventBias: { resource: 0.15, exploration: 0.3, creature: 0.3, threat: 0.2, microevent: 0.05 },
+  },
+
+  // route_mist_to_ruins — Senda de las Marcas
+  {
+    id: 'seg_mtr_01', routeId: 'route_mist_to_ruins', order: 1,
+    name: 'Marcas partidas',
+    description: 'Señales de expedición antiguas que alguien ha tratado de borrar.',
+    type: 'approach', danger: 'low', stepMin: 220, stepMax: 340,
+    eventBias: { resource: 0.2, exploration: 0.5, creature: 0.1, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_mtr_02', routeId: 'route_mist_to_ruins', order: 2,
+    name: 'Arco de raíces',
+    description: 'Dos raíces colosales forman un portal natural; la niebla no lo cruza.',
+    type: 'crossing', danger: 'medium', stepMin: 260, stepMax: 400,
+    eventBias: { resource: 0.1, exploration: 0.45, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_mtr_03', routeId: 'route_mist_to_ruins', order: 3,
+    name: 'Umbral rúnico',
+    description: 'Ruinas del antiguo puesto de guardia; las runas emiten luz violácea.',
+    type: 'landmark', danger: 'medium', stepMin: 220, stepMax: 360,
+    eventBias: { resource: 0.1, exploration: 0.4, creature: 0.3, threat: 0.15, microevent: 0.05 },
+  },
+
+  // route_ruins_to_mushroom — Pasaje secreto (hidden)
+  {
+    id: 'seg_rtm_01', routeId: 'route_ruins_to_mushroom', order: 1,
+    name: 'Raíz sellada',
+    description: 'Una raíz hueca que actúa de túnel; el acceso está bloqueado con savia endurecida.',
+    type: 'secret', danger: 'low', stepMin: 160, stepMax: 250,
+    eventBias: { resource: 0.1, exploration: 0.6, creature: 0.1, threat: 0.05, microevent: 0.15 },
+  },
+  {
+    id: 'seg_rtm_02', routeId: 'route_ruins_to_mushroom', order: 2,
+    name: 'Respiración hueca',
+    description: 'Cavidad resonante donde el suelo emite un pulso regular como un corazón.',
+    type: 'secret', danger: 'low', stepMin: 170, stepMax: 270,
+    eventBias: { resource: 0.05, exploration: 0.6, creature: 0.15, threat: 0.05, microevent: 0.15 },
+  },
+  {
+    id: 'seg_rtm_03', routeId: 'route_ruins_to_mushroom', order: 3,
+    name: 'Luz de setas',
+    description: 'Pasillo iluminado por hongos bioluminiscentes de tono azul. Silencio absoluto.',
+    type: 'secret', danger: 'low', stepMin: 170, stepMax: 280,
+    eventBias: { resource: 0.2, exploration: 0.5, creature: 0.1, threat: 0.0, microevent: 0.2 },
+  },
+
+  // route_mist_to_forge — Senda de la Forja
+  {
+    id: 'seg_mtf_01', routeId: 'route_mist_to_forge', order: 1,
+    name: 'Desvío sin marcas',
+    description: 'Bifurcación sin señal conocida; el calor seco indica la dirección correcta.',
+    type: 'approach', danger: 'medium', stepMin: 380, stepMax: 540,
+    eventBias: { resource: 0.15, exploration: 0.4, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_mtf_02', routeId: 'route_mist_to_forge', order: 2,
+    name: 'Pendiente de hierro',
+    description: 'Corredor de roca con venas de hierro oxidado; el suelo cede bajo el peso.',
+    type: 'descent', danger: 'high', stepMin: 420, stepMax: 580,
+    eventBias: { resource: 0.1, exploration: 0.3, creature: 0.35, threat: 0.2, microevent: 0.05 },
+  },
+  {
+    id: 'seg_mtf_03', routeId: 'route_mist_to_forge', order: 3,
+    name: 'Horno dormido',
+    description: 'Antecámara de la forja: calor intenso, aire cargado de ceniza fina.',
+    type: 'danger', danger: 'high', stepMin: 400, stepMax: 580,
+    eventBias: { resource: 0.05, exploration: 0.25, creature: 0.4, threat: 0.25, microevent: 0.05 },
+  },
+
+  // route_salt_to_tide — Senda de la Marea
+  {
+    id: 'seg_stt_01', routeId: 'route_salt_to_tide', order: 1,
+    name: 'Cornisa mojada',
+    description: 'Repisa estrecha sobre un abismo; el suelo está siempre húmedo.',
+    type: 'crossing', danger: 'medium', stepMin: 220, stepMax: 340,
+    eventBias: { resource: 0.2, exploration: 0.35, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_stt_02', routeId: 'route_salt_to_tide', order: 2,
+    name: 'Rocas de sal negra',
+    description: 'Campo de cristales de sal negra cortantes; moverse despacio o sangrar.',
+    type: 'danger', danger: 'high', stepMin: 260, stepMax: 400,
+    eventBias: { resource: 0.15, exploration: 0.2, creature: 0.3, threat: 0.3, microevent: 0.05 },
+  },
+  {
+    id: 'seg_stt_03', routeId: 'route_salt_to_tide', order: 3,
+    name: 'Marea sin luna',
+    description: 'La roca absorbe la humedad en pulsos. No hay ciclo solar ni lunar visible.',
+    type: 'danger', danger: 'high', stepMin: 220, stepMax: 360,
+    eventBias: { resource: 0.1, exploration: 0.25, creature: 0.35, threat: 0.25, microevent: 0.05 },
+  },
+
+  // route_tide_to_coal — Descenso al Bastión
+  {
+    id: 'seg_ttc_01', routeId: 'route_tide_to_coal', order: 1,
+    name: 'Senda de humo',
+    description: 'Camino marcado por columnas de humo antiguo solidificado en formas caprichosas.',
+    type: 'approach', danger: 'medium', stepMin: 320, stepMax: 480,
+    eventBias: { resource: 0.2, exploration: 0.3, creature: 0.3, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ttc_02', routeId: 'route_tide_to_coal', order: 2,
+    name: 'Carbón bajo el agua',
+    description: 'Galería parcialmente inundada con agua oscura que oculta el suelo de carbón.',
+    type: 'crossing', danger: 'high', stepMin: 340, stepMax: 510,
+    eventBias: { resource: 0.1, exploration: 0.3, creature: 0.35, threat: 0.2, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ttc_03', routeId: 'route_tide_to_coal', order: 3,
+    name: 'Bajada oscura',
+    description: 'El último tramo no tiene faroles; la oscuridad es total salvo por brasas lejanas.',
+    type: 'descent', danger: 'high', stepMin: 340, stepMax: 510,
+    eventBias: { resource: 0.05, exploration: 0.2, creature: 0.4, threat: 0.3, microevent: 0.05 },
+  },
+
+  // route_forge_to_coal — Galería de Ceniza
+  {
+    id: 'seg_ftc_01', routeId: 'route_forge_to_coal', order: 1,
+    name: 'Galería apagada',
+    description: 'Corredor de la forja ya fría; herramientas abandonadas cuelgan de las paredes.',
+    type: 'approach', danger: 'medium', stepMin: 250, stepMax: 420,
+    eventBias: { resource: 0.35, exploration: 0.3, creature: 0.2, threat: 0.1, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ftc_02', routeId: 'route_forge_to_coal', order: 2,
+    name: 'Columnas de hollín',
+    description: 'Pilares naturales cubiertos de hollín milenario; el aire pesa.',
+    type: 'crossing', danger: 'medium', stepMin: 280, stepMax: 440,
+    eventBias: { resource: 0.2, exploration: 0.35, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ftc_03', routeId: 'route_forge_to_coal', order: 3,
+    name: 'Bastión de carbón',
+    description: 'Las paredes son puro carbón comprimido; se escuchan voces en la roca.',
+    type: 'landmark', danger: 'medium', stepMin: 270, stepMax: 440,
+    eventBias: { resource: 0.15, exploration: 0.4, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+]
+
+// ── ASENTAMIENTOS DEL ABISMO ──────────────────────────────────────────────────
+export const ABYSS_SETTLEMENTS = [
+  {
+    id: 'settlement_aethel_linde',
+    name: 'Linde de Aethel',
+    type: 'village',
+    stratumId: 'stratum_01',
+    layerName: 'Raíces Ciegas',
+    zoneId: 'zone_blind_roots',
+    sectorId: 'sector_aethel_edge',
+    safetyLevel: 'safe',
+    services: ['refuge', 'basic_rest', 'rumors'],
+    visualTheme: 'casas bajas entre raíces, faroles cálidos, madera húmeda',
+    description: 'Primer asentamiento estable del descenso. Pequeño, humano y lleno de marcas de caravanas anteriores.',
+    populationTone: 'campesinos, guías, porteadores y familias acostumbradas al borde del Abismo',
+    unlocked: true,
+    tags: ['starter', 'root', 'safe'],
+  },
+  {
+    id: 'settlement_root_lantern_market',
+    name: 'Mercado de Raíz Vieja',
+    type: 'market',
+    stratumId: 'stratum_01',
+    layerName: 'Raíces Ciegas',
+    zoneId: 'zone_blind_roots',
+    sectorId: 'sector_mist_root',
+    safetyLevel: 'guarded',
+    services: ['trader', 'contracts', 'rumors'],
+    visualTheme: 'puestos de lona oscura, raíces como columnas, humo bajo',
+    description: 'Mercado subterráneo donde se venden mapas incompletos, madera rúnica y rumores baratos.',
+    populationTone: 'mercaderes, buscadores, timadores y cartógrafos de baja profundidad',
+    unlocked: false,
+    tags: ['market', 'root', 'trade'],
+  },
+  {
+    id: 'settlement_fogbreak_fort',
+    name: 'Fortín Quebrabruma',
+    type: 'fort',
+    stratumId: 'stratum_01',
+    layerName: 'Raíces Ciegas',
+    zoneId: 'zone_blind_roots',
+    sectorId: 'sector_runic_guard_ruins',
+    safetyLevel: 'guarded',
+    services: ['guard_post', 'combat_contracts', 'rest_limited'],
+    visualTheme: 'murallas rotas, piedra rúnica, braseros vigilados',
+    description: 'Puesto defensivo levantado sobre ruinas antiguas. Vigila rutas donde la niebla se rompe en oleadas.',
+    populationTone: 'guardias, veteranos, heridos, rastreadores y gente que no duerme demasiado',
+    unlocked: false,
+    tags: ['fort', 'ruins', 'combat'],
+  },
+  {
+    id: 'settlement_blind_lake_dock',
+    name: 'Muelle del Lago Ciego',
+    type: 'harbor',
+    stratumId: 'stratum_01',
+    layerName: 'Raíces Ciegas',
+    zoneId: 'zone_salt_corniche',
+    sectorId: 'sector_salt_beacon',
+    safetyLevel: 'unstable',
+    services: ['supply', 'rare_rumors', 'route_info'],
+    visualTheme: 'agua negra quieta, barcas atadas, faroles reflejados',
+    description: 'Pequeño muelle en un lago subterráneo sin cielo. Las barcas apenas se mueven, aunque el agua respira.',
+    populationTone: 'barqueros, pescadores de cueva, contrabandistas y guías salinos',
+    unlocked: false,
+    tags: ['lake', 'water', 'salt', 'harbor'],
+  },
+  {
+    id: 'settlement_dust_gate_caravanserai',
+    name: 'Caravasar del Polvo Bajo',
+    type: 'caravanserai',
+    stratumId: 'stratum_01',
+    layerName: 'Raíces Ciegas',
+    zoneId: 'zone_blind_roots',
+    sectorId: 'sector_mist_root',
+    safetyLevel: 'guarded',
+    services: ['inn', 'rest', 'contracts', 'supplies'],
+    visualTheme: 'patio circular excavado, telas ocres, animales de carga, pozo central',
+    description: 'Lugar de paso entre rutas tempranas. Más seco que el bosque, con polvo mineral y olor a cuero viejo.',
+    populationTone: 'caravaneros, posaderos, mozos de carga y exploradores novatos',
+    unlocked: false,
+    tags: ['inn', 'caravan', 'desert_hint', 'safe'],
+  },
+]
 </file>
 
 <file path="docs/WORLD_BIBLE.md">
@@ -5119,2200 +6758,123 @@ Los cinco están en el Estrato I. El jugador parte desde Linde de Aethel (desblo
 
 ---
 
+## Lectura visual del mapa (19A)
+
+El mapa del Abismo se lee en tres niveles de zoom:
+
+**Abismo** — bandas de estrato coloreadas por bioma. Verde (Raíces), Azul marino (Sal Negra), Rojo ladrillo (Hornacinas). Cada banda muestra profundidad, número de asentamientos y rutas disponibles.
+
+**Capa** — asentamientos como nodos con icono de tipo:
+- Aldea → tejado triangular
+- Mercado → toldo en arco
+- Fuerte → muros almenados
+- Puerto → mástil y barco
+- Caravasar → círculo concéntrico
+
+Las rutas entre asentamientos son curvas Bézier. El color indica el peligro: dorado (bajo), naranja (medio). Las rutas secretas son violeta discontinuo. Los nodos no descubiertos aparecen como círculo rayado con `?`.
+
+**Ruta** — tramos distribuidos en curva suave. Completados con nombre, actual marcado con `← actual`, siguiente con silueta, posteriores como `?`. El panel inferior muestra detalle del tramo seleccionado.
+
+---
+
 *Este documento es la base de diseño del mundo de Aethermarch. Se actualiza conforme el juego avanza.*
 *Para estado de implementación técnica, ver `docs/ABYSS_DESIGN.md`.*
 *Para roadmap de bloques, ver `docs/PROJECT_BRIEF.md`.*
 </file>
 
-<file path="src/data/gameData.js">
-// ── ARQUETIPOS ──────────────────────────────────────────────────────────────
-export const ARCHETYPES = [
-  {
-    id: 'guardian',
-    name: 'Guardián del Camino',
-    role: 'Defensa y resistencia',
-    passiveName: 'Paso Firme',
-    passiveDescription: 'Resiste mejor los peligros del camino.',
-    visualSummary: 'Capa pesada, hierro viejo, cuero oscuro, escudo abollado y farol cálido.',
-    hpBonus: 5,
-  },
-  {
-    id: 'runario',
-    name: 'Runario Errante',
-    role: 'Magia antigua y secretos',
-    passiveName: 'Lectura de Sellos',
-    passiveDescription: 'Percibe marcas antiguas, ruinas y señales ocultas.',
-    visualSummary: 'Capucha profunda, bastón, talismán, pergaminos y runas tenues.',
-    hpBonus: 0,
-  },
-  {
-    id: 'rastreador',
-    name: 'Rastreador de Bruma',
-    role: 'Exploración y rutas',
-    passiveName: 'Senda Oculta',
-    passiveDescription: 'Encuentra pasos, rastros y caminos que otros no ven.',
-    visualSummary: 'Capa larga, botas de marcha, cuerda, mapa enrollado y cuchillo corto.',
-    hpBonus: 0,
-  },
-]
-
-// ── CRIATURAS ────────────────────────────────────────────────────────────────
-export const CREATURES = [
-  {
-    id: 'velthar',
-    name: 'Velthar',
-    role: 'Exploración',
-    passiveName: 'Instinto de Niebla',
-    passiveDescription: 'Mejora la detección de rutas, secretos y señales del bosque.',
-    description: 'Pequeño ciervo rúnico de bosque y niebla. Intuitivo, noble, silencioso.',
-  },
-  {
-    id: 'brontik',
-    name: 'Brontik',
-    role: 'Defensa',
-    passiveName: 'Coraza de Ruta',
-    passiveDescription: 'Reduce ligeramente el daño recibido.',
-    description: 'Bestia acorazada de camino: jabalí, armadillo y draco terrestre. Protector, testarudo, firme.',
-  },
-  {
-    id: 'lumora',
-    name: 'Lúmora',
-    role: 'Recolección',
-    passiveName: 'Eco de Cristal',
-    passiveDescription: 'Mejora la obtención de materiales y recursos.',
-    description: 'Familiar cristalino de luz antigua. Curioso, sensible, luminoso.',
-  },
-]
-
-// ── BIOMAS ───────────────────────────────────────────────────────────────────
-export const BIOMES = {
-  forest: {
-    id: 'forest',
-    name: 'Bosque Rúnico',
-    description: 'Bosque nocturno antiguo. Camino estrecho, raíces, niebla baja, piedras rúnicas, árboles altos.',
-    palette: { bg: '#0B0F09', mid: '#1A2A14', accent: '#3FA34D' },
-    resourceIds: ['runic_wood', 'aethel_root', 'lumi_leaf'],
-    enemyIds: ['runic_raider', 'fracture_beast'],
-  },
-  coast: {
-    id: 'coast',
-    name: 'Costa Arcana',
-    description: 'Costa nocturna fría. Rocas, agua oscura, bruma marina, cristales naturales apagados.',
-    palette: { bg: '#090B10', mid: '#0F1A24', accent: '#4F8F95' },
-    resourceIds: ['arcane_salt', 'tide_crystal', 'nacre_scale'],
-    enemyIds: ['fracture_beast', 'fracture_guardian'],
-  },
-  forge: {
-    id: 'forge',
-    name: 'Forja Arcanista',
-    description: 'Ruinas de forja medieval. Piedra, hierro viejo, brasas, humo, columnas rotas.',
-    palette: { bg: '#0F0B07', mid: '#1A1208', accent: '#D46A2D' },
-    resourceIds: ['forge_mineral', 'ancient_plate', 'resonant_coal'],
-    enemyIds: ['sleeping_golem', 'fracture_guardian'],
-  },
-}
-
-// ── RECURSOS ─────────────────────────────────────────────────────────────────
-export const RESOURCES = {
-  runic_wood: {
-    id: 'runic_wood',
-    name: 'Madera Rúnica',
-    biomeId: 'forest',
-    rarity: 'comun',
-    type: 'material',
-    utility: 'Mejoras de refugios, bastones y estructuras de madera.',
-    visualDescription: 'Rama curva con runa dorada tallada en la corteza.',
-  },
-  aethel_root: {
-    id: 'aethel_root',
-    name: 'Raíz de Aethel',
-    biomeId: 'forest',
-    rarity: 'comun',
-    type: 'natural',
-    utility: 'Curación, vínculo de criatura y tónicos.',
-    visualDescription: 'Raíz en forma de S con punta de brillo mágico apagado.',
-  },
-  lumi_leaf: {
-    id: 'lumi_leaf',
-    name: 'Hoja Luminaria',
-    biomeId: 'forest',
-    rarity: 'comun',
-    type: 'natural',
-    utility: 'Recetas, rastreo y consumibles.',
-    visualDescription: 'Hoja lanceolada con borde dorado apagado.',
-  },
-  arcane_salt: {
-    id: 'arcane_salt',
-    name: 'Sal Arcana',
-    biomeId: 'coast',
-    rarity: 'comun',
-    type: 'mineral',
-    utility: 'Conservación, rituales y mejoras de posadas costeras.',
-    visualDescription: 'Pequeño depósito de sal con cristales bajos, color marfil.',
-  },
-  tide_crystal: {
-    id: 'tide_crystal',
-    name: 'Cristal de Marea',
-    biomeId: 'coast',
-    rarity: 'poco_comun',
-    type: 'cristal',
-    utility: 'Mejoras mágicas, reliquias y rutas costeras.',
-    visualDescription: 'Cristal triangular natural, azul grisáceo con base de roca.',
-  },
-  nacre_scale: {
-    id: 'nacre_scale',
-    name: 'Escama Nácar',
-    biomeId: 'coast',
-    rarity: 'poco_comun',
-    type: 'organico',
-    utility: 'Armaduras ligeras y reliquias.',
-    visualDescription: 'Forma de gota curva, marfil con interior azul grisáceo.',
-  },
-  forge_mineral: {
-    id: 'forge_mineral',
-    name: 'Mineral de Forja',
-    biomeId: 'forge',
-    rarity: 'comun',
-    type: 'mineral',
-    utility: 'Armas, armaduras y forjas.',
-    visualDescription: 'Roca angular con veta metálica y grieta naranja de brasa.',
-  },
-  ancient_plate: {
-    id: 'ancient_plate',
-    name: 'Placa Antigua',
-    biomeId: 'forge',
-    rarity: 'poco_comun',
-    type: 'metal',
-    utility: 'Armaduras y reparación de estructuras.',
-    visualDescription: 'Placa de metal oxidada con remaches y arañazo.',
-  },
-  resonant_coal: {
-    id: 'resonant_coal',
-    name: 'Carbón Resonante',
-    biomeId: 'forge',
-    rarity: 'comun',
-    type: 'mineral',
-    utility: 'Forja, calor y producción.',
-    visualDescription: 'Roca negra irregular con grieta naranja y humo sutil.',
-  },
-}
-
-// ── ENEMIGOS ──────────────────────────────────────────────────────────────────
-export const ENEMIES = {
-  runic_raider: {
-    id: 'runic_raider',
-    name: 'Saqueador Rúnico',
-    concept: 'Bandido de caminos que saquea ruinas y marcas antiguas.',
-    biomeIds: ['forest'],
-    visualDescription: 'Humanoide delgado con capucha rota, capa rasgada, daga corta y runa roja apagada.',
-    attacks: [
-      { id: 'quick_stab', name: 'Estocada rápida', baseDamage: 6, bestStance: 'prudente', description: 'Ataque rápido con daga corta.' },
-      { id: 'rune_trap',  name: 'Trampa rúnica',   baseDamage: 8, bestStance: 'equilibrada', description: 'Marca rúnica rota bajo la party.' },
-    ],
-  },
-  fracture_beast: {
-    id: 'fracture_beast',
-    name: 'Bestia de Fractura',
-    concept: 'Criatura salvaje deformada por magia antigua.',
-    biomeIds: ['forest', 'coast'],
-    visualDescription: 'Cuerpo bajo, lomo arqueado, garras, placas irregulares y grietas violeta/rojo apagado.',
-    attacks: [
-      { id: 'slash',    name: 'Zarpazo',          baseDamage: 8,  bestStance: 'equilibrada', description: 'Zarpazo con garras.' },
-      { id: 'charge',   name: 'Embestida salvaje', baseDamage: 10, bestStance: 'prudente',    description: 'Carga con polvo e impacto.' },
-    ],
-  },
-  sleeping_golem: {
-    id: 'sleeping_golem',
-    name: 'Gólem Dormido',
-    concept: 'Constructo de piedra y hierro. Estatua de forja abandonada que despierta.',
-    biomeIds: ['forge'],
-    visualDescription: 'Hombros anchos, torso-bloque, brazos como pilares, grietas de brasa.',
-    attacks: [
-      { id: 'heavy_blow', name: 'Golpe pesado',    baseDamage: 12, bestStance: 'prudente', description: 'Levanta brazo-pilar.' },
-      { id: 'stomp',      name: 'Pisotón sísmico', baseDamage: 13, bestStance: 'audaz',    description: 'Onda de grietas bajo los pies.' },
-    ],
-  },
-  fracture_guardian: {
-    id: 'fracture_guardian',
-    name: 'Guardián de Fractura',
-    concept: 'Reliquia o estatua cristalina rota.',
-    biomeIds: ['coast', 'forge'],
-    visualDescription: 'Torso vertical, núcleo fracturado, corona rota, cristales en hombros y fragmentos flotantes.',
-    attacks: [
-      { id: 'fracture_ray',  name: 'Rayo de fractura',  baseDamage: 14, bestStance: 'equilibrada', description: 'Grieta mágica irregular.' },
-      { id: 'crystal_pulse', name: 'Pulso cristalino',   baseDamage: 15, bestStance: 'prudente',    description: 'Anillo irregular de cristal.' },
-    ],
-  },
-}
-
-// ── MODOS DE EXPEDICIÓN ───────────────────────────────────────────────────────
-export const EXPEDITION_MODES = [
-  {
-    id: 'free_march',
-    name: 'Marcha Libre',
-    description: 'Equilibrado. Mezcla exploración, recursos, amenazas y micros.',
-  },
-  {
-    id: 'hunt',
-    name: 'Caza',
-    description: 'Más amenazas y combates. Más XP y botín de combate.',
-  },
-  {
-    id: 'gather',
-    name: 'Recolección',
-    description: 'Más nodos de recurso. Menos combates. Más materiales.',
-  },
-  {
-    id: 'explore',
-    name: 'Exploración',
-    description: 'Más rutas, niebla, sectores y secretos.',
-  },
-  {
-    id: 'custom',
-    name: 'Personalizada',
-    description: '(Próximamente) Ajusta los pesos de cada tipo de evento.',
-    locked: true,
-  },
-]
-
-// ── ESTRATOS DEL ABISMO ───────────────────────────────────────────────────────
-export const ABYSS_STRATA = [
-  {
-    id: 'stratum_01',
-    number: 1,
-    name: 'I · Linde de las Raíces Ciegas',
-    shortName: 'Raíces Ciegas',
-    depthRange: '0-250 m',
-    theme: 'Bosque subterráneo de raíces gigantes, bruma baja y faroles antiguos.',
-    dangerRank: 'low',
-    lootTier: 1,
-    biomeIds: ['forest'],
-    resourcePool: ['runic_wood', 'aethel_root', 'lumi_leaf'],
-    enemyPool: ['runic_raider', 'fracture_beast'],
-    futureSecrets: ['raíces huecas', 'marcas antiguas', 'senderos cubiertos por musgo'],
-  },
-  {
-    id: 'stratum_02',
-    number: 2,
-    name: 'II · Cornisa de la Sal Negra',
-    shortName: 'Sal Negra',
-    depthRange: '250-500 m',
-    theme: 'Cornisas húmedas, sal arcana, roca fría y viento de profundidad.',
-    dangerRank: 'medium',
-    lootTier: 2,
-    biomeIds: ['coast'],
-    resourcePool: ['arcane_salt', 'tide_crystal', 'nacre_scale'],
-    enemyPool: ['fracture_beast', 'fracture_guardian'],
-    futureSecrets: ['grutas de sal', 'pasos bajo la marea', 'altares de nácar'],
-  },
-  {
-    id: 'stratum_03',
-    number: 3,
-    name: 'III · Hornacinas de Ceniza',
-    shortName: 'Hornacinas',
-    depthRange: '500-850 m',
-    theme: 'Forjas abandonadas, hierro viejo, humo bajo y brasas enterradas.',
-    dangerRank: 'high',
-    lootTier: 3,
-    biomeIds: ['forge'],
-    resourcePool: ['forge_mineral', 'ancient_plate', 'resonant_coal'],
-    enemyPool: ['sleeping_golem', 'fracture_guardian'],
-    futureSecrets: ['muros agrietados', 'hornos sellados', 'pasadizos bajo escoria'],
-  },
-]
-
-// ── POIS ─────────────────────────────────────────────────────────────────────
-export const POIS = {
-  inn:     { id: 'inn',     name: 'Posada',               icon: '🏚', description: 'Descanso, recuperación y buffs temporales.' },
-  forge:   { id: 'forge',   name: 'Forja',                icon: '⚒',  description: 'Mejora armas, armaduras y equipamiento.' },
-  shelter: { id: 'shelter', name: 'Refugio',               icon: '⛺', description: 'Seguridad y descanso básico.' },
-  trader:  { id: 'trader',  name: 'Mercader',              icon: '🎒', description: 'Compra y venta de materiales.' },
-  tavern:  { id: 'tavern',  name: 'Taberna',               icon: '🍺', description: 'Rumores y encargos.' },
-  supply:  { id: 'supply',  name: 'Puesto de suministros', icon: '📦', description: 'Consumibles y preparación de expedición.' },
-}
-
-// ── SECTORES INICIALES ────────────────────────────────────────────────────────
-export const INITIAL_SECTORS = [
-  {
-    id: 'sector_aethel_edge',
-    name: 'Linde de Aethel',
-    biomeId: 'forest',
-    discovered: true,
-    visits: 0,
-    mastery: 0,
-    masteryLevel: 0,
-    resources: ['runic_wood', 'aethel_root'],
-    threat: 'low',
-    poiId: 'shelter',
-    connections: ['sector_mist_root', 'sector_salt_beacon'],
-    stratumId: 'stratum_01',
-    stratumName: 'I · Linde de las Raíces Ciegas',
-    depth: 1,
-    depthMeters: 120,
-    abyssRing: 1,
-    spiralOrder: 1,
-    lootTier: 1,
-    dangerRank: 'low',
-    enemyPool: ['runic_raider'],
-  },
-  {
-    id: 'sector_mist_root',
-    name: 'Raíz de Niebla',
-    biomeId: 'forest',
-    discovered: false,
-    visits: 0,
-    mastery: 0,
-    masteryLevel: 0,
-    resources: ['aethel_root', 'lumi_leaf'],
-    threat: 'medium',
-    poiId: 'trader',
-    connections: ['sector_aethel_edge', 'sector_sleeping_forge', 'sector_runic_guard_ruins'],
-    stratumId: 'stratum_01',
-    stratumName: 'I · Linde de las Raíces Ciegas',
-    depth: 1,
-    depthMeters: 180,
-    abyssRing: 1,
-    spiralOrder: 2,
-    lootTier: 1,
-    dangerRank: 'medium',
-    enemyPool: ['runic_raider', 'fracture_beast'],
-  },
-  {
-    id: 'sector_salt_beacon',
-    name: 'Faro de Sal',
-    biomeId: 'coast',
-    discovered: false,
-    visits: 0,
-    mastery: 0,
-    masteryLevel: 0,
-    resources: ['arcane_salt', 'tide_crystal'],
-    threat: 'low',
-    poiId: 'inn',
-    connections: ['sector_aethel_edge', 'sector_tide_rock'],
-    stratumId: 'stratum_02',
-    stratumName: 'II · Cornisa de la Sal Negra',
-    depth: 2,
-    depthMeters: 340,
-    abyssRing: 2,
-    spiralOrder: 3,
-    lootTier: 2,
-    dangerRank: 'medium',
-    enemyPool: ['fracture_beast'],
-  },
-  {
-    id: 'sector_tide_rock',
-    name: 'Roca de Marea',
-    biomeId: 'coast',
-    discovered: false,
-    visits: 0,
-    mastery: 0,
-    masteryLevel: 0,
-    resources: ['tide_crystal', 'nacre_scale'],
-    threat: 'high',
-    poiId: 'tavern',
-    connections: ['sector_salt_beacon', 'sector_coal_bastion'],
-    stratumId: 'stratum_02',
-    stratumName: 'II · Cornisa de la Sal Negra',
-    depth: 2,
-    depthMeters: 410,
-    abyssRing: 2,
-    spiralOrder: 4,
-    lootTier: 2,
-    dangerRank: 'high',
-    enemyPool: ['fracture_beast', 'fracture_guardian'],
-  },
-  {
-    id: 'sector_sleeping_forge',
-    name: 'Fragua Dormida',
-    biomeId: 'forge',
-    discovered: false,
-    visits: 0,
-    mastery: 0,
-    masteryLevel: 0,
-    resources: ['forge_mineral', 'ancient_plate'],
-    threat: 'high',
-    poiId: 'forge',
-    connections: ['sector_mist_root', 'sector_coal_bastion'],
-    stratumId: 'stratum_03',
-    stratumName: 'III · Hornacinas de Ceniza',
-    depth: 3,
-    depthMeters: 690,
-    abyssRing: 3,
-    spiralOrder: 5,
-    lootTier: 3,
-    dangerRank: 'high',
-    enemyPool: ['sleeping_golem', 'fracture_guardian'],
-  },
-  {
-    id: 'sector_coal_bastion',
-    name: 'Bastión de Carbón',
-    biomeId: 'forge',
-    discovered: false,
-    visits: 0,
-    mastery: 0,
-    masteryLevel: 0,
-    resources: ['resonant_coal', 'forge_mineral'],
-    threat: 'medium',
-    poiId: 'supply',
-    connections: ['sector_sleeping_forge', 'sector_tide_rock'],
-    stratumId: 'stratum_03',
-    stratumName: 'III · Hornacinas de Ceniza',
-    depth: 3,
-    depthMeters: 760,
-    abyssRing: 3,
-    spiralOrder: 6,
-    lootTier: 3,
-    dangerRank: 'medium',
-    enemyPool: ['sleeping_golem'],
-  },
-  {
-    id: 'sector_runic_guard_ruins',
-    name: 'Ruina de Guardia Rúnica',
-    biomeId: 'forest',
-    discovered: false,
-    visits: 0,
-    mastery: 0,
-    masteryLevel: 0,
-    resources: ['runic_wood', 'lumi_leaf'],
-    threat: 'medium',
-    poiId: null,
-    connections: ['sector_mist_root', 'sector_hollow_mushroom_cave'],
-    stratumId: 'stratum_01',
-    stratumName: 'I · Linde de las Raíces Ciegas',
-    depth: 1,
-    depthMeters: 210,
-    abyssRing: 1,
-    spiralOrder: 3,
-    lootTier: 1,
-    dangerRank: 'medium',
-    enemyPool: ['runic_raider', 'fracture_beast'],
-    loreTag: 'runic_guard',
-  },
-  {
-    id: 'sector_hollow_mushroom_cave',
-    name: 'Cueva de Setas Huecas',
-    biomeId: 'forest',
-    discovered: false,
-    secret: true,
-    secretType: 'creature_or_mastery',
-    visits: 0,
-    mastery: 0,
-    masteryLevel: 0,
-    resources: ['lumi_leaf', 'aethel_root'],
-    threat: 'low',
-    poiId: null,
-    connections: ['sector_runic_guard_ruins'],
-    stratumId: 'stratum_01',
-    stratumName: 'I · Linde de las Raíces Ciegas',
-    depth: 1,
-    depthMeters: 235,
-    abyssRing: 1,
-    spiralOrder: 4,
-    lootTier: 1,
-    dangerRank: 'low',
-    enemyPool: ['fracture_beast'],
-    loreTag: 'hollow_mushrooms',
-  },
-]
-
-// ── RUTAS DEL MUNDO ───────────────────────────────────────────────────────────
-// Capa de diseño explícita de rutas. No sustituye sector.connections todavía.
-export const WORLD_ROUTES = [
-  {
-    id: 'route_aethel_to_mist',
-    name: 'Senda de los Faroles Bajos',
-    fromSectorId: 'sector_aethel_edge',
-    toSectorId: 'sector_mist_root',
-    type: 'main',
-    status: 'open',
-    stratumId: 'stratum_01',
-    zoneId: 'zone_root_lanterns',
-    stepMin: 600,
-    stepMax: 1000,
-    danger: 'low',
-    description: 'Camino marcado con faroles viejos entre raíces húmedas. Es la primera ruta real del descenso.',
-    requirements: [],
-    tags: ['forest', 'starter', 'marked'],
-  },
-  {
-    id: 'route_aethel_to_salt',
-    name: 'Bajada de la Sal Fría',
-    fromSectorId: 'sector_aethel_edge',
-    toSectorId: 'sector_salt_beacon',
-    type: 'descent',
-    status: 'open',
-    stratumId: 'stratum_01',
-    zoneId: 'zone_outer_descent',
-    stepMin: 900,
-    stepMax: 1300,
-    danger: 'medium',
-    description: 'Una bajada húmeda donde el olor del bosque se mezcla con sal negra y viento subterráneo.',
-    requirements: [],
-    tags: ['descent', 'coast', 'salt'],
-  },
-  {
-    id: 'route_mist_to_ruins',
-    name: 'Paso de las Piedras Marcadas',
-    fromSectorId: 'sector_mist_root',
-    toSectorId: 'sector_runic_guard_ruins',
-    type: 'main',
-    status: 'hidden',
-    stratumId: 'stratum_01',
-    zoneId: 'zone_runic_ruins',
-    stepMin: 700,
-    stepMax: 1100,
-    danger: 'medium',
-    description: 'Un sendero cubierto por raíces que conduce a una antigua guardia rúnica.',
-    requirements: [],
-    tags: ['forest', 'ruin', 'rune'],
-  },
-  {
-    id: 'route_ruins_to_mushroom',
-    name: 'Grieta de las Setas Huecas',
-    fromSectorId: 'sector_runic_guard_ruins',
-    toSectorId: 'sector_hollow_mushroom_cave',
-    type: 'secret',
-    status: 'hidden',
-    stratumId: 'stratum_01',
-    zoneId: 'zone_runic_ruins',
-    stepMin: 500,
-    stepMax: 800,
-    danger: 'low',
-    description: 'Una entrada oculta tras raíces compactas. La cueva no aparece en mapas comunes.',
-    requirements: ['Velthar + Exploración', 'o dominio suficiente de la Ruina'],
-    tags: ['secret', 'forest', 'creature', 'mushroom'],
-  },
-  {
-    id: 'route_mist_to_forge',
-    name: 'Desvío del Hierro Dormido',
-    fromSectorId: 'sector_mist_root',
-    toSectorId: 'sector_sleeping_forge',
-    type: 'dangerous',
-    status: 'hidden',
-    stratumId: 'stratum_01',
-    zoneId: 'zone_deep_crack',
-    stepMin: 1200,
-    stepMax: 1700,
-    danger: 'high',
-    description: 'Una ruta mala, empinada y demasiado silenciosa. Baja hacia restos de forja antes de tiempo.',
-    requirements: [],
-    tags: ['dangerous', 'forge', 'early_deep'],
-  },
-  {
-    id: 'route_salt_to_tide',
-    name: 'Cornisa de la Marea Negra',
-    fromSectorId: 'sector_salt_beacon',
-    toSectorId: 'sector_tide_rock',
-    type: 'main',
-    status: 'open',
-    stratumId: 'stratum_02',
-    zoneId: 'zone_salt_cornice',
-    stepMin: 700,
-    stepMax: 1100,
-    danger: 'high',
-    description: 'Cornisa mojada, estrecha y abierta al rumor de agua negra.',
-    requirements: [],
-    tags: ['coast', 'salt', 'danger'],
-  },
-  {
-    id: 'route_tide_to_coal',
-    name: 'Bajada del Carbón Húmedo',
-    fromSectorId: 'sector_tide_rock',
-    toSectorId: 'sector_coal_bastion',
-    type: 'descent',
-    status: 'hidden',
-    stratumId: 'stratum_02',
-    zoneId: 'zone_salt_descent',
-    stepMin: 1000,
-    stepMax: 1500,
-    danger: 'high',
-    description: 'Una bajada negra donde la humedad se convierte poco a poco en humo y polvo de carbón.',
-    requirements: [],
-    tags: ['descent', 'forge', 'coal'],
-  },
-  {
-    id: 'route_forge_to_coal',
-    name: 'Galería de las Brasas Muertas',
-    fromSectorId: 'sector_sleeping_forge',
-    toSectorId: 'sector_coal_bastion',
-    type: 'main',
-    status: 'open',
-    stratumId: 'stratum_03',
-    zoneId: 'zone_sunken_forges',
-    stepMin: 800,
-    stepMax: 1300,
-    danger: 'medium',
-    description: 'Galería entre hornos apagados, columnas rotas y carbón resonante.',
-    requirements: [],
-    tags: ['forge', 'coal', 'main'],
-  },
-]
-
-// ── ZONAS DEL ABISMO ──────────────────────────────────────────────────────────
-export const ABYSS_ZONES = [
-  {
-    id: 'zone_root_lanterns',
-    stratumId: 'stratum_01',
-    name: 'Faroles de Raíz',
-    shortName: 'Faroles',
-    description: 'Primer anillo habitable del Abismo. Raíces, faroles viejos, refugios y señales de expediciones anteriores.',
-    visualTheme: 'verde oscuro, cuero, niebla baja, faroles cálidos',
-    danger: 'low',
-    sectorIds: ['sector_aethel_edge', 'sector_mist_root'],
-    routeIds: ['route_aethel_to_mist'],
-  },
-  {
-    id: 'zone_runic_ruins',
-    stratumId: 'stratum_01',
-    name: 'Ruinas Rúnicas',
-    shortName: 'Ruinas',
-    description: 'Restos de guardias antiguas y piedras marcadas. La niebla se comporta de forma extraña alrededor de las runas.',
-    visualTheme: 'piedra antigua, violeta rúnico, raíces partidas',
-    danger: 'medium',
-    sectorIds: ['sector_runic_guard_ruins', 'sector_hollow_mushroom_cave'],
-    routeIds: ['route_mist_to_ruins', 'route_ruins_to_mushroom'],
-  },
-  {
-    id: 'zone_outer_descent',
-    stratumId: 'stratum_01',
-    name: 'Umbral de Sal',
-    shortName: 'Umbral',
-    description: 'La primera bajada donde el bosque empieza a desaparecer y aparece la sal negra.',
-    visualTheme: 'verde apagado, azul niebla, piedra húmeda',
-    danger: 'medium',
-    sectorIds: ['sector_aethel_edge', 'sector_salt_beacon'],
-    routeIds: ['route_aethel_to_salt'],
-  },
-  {
-    id: 'zone_salt_cornice',
-    stratumId: 'stratum_02',
-    name: 'Cornisa de Sal Negra',
-    shortName: 'Sal Negra',
-    description: 'Cornisas húmedas, faros apagados, roca fría y viento de profundidad.',
-    visualTheme: 'azul niebla, sal blanca apagada, roca negra',
-    danger: 'medium',
-    sectorIds: ['sector_salt_beacon', 'sector_tide_rock'],
-    routeIds: ['route_salt_to_tide'],
-  },
-  {
-    id: 'zone_salt_descent',
-    stratumId: 'stratum_02',
-    name: 'Descenso del Carbón',
-    shortName: 'Carbón',
-    description: 'Bajada de transición entre sal, humedad y humo.',
-    visualTheme: 'azul oscuro, negro carbón, brasa tenue',
-    danger: 'high',
-    sectorIds: ['sector_tide_rock', 'sector_coal_bastion'],
-    routeIds: ['route_tide_to_coal'],
-  },
-  {
-    id: 'zone_sunken_forges',
-    stratumId: 'stratum_03',
-    name: 'Hornacinas de Ceniza',
-    shortName: 'Ceniza',
-    description: 'Forjas hundidas, hierro viejo, hornos apagados y brasas que aún respiran.',
-    visualTheme: 'brasa, hierro oscuro, piedra caliente',
-    danger: 'high',
-    sectorIds: ['sector_sleeping_forge', 'sector_coal_bastion'],
-    routeIds: ['route_forge_to_coal'],
-  },
-]
-
-export const WORLD_ROUTE_SEGMENTS = [
-  // route_aethel_to_mist — Senda de los Faroles Bajos
-  {
-    id: 'seg_afm_01', routeId: 'route_aethel_to_mist', order: 1,
-    name: 'Faroles hundidos',
-    description: 'Farolillos de hueso enterrados en el suelo, camino de tierra firme.',
-    type: 'approach', danger: 'low', stepMin: 180, stepMax: 300,
-    eventBias: { resource: 0.4, exploration: 0.3, creature: 0.1, threat: 0.05, microevent: 0.15 },
-  },
-  {
-    id: 'seg_afm_02', routeId: 'route_aethel_to_mist', order: 2,
-    name: 'Raíces de paso',
-    description: 'Red de raíces que forma un puente natural sobre la grieta de niebla.',
-    type: 'crossing', danger: 'low', stepMin: 220, stepMax: 360,
-    eventBias: { resource: 0.2, exploration: 0.4, creature: 0.2, threat: 0.1, microevent: 0.1 },
-  },
-  {
-    id: 'seg_afm_03', routeId: 'route_aethel_to_mist', order: 3,
-    name: 'Boca de niebla',
-    description: 'Entrada al Sector Raíz de Niebla; la bruma sube hasta la cintura.',
-    type: 'landmark', danger: 'medium', stepMin: 200, stepMax: 340,
-    eventBias: { resource: 0.1, exploration: 0.5, creature: 0.2, threat: 0.1, microevent: 0.1 },
-  },
-
-  // route_aethel_to_salt — Bajada a la Cornisa
-  {
-    id: 'seg_ats_01', routeId: 'route_aethel_to_salt', order: 1,
-    name: 'Piedra húmeda',
-    description: 'Escalones tallados en roca negra cubiertos de humedad constante.',
-    type: 'approach', danger: 'low', stepMin: 280, stepMax: 400,
-    eventBias: { resource: 0.3, exploration: 0.3, creature: 0.2, threat: 0.1, microevent: 0.1 },
-  },
-  {
-    id: 'seg_ats_02', routeId: 'route_aethel_to_salt', order: 2,
-    name: 'Primer olor a sal',
-    description: 'La roca cambia de color; se detecta el aroma salino de las capas inferiores.',
-    type: 'crossing', danger: 'medium', stepMin: 310, stepMax: 430,
-    eventBias: { resource: 0.25, exploration: 0.35, creature: 0.2, threat: 0.15, microevent: 0.05 },
-  },
-  {
-    id: 'seg_ats_03', routeId: 'route_aethel_to_salt', order: 3,
-    name: 'Bajada fría',
-    description: 'Pendiente pronunciada donde el viento de profundidad corta el aliento.',
-    type: 'descent', danger: 'medium', stepMin: 310, stepMax: 470,
-    eventBias: { resource: 0.15, exploration: 0.3, creature: 0.3, threat: 0.2, microevent: 0.05 },
-  },
-
-  // route_mist_to_ruins — Senda de las Marcas
-  {
-    id: 'seg_mtr_01', routeId: 'route_mist_to_ruins', order: 1,
-    name: 'Marcas partidas',
-    description: 'Señales de expedición antiguas que alguien ha tratado de borrar.',
-    type: 'approach', danger: 'low', stepMin: 220, stepMax: 340,
-    eventBias: { resource: 0.2, exploration: 0.5, creature: 0.1, threat: 0.1, microevent: 0.1 },
-  },
-  {
-    id: 'seg_mtr_02', routeId: 'route_mist_to_ruins', order: 2,
-    name: 'Arco de raíces',
-    description: 'Dos raíces colosales forman un portal natural; la niebla no lo cruza.',
-    type: 'crossing', danger: 'medium', stepMin: 260, stepMax: 400,
-    eventBias: { resource: 0.1, exploration: 0.45, creature: 0.25, threat: 0.15, microevent: 0.05 },
-  },
-  {
-    id: 'seg_mtr_03', routeId: 'route_mist_to_ruins', order: 3,
-    name: 'Umbral rúnico',
-    description: 'Ruinas del antiguo puesto de guardia; las runas emiten luz violácea.',
-    type: 'landmark', danger: 'medium', stepMin: 220, stepMax: 360,
-    eventBias: { resource: 0.1, exploration: 0.4, creature: 0.3, threat: 0.15, microevent: 0.05 },
-  },
-
-  // route_ruins_to_mushroom — Pasaje secreto (hidden)
-  {
-    id: 'seg_rtm_01', routeId: 'route_ruins_to_mushroom', order: 1,
-    name: 'Raíz sellada',
-    description: 'Una raíz hueca que actúa de túnel; el acceso está bloqueado con savia endurecida.',
-    type: 'secret', danger: 'low', stepMin: 160, stepMax: 250,
-    eventBias: { resource: 0.1, exploration: 0.6, creature: 0.1, threat: 0.05, microevent: 0.15 },
-  },
-  {
-    id: 'seg_rtm_02', routeId: 'route_ruins_to_mushroom', order: 2,
-    name: 'Respiración hueca',
-    description: 'Cavidad resonante donde el suelo emite un pulso regular como un corazón.',
-    type: 'secret', danger: 'low', stepMin: 170, stepMax: 270,
-    eventBias: { resource: 0.05, exploration: 0.6, creature: 0.15, threat: 0.05, microevent: 0.15 },
-  },
-  {
-    id: 'seg_rtm_03', routeId: 'route_ruins_to_mushroom', order: 3,
-    name: 'Luz de setas',
-    description: 'Pasillo iluminado por hongos bioluminiscentes de tono azul. Silencio absoluto.',
-    type: 'secret', danger: 'low', stepMin: 170, stepMax: 280,
-    eventBias: { resource: 0.2, exploration: 0.5, creature: 0.1, threat: 0.0, microevent: 0.2 },
-  },
-
-  // route_mist_to_forge — Senda de la Forja
-  {
-    id: 'seg_mtf_01', routeId: 'route_mist_to_forge', order: 1,
-    name: 'Desvío sin marcas',
-    description: 'Bifurcación sin señal conocida; el calor seco indica la dirección correcta.',
-    type: 'approach', danger: 'medium', stepMin: 380, stepMax: 540,
-    eventBias: { resource: 0.15, exploration: 0.4, creature: 0.25, threat: 0.15, microevent: 0.05 },
-  },
-  {
-    id: 'seg_mtf_02', routeId: 'route_mist_to_forge', order: 2,
-    name: 'Pendiente de hierro',
-    description: 'Corredor de roca con venas de hierro oxidado; el suelo cede bajo el peso.',
-    type: 'descent', danger: 'high', stepMin: 420, stepMax: 580,
-    eventBias: { resource: 0.1, exploration: 0.3, creature: 0.35, threat: 0.2, microevent: 0.05 },
-  },
-  {
-    id: 'seg_mtf_03', routeId: 'route_mist_to_forge', order: 3,
-    name: 'Horno dormido',
-    description: 'Antecámara de la forja: calor intenso, aire cargado de ceniza fina.',
-    type: 'danger', danger: 'high', stepMin: 400, stepMax: 580,
-    eventBias: { resource: 0.05, exploration: 0.25, creature: 0.4, threat: 0.25, microevent: 0.05 },
-  },
-
-  // route_salt_to_tide — Senda de la Marea
-  {
-    id: 'seg_stt_01', routeId: 'route_salt_to_tide', order: 1,
-    name: 'Cornisa mojada',
-    description: 'Repisa estrecha sobre un abismo; el suelo está siempre húmedo.',
-    type: 'crossing', danger: 'medium', stepMin: 220, stepMax: 340,
-    eventBias: { resource: 0.2, exploration: 0.35, creature: 0.25, threat: 0.15, microevent: 0.05 },
-  },
-  {
-    id: 'seg_stt_02', routeId: 'route_salt_to_tide', order: 2,
-    name: 'Rocas de sal negra',
-    description: 'Campo de cristales de sal negra cortantes; moverse despacio o sangrar.',
-    type: 'danger', danger: 'high', stepMin: 260, stepMax: 400,
-    eventBias: { resource: 0.15, exploration: 0.2, creature: 0.3, threat: 0.3, microevent: 0.05 },
-  },
-  {
-    id: 'seg_stt_03', routeId: 'route_salt_to_tide', order: 3,
-    name: 'Marea sin luna',
-    description: 'La roca absorbe la humedad en pulsos. No hay ciclo solar ni lunar visible.',
-    type: 'danger', danger: 'high', stepMin: 220, stepMax: 360,
-    eventBias: { resource: 0.1, exploration: 0.25, creature: 0.35, threat: 0.25, microevent: 0.05 },
-  },
-
-  // route_tide_to_coal — Descenso al Bastión
-  {
-    id: 'seg_ttc_01', routeId: 'route_tide_to_coal', order: 1,
-    name: 'Senda de humo',
-    description: 'Camino marcado por columnas de humo antiguo solidificado en formas caprichosas.',
-    type: 'approach', danger: 'medium', stepMin: 320, stepMax: 480,
-    eventBias: { resource: 0.2, exploration: 0.3, creature: 0.3, threat: 0.15, microevent: 0.05 },
-  },
-  {
-    id: 'seg_ttc_02', routeId: 'route_tide_to_coal', order: 2,
-    name: 'Carbón bajo el agua',
-    description: 'Galería parcialmente inundada con agua oscura que oculta el suelo de carbón.',
-    type: 'crossing', danger: 'high', stepMin: 340, stepMax: 510,
-    eventBias: { resource: 0.1, exploration: 0.3, creature: 0.35, threat: 0.2, microevent: 0.05 },
-  },
-  {
-    id: 'seg_ttc_03', routeId: 'route_tide_to_coal', order: 3,
-    name: 'Bajada oscura',
-    description: 'El último tramo no tiene faroles; la oscuridad es total salvo por brasas lejanas.',
-    type: 'descent', danger: 'high', stepMin: 340, stepMax: 510,
-    eventBias: { resource: 0.05, exploration: 0.2, creature: 0.4, threat: 0.3, microevent: 0.05 },
-  },
-
-  // route_forge_to_coal — Galería de Ceniza
-  {
-    id: 'seg_ftc_01', routeId: 'route_forge_to_coal', order: 1,
-    name: 'Galería apagada',
-    description: 'Corredor de la forja ya fría; herramientas abandonadas cuelgan de las paredes.',
-    type: 'approach', danger: 'medium', stepMin: 250, stepMax: 420,
-    eventBias: { resource: 0.35, exploration: 0.3, creature: 0.2, threat: 0.1, microevent: 0.05 },
-  },
-  {
-    id: 'seg_ftc_02', routeId: 'route_forge_to_coal', order: 2,
-    name: 'Columnas de hollín',
-    description: 'Pilares naturales cubiertos de hollín milenario; el aire pesa.',
-    type: 'crossing', danger: 'medium', stepMin: 280, stepMax: 440,
-    eventBias: { resource: 0.2, exploration: 0.35, creature: 0.25, threat: 0.15, microevent: 0.05 },
-  },
-  {
-    id: 'seg_ftc_03', routeId: 'route_forge_to_coal', order: 3,
-    name: 'Bastión de carbón',
-    description: 'Las paredes son puro carbón comprimido; se escuchan voces en la roca.',
-    type: 'landmark', danger: 'medium', stepMin: 270, stepMax: 440,
-    eventBias: { resource: 0.15, exploration: 0.4, creature: 0.25, threat: 0.15, microevent: 0.05 },
-  },
-]
-
-// ── ASENTAMIENTOS DEL ABISMO ──────────────────────────────────────────────────
-export const ABYSS_SETTLEMENTS = [
-  {
-    id: 'settlement_aethel_linde',
-    name: 'Linde de Aethel',
-    type: 'village',
-    stratumId: 'stratum_01',
-    layerName: 'Raíces Ciegas',
-    zoneId: 'zone_blind_roots',
-    sectorId: 'sector_aethel_edge',
-    safetyLevel: 'safe',
-    services: ['refuge', 'basic_rest', 'rumors'],
-    visualTheme: 'casas bajas entre raíces, faroles cálidos, madera húmeda',
-    description: 'Primer asentamiento estable del descenso. Pequeño, humano y lleno de marcas de caravanas anteriores.',
-    populationTone: 'campesinos, guías, porteadores y familias acostumbradas al borde del Abismo',
-    unlocked: true,
-    tags: ['starter', 'root', 'safe'],
-  },
-  {
-    id: 'settlement_root_lantern_market',
-    name: 'Mercado de Raíz Vieja',
-    type: 'market',
-    stratumId: 'stratum_01',
-    layerName: 'Raíces Ciegas',
-    zoneId: 'zone_blind_roots',
-    sectorId: 'sector_mist_root',
-    safetyLevel: 'guarded',
-    services: ['trader', 'contracts', 'rumors'],
-    visualTheme: 'puestos de lona oscura, raíces como columnas, humo bajo',
-    description: 'Mercado subterráneo donde se venden mapas incompletos, madera rúnica y rumores baratos.',
-    populationTone: 'mercaderes, buscadores, timadores y cartógrafos de baja profundidad',
-    unlocked: false,
-    tags: ['market', 'root', 'trade'],
-  },
-  {
-    id: 'settlement_fogbreak_fort',
-    name: 'Fortín Quebrabruma',
-    type: 'fort',
-    stratumId: 'stratum_01',
-    layerName: 'Raíces Ciegas',
-    zoneId: 'zone_blind_roots',
-    sectorId: 'sector_runic_guard_ruins',
-    safetyLevel: 'guarded',
-    services: ['guard_post', 'combat_contracts', 'rest_limited'],
-    visualTheme: 'murallas rotas, piedra rúnica, braseros vigilados',
-    description: 'Puesto defensivo levantado sobre ruinas antiguas. Vigila rutas donde la niebla se rompe en oleadas.',
-    populationTone: 'guardias, veteranos, heridos, rastreadores y gente que no duerme demasiado',
-    unlocked: false,
-    tags: ['fort', 'ruins', 'combat'],
-  },
-  {
-    id: 'settlement_blind_lake_dock',
-    name: 'Muelle del Lago Ciego',
-    type: 'harbor',
-    stratumId: 'stratum_01',
-    layerName: 'Raíces Ciegas',
-    zoneId: 'zone_salt_corniche',
-    sectorId: 'sector_salt_beacon',
-    safetyLevel: 'unstable',
-    services: ['supply', 'rare_rumors', 'route_info'],
-    visualTheme: 'agua negra quieta, barcas atadas, faroles reflejados',
-    description: 'Pequeño muelle en un lago subterráneo sin cielo. Las barcas apenas se mueven, aunque el agua respira.',
-    populationTone: 'barqueros, pescadores de cueva, contrabandistas y guías salinos',
-    unlocked: false,
-    tags: ['lake', 'water', 'salt', 'harbor'],
-  },
-  {
-    id: 'settlement_dust_gate_caravanserai',
-    name: 'Caravasar del Polvo Bajo',
-    type: 'caravanserai',
-    stratumId: 'stratum_01',
-    layerName: 'Raíces Ciegas',
-    zoneId: 'zone_blind_roots',
-    sectorId: 'sector_mist_root',
-    safetyLevel: 'guarded',
-    services: ['inn', 'rest', 'contracts', 'supplies'],
-    visualTheme: 'patio circular excavado, telas ocres, animales de carga, pozo central',
-    description: 'Lugar de paso entre rutas tempranas. Más seco que el bosque, con polvo mineral y olor a cuero viejo.',
-    populationTone: 'caravaneros, posaderos, mozos de carga y exploradores novatos',
-    unlocked: false,
-    tags: ['inn', 'caravan', 'desert_hint', 'safe'],
-  },
-]
-</file>
-
 <file path="src/screens/MapScreen.jsx">
 import { useState } from 'react'
-import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA, WORLD_ROUTES, ABYSS_ZONES, WORLD_ROUTE_SEGMENTS, ABYSS_SETTLEMENTS } from '../data/gameData.js'
-import { getStratumProgress } from '../systems/abyssSystem.js'
-import {
-  getWorldScaleSummary,
-  getRoutesFromSector,
-  getRouteTypeLabel,
-  getRouteDangerLabel,
-  getRouteStepRangeLabel,
-} from '../systems/worldScaleSystem.js'
-import {
-  getSegmentsForRoute,
-  getRouteSegmentsTotalSteps,
-  getRouteSegmentDangerLabel,
-} from '../systems/routeSegmentSystem.js'
+import { ABYSS_STRATA, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS, ABYSS_SETTLEMENTS } from '../data/gameData.js'
+import VisualMapCanvas from '../components/VisualMapCanvas.jsx'
 
-const THREAT_LABEL  = { low: 'Baja', medium: 'Media', high: 'Alta' }
-const MASTERY_LABEL = ['Sin rastro', 'Conocido', 'Familiar', 'Dominado', 'Legendario']
-const THREAT_COLOR  = { low: 'var(--color-xp)', medium: 'var(--color-ember)', high: 'var(--color-hp)' }
-
-// Posiciones en espiral descendente (x%, y%)
-const ABYSS_NODE_POS = {
-  sector_aethel_edge:         { x: 50, y: 10 },
-  sector_mist_root:           { x: 26, y: 26 },
-  sector_runic_guard_ruins:   { x: 20, y: 31 },
-  sector_hollow_mushroom_cave:{ x: 44, y: 35 },
-  sector_salt_beacon:         { x: 74, y: 39 },
-  sector_tide_rock:           { x: 28, y: 54 },
-  sector_sleeping_forge:      { x: 72, y: 69 },
-  sector_coal_bastion:        { x: 50, y: 83 },
-}
-
-const CONNECTIONS = [
-  ['sector_aethel_edge',        'sector_mist_root'],
-  ['sector_aethel_edge',        'sector_salt_beacon'],
-  ['sector_mist_root',          'sector_runic_guard_ruins'],
-  ['sector_mist_root',          'sector_sleeping_forge'],
-  ['sector_runic_guard_ruins',  'sector_hollow_mushroom_cave'],
-  ['sector_salt_beacon',        'sector_tide_rock'],
-  ['sector_sleeping_forge',     'sector_coal_bastion'],
-  ['sector_tide_rock',          'sector_coal_bastion'],
-]
-
-// Bandas de estrato: y% de inicio/fin y metadatos
-const STRATA_BANDS = [
-  { id: 'stratum_01', cssClass: 'stratum-1', label: 'Estrato I',   depth: '120 m',  yMid: 18 },
-  { id: 'stratum_02', cssClass: 'stratum-2', label: 'Estrato II',  depth: '340 m',  yMid: 50 },
-  { id: 'stratum_03', cssClass: 'stratum-3', label: 'Estrato III', depth: '690 m',  yMid: 82 },
-]
-
-// Fallback para saves sin campos de Abismo (merge en handleContinue lo resuelve,
-// pero se mantiene por seguridad en renderizado).
-const STRATUM_FALLBACK = {
-  sector_aethel_edge:          { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 120, lootTier: 1 },
-  sector_mist_root:            { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 180, lootTier: 1 },
-  sector_runic_guard_ruins:    { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 210, lootTier: 1 },
-  sector_hollow_mushroom_cave: { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 235, lootTier: 1 },
-  sector_salt_beacon:          { stratumId: 'stratum_02', stratumName: 'II · Cornisa de la Sal Negra',   depth: 2, depthMeters: 340, lootTier: 2 },
-  sector_tide_rock:            { stratumId: 'stratum_02', stratumName: 'II · Cornisa de la Sal Negra',   depth: 2, depthMeters: 410, lootTier: 2 },
-  sector_sleeping_forge:       { stratumId: 'stratum_03', stratumName: 'III · Hornacinas de Ceniza', depth: 3, depthMeters: 690, lootTier: 3 },
-  sector_coal_bastion:         { stratumId: 'stratum_03', stratumName: 'III · Hornacinas de Ceniza', depth: 3, depthMeters: 760, lootTier: 3 },
-}
-
-function withAbyssMeta(sector) {
-  if (sector.stratumId) return sector
-  return { ...sector, ...(STRATUM_FALLBACK[sector.id] ?? { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas', depth: 1, depthMeters: 120, lootTier: 1 }) }
-}
-
-function BiomeIcon({ biomeId }) {
-  if (biomeId === 'coast') return (
-    <svg width="14" height="14" viewBox="0 0 16 16">
-      <path d="M2 7 Q5 4 8 7 Q11 10 14 7" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      <path d="M2 11 Q5 8 8 11 Q11 14 14 11" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.6"/>
-    </svg>
-  )
-  if (biomeId === 'forge') return (
-    <svg width="14" height="14" viewBox="0 0 16 16">
-      <path d="M5 14 V8 L3 5 H13 L11 8 V14 Z" fill="currentColor" opacity="0.55"/>
-      <path d="M8 4 Q7.5 2 8 0.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.75"/>
-    </svg>
-  )
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16">
-      <path d="M8 2 L10.5 8 H9 L11.5 13 H4.5 L7 8 H5.5 Z" fill="currentColor" opacity="0.6"/>
-    </svg>
-  )
-}
-
-function FogIcon() {
-  return (
-    <svg width="16" height="12" viewBox="0 0 18 14" style={{ opacity: 0.4 }}>
-      <path d="M1 4 Q5 1 9 4 Q13 7 17 4" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
-      <path d="M2 9 Q6 6 9 9 Q12 12 16 9" stroke="currentColor" strokeWidth="0.8" fill="none" strokeLinecap="round"/>
-    </svg>
-  )
-}
-
-const BIOME_ICON_COLOR = {
-  forest: 'var(--color-xp)',
-  coast:  'var(--color-mist)',
-  forge:  'var(--color-ember)',
-}
-
-const SAFETY_COLOR = {
-  safe:      'var(--color-xp)',
-  guarded:   'var(--color-gold)',
-  unstable:  'var(--color-mist)',
-  dangerous: 'var(--color-ember)',
-  hostile:   'var(--color-hp)',
-  mythic:    'var(--color-magic)',
-}
-
-const SETTLEMENT_TYPE_ICON = {
-  village:      '⌂',
-  market:       '⊞',
-  fort:         '▣',
-  harbor:       '⊕',
-  caravanserai: '⌀',
-  camp:         '△',
-  inn_town:     '⌂',
-  sanctuary:    '✦',
-  ruin_settlement: '◈',
-}
-
-// Positions for settlements (same sector = same pos as sector node but offset)
-const SETTLEMENT_POS = {
-  settlement_aethel_linde:         { x: 50, y: 10 },
-  settlement_root_lantern_market:  { x: 26, y: 26 },
-  settlement_fogbreak_fort:        { x: 20, y: 31 },
-  settlement_blind_lake_dock:      { x: 74, y: 39 },
-  settlement_dust_gate_caravanserai: { x: 30, y: 22 },
+function getBreadcrumb(viewLevel, layerId, routeId) {
+  const stratum = layerId ? ABYSS_STRATA.find(s => s.id === layerId) : null
+  const route   = routeId ? WORLD_ROUTES.find(r => r.id === routeId) : null
+  if (viewLevel === 'route') {
+    return `El Abismo / ${stratum?.shortName ?? '—'} / ${route?.name ?? '—'}`
+  }
+  if (viewLevel === 'layer') {
+    return `El Abismo / ${stratum?.shortName ?? '—'}`
+  }
+  return 'El Abismo'
 }
 
 export default function MapScreen({ sectors, expedition, discoveredSegmentIds = [] }) {
-  const [selectedId, setSelectedId] = useState(null)
-  const [expandedRouteId, setExpandedRouteId] = useState(null)
-  const [mapZoomLevel, setMapZoomLevel] = useState('layers')
-  const [selectedSettlementId, setSelectedSettlementId] = useState(null)
+  const [viewLevel,       setViewLevel]       = useState('abyss')
+  const [selectedLayerId, setSelectedLayerId] = useState(null)
+  const [selectedRouteId, setSelectedRouteId] = useState(null)
+  const [centerTrigger,   setCenterTrigger]   = useState(0)
 
-  const rawSelected   = sectors.find(s => s.id === selectedId)
-  const selected      = rawSelected ? withAbyssMeta(rawSelected) : null
-  const biome         = selected ? BIOMES[selected.biomeId] : null
-  const poi           = selected ? POIS[selected.poiId]     : null
-  const recentlyFound = sectors.filter(s => s.recentlyDiscovered)
   const discoveredCount = sectors.filter(s => s.discovered).length
 
-  // Progreso por estrato para el subtítulo
-  const strataProgress = ABYSS_STRATA.map(st => {
-    const prog = getStratumProgress(sectors, st.id)
-    return `${st.shortName} ${prog.discovered}/${prog.total}`
-  }).join(' · ')
+  function handleSelectLayer(id) {
+    setSelectedLayerId(id)
+    setSelectedRouteId(null)
+    setViewLevel('layer')
+    setCenterTrigger(t => t + 1)
+  }
 
-  // Escala del mundo
-  const scaleSummary = getWorldScaleSummary({
-    sectors,
-    routes: WORLD_ROUTES,
-    zones: ABYSS_ZONES,
-    strata: ABYSS_STRATA,
-  })
+  function handleSelectRoute(id) {
+    setSelectedRouteId(id)
+    setViewLevel('route')
+    setCenterTrigger(t => t + 1)
+  }
 
-  // Rutas desde el sector seleccionado
-  const selectedRoutes = selectedId
-    ? getRoutesFromSector({ routes: WORLD_ROUTES, sectorId: selectedId }).filter(
-        r => r.status === 'open' || r.status === 'discovered' || r.type === 'secret'
-      )
-    : []
-
-  function handleSelect(id) {
-    setSelectedId(prev => prev === id ? null : id)
+  function handleBack() {
+    if (viewLevel === 'route') {
+      setViewLevel('layer')
+    } else if (viewLevel === 'layer') {
+      setViewLevel('abyss')
+      setSelectedLayerId(null)
+    }
+    setCenterTrigger(t => t + 1)
   }
 
   return (
-    <div className="abyss-map-screen">
+    <div className="abyss-map-screen" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
 
-      {/* Banners de descubrimiento */}
-      {recentlyFound.map(s => {
-        const meta = withAbyssMeta(s)
-        return (
-          <div key={s.id} className="abyss-discovery-banner">
-            <div className="abyss-discovery-label">Nueva senda cartografiada</div>
-            <div className="abyss-discovery-name">{s.name}</div>
-            <div className="abyss-discovery-meta">{meta.stratumName} · {meta.depthMeters} m</div>
-          </div>
-        )
-      })}
-
-      {/* Cabecera */}
+      {/* Header */}
       <div className="abyss-header">
         <div className="abyss-title">El Abismo</div>
         <div className="abyss-subtitle">
-          {discoveredCount} / {sectors.length} zonas · {strataProgress}
-        </div>
-        <div className="abyss-scale-summary">
-          {scaleSummary.knownStrataCount} capas · {scaleSummary.zoneCount} zonas · {scaleSummary.sectorCount} sectores · {scaleSummary.routeCount} rutas
-          {' · '}{scaleSummary.maxDepthMeters} m máx.
+          {discoveredCount} / {sectors.length} zonas · {ABYSS_STRATA.length} capas
         </div>
       </div>
 
-      {/* Selector de zoom */}
-      <div style={{
-        display: 'flex', gap: 4, padding: '6px 12px',
-        borderBottom: '1px solid rgba(98,107,111,0.15)',
-        background: 'rgba(0,0,0,0.2)',
-      }}>
-        {[
-          { id: 'layers',   label: 'Capas' },
-          { id: 'routes',   label: 'Rutas' },
-          { id: 'segments', label: 'Tramos' },
-        ].map(z => (
-          <button
-            key={z.id}
-            onClick={() => { setMapZoomLevel(z.id); setSelectedId(null); setSelectedSettlementId(null) }}
-            style={{
-              flex: 1, padding: '5px 0', fontSize: '0.62rem',
-              background: mapZoomLevel === z.id ? 'rgba(79,143,149,0.2)' : 'transparent',
-              border: `1px solid ${mapZoomLevel === z.id ? 'var(--color-teal)' : 'rgba(98,107,111,0.25)'}`,
-              borderRadius: 4, color: mapZoomLevel === z.id ? 'var(--color-teal)' : 'var(--color-stone-light)',
-              cursor: 'pointer', letterSpacing: '0.04em',
-            }}
-          >
-            {z.label}
-          </button>
-        ))}
+      {/* Toolbar: breadcrumb + back + center */}
+      <div className="visual-map-toolbar">
+        <div className="visual-map-breadcrumb">
+          {getBreadcrumb(viewLevel, selectedLayerId, selectedRouteId)}
+        </div>
+        {viewLevel !== 'abyss' && (
+          <button className="visual-map-back" onClick={handleBack}>← Volver</button>
+        )}
+        <button className="visual-map-center" onClick={() => setCenterTrigger(t => t + 1)}>
+          Centrar
+        </button>
       </div>
 
-      {/* ── VISTA: CAPAS ─────────────────────────────────────────────────────── */}
-      {mapZoomLevel === 'layers' && (
-        <div>
-          <div className="abyss-board" style={{ minHeight: 280 }}>
-            {STRATA_BANDS.map(st => (
-              <div key={st.id} className={`abyss-stratum-band ${st.cssClass}`} />
-            ))}
-            {STRATA_BANDS.map(st => (
-              <div key={st.id + '-label'} className="abyss-stratum-label" style={{ top: `${st.yMid}%` }}>
-                <div className="abyss-stratum-label-name">{st.label}</div>
-                <div className="abyss-stratum-label-depth">{st.depth}</div>
-              </div>
-            ))}
-            <div className="abyss-core" />
-            <div className="abyss-depth-line" />
-
-            {/* Asentamientos */}
-            {ABYSS_SETTLEMENTS.map(s => {
-              const pos = SETTLEMENT_POS[s.id]
-              if (!pos) return null
-              const sectorDisc = sectors.find(sec => sec.id === s.sectorId)?.discovered ?? false
-              const visible    = s.unlocked || sectorDisc
-              const icon       = SETTLEMENT_TYPE_ICON[s.type] ?? '◆'
-              const isSelected = selectedSettlementId === s.id
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setSelectedSettlementId(prev => prev === s.id ? null : s.id)}
-                  style={{
-                    position: 'absolute',
-                    top:  `calc(${pos.y}% - 26px)`,
-                    left: `${pos.x}%`,
-                    transform: 'translateX(-50%)',
-                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                    opacity: visible ? 1 : 0.35,
-                    zIndex: 5,
-                  }}
-                >
-                  <div style={{
-                    width: 28, height: 28, borderRadius: 4,
-                    background: isSelected ? 'rgba(30,20,10,0.95)' : 'rgba(15,10,5,0.85)',
-                    border: `1.5px solid ${isSelected ? 'var(--color-gold)' : SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.78rem',
-                    boxShadow: isSelected ? `0 0 8px ${SAFETY_COLOR[s.safetyLevel]}44` : 'none',
-                    filter: visible ? 'none' : 'blur(0.5px) grayscale(0.8)',
-                  }}>
-                    {visible ? icon : '?'}
-                  </div>
-                  <div style={{
-                    fontSize: '0.48rem', color: visible ? 'var(--color-parchment)' : 'var(--color-stone-light)',
-                    textAlign: 'center', maxWidth: 54, lineHeight: 1.2,
-                  }}>
-                    {visible ? s.name : '—'}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Panel de detalle de asentamiento */}
-          {selectedSettlementId && (() => {
-            const s = ABYSS_SETTLEMENTS.find(x => x.id === selectedSettlementId)
-            if (!s) return null
-            const sectorDisc = sectors.find(sec => sec.id === s.sectorId)?.discovered ?? false
-            const visible    = s.unlocked || sectorDisc
-            return (
-              <div className="abyss-selected-panel">
-                {visible ? (
-                  <>
-                    <div className="abyss-detail-title" style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <span style={{ fontSize:'1.1rem' }}>{SETTLEMENT_TYPE_ICON[s.type] ?? '◆'}</span>
-                      <span>{s.name}</span>
-                    </div>
-                    <div className="abyss-detail-row">
-                      <span className="abyss-detail-key">Tipo</span>
-                      <span style={{ textTransform:'capitalize' }}>{s.type.replace(/_/g,' ')}</span>
-                    </div>
-                    <div className="abyss-detail-row">
-                      <span className="abyss-detail-key">Seguridad</span>
-                      <span style={{ color: SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)', textTransform:'capitalize' }}>
-                        {s.safetyLevel}
-                      </span>
-                    </div>
-                    <div className="abyss-detail-row">
-                      <span className="abyss-detail-key">Estrato</span>
-                      <span>{s.layerName ?? s.stratumId}</span>
-                    </div>
-                    {s.description && (
-                      <div style={{ fontSize:'0.6rem', color:'var(--color-stone-light)', fontStyle:'italic',
-                                    lineHeight:1.45, marginTop:6, opacity:0.85 }}>
-                        {s.description}
-                      </div>
-                    )}
-                    {s.services?.length > 0 && (
-                      <div className="abyss-detail-row" style={{ marginTop:4 }}>
-                        <span className="abyss-detail-key">Servicios</span>
-                        <span style={{ fontSize:'0.58rem' }}>
-                          {s.services.map(sv => sv.replace(/_/g,' ')).join(', ')}
-                        </span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="abyss-fog-text">
-                    <div>Asentamiento no descubierto.</div>
-                    <div style={{ fontSize:'0.58rem', marginTop:4, opacity:0.7 }}>
-                      Descubre el sector {s.sectorId.replace('sector_','').replace(/_/g,' ')} para revelar este lugar.
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-        </div>
-      )}
-
-      {/* ── VISTA: TRAMOS ────────────────────────────────────────────────────── */}
-      {mapZoomLevel === 'segments' && (() => {
-        const activeRouteId = expedition?.routeRun?.routeId ?? expedition?.routeId ?? null
-        const activeRoute   = WORLD_ROUTES.find(r => r.id === activeRouteId)
-        const segs          = activeRoute
-          ? WORLD_ROUTE_SEGMENTS
-              .filter(s => s.routeId === activeRouteId)
-              .sort((a, b) => a.order - b.order)
-          : []
-        const currentSegId  = expedition?.routeSegmentId
-        const completedIds  = expedition?.routeRun?.completedSegmentIds ?? []
-
-        if (!activeRoute || segs.length === 0) {
-          return (
-            <div style={{ padding:'20px 14px', textAlign:'center' }}>
-              <div style={{ fontSize:'0.65rem', color:'var(--color-stone-light)', fontStyle:'italic' }}>
-                No hay expedición activa.
-              </div>
-              <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', marginTop:8, opacity:0.6 }}>
-                Inicia una marcha con ruta para ver los tramos internos.
-              </div>
-            </div>
-          )
-        }
-
-        const fromSector = sectors.find(s => s.id === expedition?.routeRun?.fromSectorId)
-        const toSector   = sectors.find(s => s.id === expedition?.routeRun?.toSectorId)
-
-        return (
-          <div style={{ padding:'10px 12px' }}>
-            <div style={{
-              fontSize:'0.68rem', color:'var(--color-gold)', fontWeight:600, marginBottom:4,
-            }}>
-              {activeRoute.name}
-            </div>
-            <div style={{
-              fontSize:'0.56rem', color:'var(--color-stone-light)', marginBottom:10,
-            }}>
-              {fromSector?.name ?? '—'} → {toSector?.name ?? '—'}
-            </div>
-
-            <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-              {segs.map((seg, idx) => {
-                const isDone    = completedIds.includes(seg.id) || discoveredSegmentIds.includes(seg.id)
-                const isCurrent = seg.id === currentSegId
-                const isNext    = !isDone && !isCurrent && idx === segs.findIndex(s => !completedIds.includes(s.id) && s.id !== currentSegId)
-                const isHidden  = !isDone && !isCurrent
-
-                let nodeColor = 'rgba(98,107,111,0.3)'
-                let textColor = 'var(--color-stone-light)'
-                if (isDone)    { nodeColor = 'rgba(184,148,74,0.7)';  textColor = 'var(--color-gold)' }
-                if (isCurrent) { nodeColor = 'var(--color-teal)';     textColor = 'var(--color-parchment)' }
-
-                return (
-                  <div key={seg.id} style={{ display:'flex', alignItems:'stretch', gap:8 }}>
-                    {/* Línea vertical + nodo */}
-                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:18, flexShrink:0 }}>
-                      {idx > 0 && (
-                        <div style={{
-                          width: 1.5, flex:'0 0 8px',
-                          background: isDone ? 'rgba(184,148,74,0.5)' : 'rgba(98,107,111,0.2)',
-                          borderLeft: isDone ? 'none' : '1.5px dashed rgba(98,107,111,0.25)',
-                        }} />
-                      )}
-                      <div style={{
-                        width: 14, height: 14, borderRadius: isCurrent ? 3 : 7,
-                        border: `1.5px solid ${nodeColor}`,
-                        background: isDone ? 'rgba(184,148,74,0.18)' : isCurrent ? 'rgba(79,143,149,0.22)' : 'transparent',
-                        display:'flex', alignItems:'center', justifyContent:'center',
-                        flexShrink: 0,
-                      }}>
-                        {isDone && (
-                          <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(184,148,74,0.8)' }} />
-                        )}
-                        {isCurrent && (
-                          <div style={{ width:4, height:4, borderRadius:1, background:'var(--color-teal)' }} />
-                        )}
-                      </div>
-                      {idx < segs.length - 1 && (
-                        <div style={{
-                          width: 1.5, flex:'0 0 20px',
-                          background: isDone ? 'rgba(184,148,74,0.35)' : 'rgba(98,107,111,0.15)',
-                          borderLeft: isDone ? 'none' : '1.5px dashed rgba(98,107,111,0.2)',
-                        }} />
-                      )}
-                    </div>
-
-                    {/* Texto del segmento */}
-                    <div style={{ flex:1, paddingBottom:idx < segs.length - 1 ? 0 : 2, paddingTop: idx === 0 ? 0 : 8 }}>
-                      <div style={{ fontSize:'0.68rem', color:textColor, fontWeight:isCurrent ? 600 : 400 }}>
-                        {isHidden && !isNext
-                          ? 'Tramo desconocido'
-                          : isNext
-                          ? `Siguiente tramo · ${seg.name}`
-                          : `${seg.order}. ${seg.name}`
-                        }
-                        {isCurrent && <span style={{ marginLeft:6, fontSize:'0.52rem', color:'var(--color-teal)' }}>← actual</span>}
-                      </div>
-                      {(isDone || isCurrent) && (
-                        <div style={{ fontSize:'0.55rem', color:'var(--color-stone-light)', marginTop:1, opacity:0.75 }}>
-                          {seg.stepMin}–{seg.stepMax} pasos · {seg.type}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* ── VISTA: RUTAS — usa el tablero original ───────────────────────────── */}
-      {mapZoomLevel === 'routes' && (<>
-
-      {/* Tablero */}
-      <div className="abyss-board">
-
-        {/* Bandas de estrato */}
-        {STRATA_BANDS.map(st => (
-          <div key={st.id} className={`abyss-stratum-band ${st.cssClass}`} />
-        ))}
-
-        {/* Etiquetas de estrato (derecha) */}
-        {STRATA_BANDS.map(st => (
-          <div key={st.id + '-label'} className="abyss-stratum-label" style={{ top: `${st.yMid}%` }}>
-            <div className="abyss-stratum-label-name">{st.label}</div>
-            <div className="abyss-stratum-label-depth">{st.depth}</div>
-          </div>
-        ))}
-
-        {/* Núcleo central (glow sutil) */}
-        <div className="abyss-core" />
-
-        {/* Línea de profundidad */}
-        <div className="abyss-depth-line" />
-
-        {/* Conexiones SVG */}
-        <svg className="abyss-connections" viewBox="0 0 100 100" preserveAspectRatio="none">
-          {CONNECTIONS.map(([aId, bId]) => {
-            const aPos = ABYSS_NODE_POS[aId]
-            const bPos = ABYSS_NODE_POS[bId]
-            if (!aPos || !bPos) return null
-            const aSec = sectors.find(s => s.id === aId)
-            const bSec = sectors.find(s => s.id === bId)
-            const both = aSec?.discovered && bSec?.discovered
-            return (
-              <line
-                key={`${aId}-${bId}`}
-                x1={aPos.x} y1={aPos.y}
-                x2={bPos.x} y2={bPos.y}
-                stroke={both ? 'rgba(79,143,149,0.42)' : 'rgba(52,58,61,0.22)'}
-                strokeWidth="0.75"
-                strokeDasharray={both ? undefined : '1.8 2.2'}
-              />
-            )
-          })}
-        </svg>
-
-        {/* Nodos */}
-        {sectors.map(s => {
-          const pos = ABYSS_NODE_POS[s.id]
-          if (!pos) return null
-          const meta = withAbyssMeta(s)
-          const isSelected = s.id === selectedId
-          const nodeClass = [
-            'abyss-node',
-            s.discovered         ? 'discovered'          : 'hidden',
-            isSelected           ? 'selected'            : '',
-            s.recentlyDiscovered ? 'recently-discovered' : '',
-            (s.discovered && s.secret) ? 'secret-discovered' : '',
-          ].filter(Boolean).join(' ')
-
-          return (
-            <button
-              key={s.id}
-              className={nodeClass}
-              style={{
-                top:  `calc(${pos.y}% - 22px)`,
-                left: `${pos.x}%`,
-                transform: 'translateX(-50%)',
-              }}
-              onClick={() => handleSelect(s.id)}
-            >
-              {s.recentlyDiscovered && <div className="abyss-new-badge">Nuevo</div>}
-              {s.discovered && s.secret && <div className="abyss-node-secret-badge">Secreto</div>}
-              <div className="abyss-node-circle">
-                {s.discovered ? (
-                  <div className="abyss-node-icon" style={{ color: BIOME_ICON_COLOR[s.biomeId] ?? 'var(--color-parchment)' }}>
-                    <BiomeIcon biomeId={s.biomeId} />
-                  </div>
-                ) : (
-                  <div className="abyss-node-fog"><FogIcon /></div>
-                )}
-              </div>
-              <div className="abyss-node-name">
-                {s.discovered ? s.name : '???'}
-              </div>
-              {s.discovered && (
-                <div className="abyss-node-depth">{meta.depthMeters} m</div>
-              )}
-            </button>
-          )
-        })}
+      {/* Visual map canvas */}
+      <div className="visual-map-viewport">
+        <VisualMapCanvas
+          viewLevel={viewLevel}
+          selectedLayerId={selectedLayerId}
+          selectedRouteId={selectedRouteId}
+          sectors={sectors}
+          routes={WORLD_ROUTES}
+          routeSegments={WORLD_ROUTE_SEGMENTS}
+          settlements={ABYSS_SETTLEMENTS}
+          discoveredSegmentIds={discoveredSegmentIds}
+          expedition={expedition}
+          onSelectLayer={handleSelectLayer}
+          onSelectSettlement={() => {}}
+          onSelectRoute={handleSelectRoute}
+          centerTrigger={centerTrigger}
+        />
       </div>
-
-      {/* Panel de detalle */}
-      {selected && (
-        <div className="abyss-selected-panel">
-          {selected.discovered ? (
-            <>
-              <div className="abyss-detail-title">
-                {selected.recentlyDiscovered && (
-                  <span className="abyss-new-badge" style={{ position: 'static', transform: 'none', marginRight: 8, fontSize: '0.48rem' }}>Nuevo</span>
-                )}
-                {selected.name}
-              </div>
-
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Estrato</span>
-                <span>{selected.stratumName ?? '—'}</span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Profundidad</span>
-                <span>{selected.depthMeters ?? '—'} m</span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Loot</span>
-                <span>Tier {selected.lootTier ?? 1}</span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Bioma</span>
-                <span>{biome?.name ?? '—'}</span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Amenaza</span>
-                <span style={{ color: THREAT_COLOR[selected.threat] ?? 'var(--color-stone-light)' }}>
-                  {THREAT_LABEL[selected.threat] ?? '—'}
-                </span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Dominio</span>
-                <span>{MASTERY_LABEL[selected.masteryLevel ?? 0]}</span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Visitas</span>
-                <span>{selected.visits}</span>
-              </div>
-              {poi && (
-                <div className="abyss-detail-row">
-                  <span className="abyss-detail-key">Lugar</span>
-                  <span>{poi.name}</span>
-                </div>
-              )}
-              {(selected.resources ?? []).length > 0 && (
-                <div className="abyss-detail-row">
-                  <span className="abyss-detail-key">Recursos</span>
-                  <span style={{ fontSize: '0.62rem' }}>
-                    {(selected.resources ?? []).map(r => RESOURCES[r]?.name).filter(Boolean).join(', ')}
-                  </span>
-                </div>
-              )}
-              {(selected.enemyPool ?? []).length > 0 && (
-                <div className="abyss-detail-row">
-                  <span className="abyss-detail-key">Amenazas</span>
-                  <span style={{ fontSize: '0.62rem', color: 'var(--color-ember)' }}>
-                    {(selected.enemyPool ?? []).map(id => ENEMIES[id]?.name).filter(Boolean).join(', ')}
-                  </span>
-                </div>
-              )}
-              {(selected.connections ?? []).length > 0 && (
-                <div className="abyss-detail-row">
-                  <span className="abyss-detail-key">Sendas</span>
-                  <span style={{ fontSize: '0.62rem' }}>
-                    {(selected.connections ?? []).map(cid => {
-                      const cs = sectors.find(s => s.id === cid)
-                      return cs?.discovered ? cs.name : 'senda en bruma'
-                    }).join(', ')}
-                  </span>
-                </div>
-              )}
-              {/* Rutas desde aquí */}
-              {selectedRoutes.length > 0 && (
-                <div className="world-routes-section">
-                  <div className="world-routes-label">Rutas desde aquí</div>
-                  {selectedRoutes.map(r => {
-                    const isSecretHidden = r.type === 'secret' && r.status === 'hidden'
-                    const routeSegs  = getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: r.id })
-                    const segTotal   = getRouteSegmentsTotalSteps(routeSegs)
-                    const isExpanded = expandedRouteId === r.id
-
-                    return isSecretHidden ? (
-                      <div key={r.id} className="world-route-item world-route-hidden">
-                        <div className="world-route-name">Ruta oculta</div>
-                        <div className="world-route-meta">Condición desconocida</div>
-                        {routeSegs.length > 0 && (
-                          <div className="world-route-segment-count route-segment-hidden">
-                            {routeSegs.length} tramos desconocidos
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div
-                        key={r.id}
-                        className="world-route-item"
-                        style={{ cursor: routeSegs.length > 0 ? 'pointer' : 'default' }}
-                        onClick={() => routeSegs.length > 0 && setExpandedRouteId(prev => prev === r.id ? null : r.id)}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                          <div className="world-route-name">{r.name}</div>
-                          {routeSegs.length > 0 && (
-                            <span style={{ fontSize: '0.48rem', color: 'var(--color-stone-light)', opacity: 0.7 }}>
-                              {isExpanded ? '▲' : '▼'}
-                            </span>
-                          )}
-                        </div>
-                        <div className="world-route-meta">
-                          {getRouteTypeLabel(r.type)} · {getRouteStepRangeLabel(r)} · {getRouteDangerLabel(r)}
-                        </div>
-                        {routeSegs.length > 0 && (
-                          <div className="world-route-segment-count">
-                            {routeSegs.length} tramos · {segTotal.min}–{segTotal.max} pasos
-                          </div>
-                        )}
-                        {isExpanded && (
-                          <div className="route-segment-list">
-                            {routeSegs.map(seg => (
-                              <div key={seg.id} className={`route-segment-row route-segment-danger-${seg.danger}`}>
-                                <span className="route-segment-index">{seg.order}.</span>
-                                <div>
-                                  <span className="route-segment-name">{seg.name}</span>
-                                  <span className="route-segment-meta">
-                                    {' · '}{seg.stepMin}–{seg.stepMax} pasos · {getRouteSegmentDangerLabel(seg)}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {selected.secret && (
-                <div className="secret-discovery-note">
-                  Zona secreta · acceso por senda oculta
-                </div>
-              )}
-              {biome?.description && (
-                <div style={{ marginTop: 8, fontSize: '0.6rem', color: 'var(--color-stone-light)', fontStyle: 'italic', lineHeight: 1.45, opacity: 0.75 }}>
-                  {biome.description}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="abyss-fog-text">
-              <FogIcon />
-              <div style={{ marginTop: 8 }}>
-                Senda cubierta por la bruma.<br />
-                Desciende y explora estratos conectados para revelar este lugar.
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      </>)}
-
     </div>
   )
 }
-</file>
-
-<file path="docs/ABYSS_DESIGN.md">
-# El Abismo — Diseño Expandido
-
-> Documento complementario al PROJECT_BRIEF. Profundiza en el diseño del mundo, los estratos y los sistemas de exploración.
-> Para la biblia de mundo completa (estratos, facciones, lugares, NPCs, zonas secretas, reglas de contenido), ver `docs/WORLD_BIBLE.md`.
-> Para la paleta de color, tokens CSS y reglas de uso visual, ver `docs/COLOR_BIBLE.md`.
->
-> **Identidad visual:** Color Bible inicial implementada como tokens CSS y reglas de uso (17A).
-
----
-
-## Concepto del Mundo
-
-El Abismo es una grieta profunda que lleva siglos existiendo bajo el mundo conocido. Nadie sabe dónde termina. Los mapas del Abismo son fragmentarios, contradictorios y siempre incompletos. Cada expedición que regresa trae versiones diferentes del mismo tramo.
-
-Lo que sí saben los expedicionarios:
-
-- Cada capa se vuelve más oscura, más antigua, más peligrosa.
-- Los recursos se vuelven más raros y más valiosos cuanto más abajo.
-- Algunas zonas solo existen para quienes saben mirar.
-- La criatura que llevas contigo cambia la forma en que percibes el Abismo.
-- No todos los que bajan pretenden subir.
-
----
-
-## Geometría del Abismo
-
-El Abismo no es un pozo. Es una estructura en espiral, con niveles que se van abriendo hacia los lados conforme se baja.
-
-Cada estrato es un anillo de zonas interconectadas. El jugador puede moverse lateralmente dentro del estrato (de zona en zona) o descender al siguiente estrato usando una ruta de bajada.
-
-```
-          [Linde de Raíz]
-        /    |    \     |
- [Zona A] [Zona B] [Zona C] [Zona Secreta]
-          |         |
-      [Corredor de Esporas]
-        /    |    \
-  [Zona D] [Zona E] ...
-          |
-      [Cuenca de Resina]
-          ...
-```
-
-Las rutas entre estratos no son simples escaleras. Pueden ser:
-
-- cornisas de roca
-- grietas verticales
-- escaleras excavadas por colonias
-- agujeros caídos
-- túneles de agua seca
-- corrientes de lava solidificada
-
-Cada tipo de ruta puede requerir condiciones especiales para cruzarse.
-
----
-
-## Los Estratos
-
-### Principios de diseño por estrato
-
-Cada estrato debe tener:
-
-1. **Identidad visual clara** — se ve diferente desde el primer momento
-2. **Fauna específica** — al menos dos criaturas propias
-3. **Recurso propio** — al menos un material único
-4. **Zona secreta** — al menos una con condición de acceso no trivial
-5. **Peligro escalado** — coherente con la profundidad
-6. **Evento de primer descubrimiento** — primera vez que bajas aquí, ocurre algo especial
-
-### Catálogo provisional de estratos
-
-#### Estrato 1 — Linde de Raíz
-- **Profundidad:** 1
-- **Bioma:** raíces antiguas, tierra húmeda, hongos pequeños
-- **Color dominante:** verde oscuro, marrón tierra, negro cálido
-- **Luz:** tenues brillos de esporas pequeñas, faroles de exploradores anteriores
-- **Enemigos:** Saqueador Rúnico, Araña de Raíz
-- **Recursos:** Madera Rúnica, Raíz de Aethel
-- **Secreto:** Cueva de setas detrás de muro de raíces — requiere golpe contundente o mascota pesada
-- **Peligro:** bajo
-- **Loot tier:** 1
-- **Contratables encontrables:** Ivar, rastreador de esporas; Errante de Caminos
-
----
-
-#### Estrato 2 — Corredor de Esporas
-- **Profundidad:** 2
-- **Bioma:** hongos luminosos, niebla de esporas, túneles estrechos
-- **Color dominante:** azul-violeta apagado, marrón húmedo, blanco sucio
-- **Luz:** hongos bioluminiscentes, nula luz exterior
-- **Enemigos:** Hongo Marchante, Araña de Esporas
-- **Recursos:** Quitina Blanda, Espora Luminosa
-- **Secreto:** Galería de hongos dorados — requiere máscara filtrante o criatura con resistencia a esporas
-- **Peligro:** bajo-medio
-- **Loot tier:** 2
-- **Riesgo especial:** exposición prolongada a esporas sin protección → penalización de marcha
-
----
-
-#### Estrato 3 — Cuenca de Resina
-- **Profundidad:** 3
-- **Bioma:** resina endurecida, brasas enterradas, colonias primitivas
-- **Color dominante:** ámbar oscuro, negro, naranja profundo
-- **Luz:** brasas bajo la resina, grietas naranjas en la roca
-- **Enemigos:** Colono de Resina, Guardia Larvario
-- **Recursos:** Núcleo de Resina, Brasa Enterrada, Quitina Dura
-- **Secreto:** Galería sellada por resina antigua — requiere herramienta disolvente
-- **Peligro:** medio
-- **Loot tier:** 2–3
-
----
-
-#### Estrato 4 — Cámara de las Hormigas de Fuego
-- **Profundidad:** 4
-- **Bioma:** túneles rojizos, resina ardiente, colonias subterráneas masivas
-- **Color dominante:** rojo ladrillo, negro quemado, ámbar intenso
-- **Luz:** galerías bioluminiscentes de la colonia, resina ardiente
-- **Enemigos:**
-  - Hormiga Obrera (daño bajo, en grupo, sin foco en jugador solo)
-  - Hormiga Soldado (daño medio, persigue)
-  - Reina Larvaria (jefe de estrato, acceso por zona secreta)
-- **Recursos:** Quitina Ardiente, Mandíbula Ígnea, Resina Viva
-- **Secreto:** Cámara de la Reina — requiere armadura resistente al fuego
-- **Peligro:** medio-alto
-- **Loot tier:** 3
-- **Restricción de acceso al estrato:** armadura con resistencia mínima al calor o mascota ígnea
-
----
-
-#### Estrato 5 — Ruinas Sumergidas
-- **Profundidad:** 5
-- **Bioma:** piedra antigua bajo agua oscura, runas casi borradas, silencio
-- **Color dominante:** gris piedra, azul oscuro, verde musgo
-- **Luz:** runas brillando bajo el agua, roca fosforescente
-- **Enemigos:** Guardián de Piedra, Espectro de Agua
-- **Recursos:** Piedra Arcana, Runa Sumergida, Alga de Sellos
-- **Secreto:** Cámara de archivo subterráneo — requiere habilidad de lectura de runas (Runario Errante o contratable rúnico)
-- **Peligro:** alto
-- **Loot tier:** 4
-
----
-
-#### Estrato 6 — Desierto de Hielo
-- **Profundidad:** 6
-- **Bioma:** viento helado, cristales de hielo, silencio absoluto
-- **Color dominante:** azul pálido, blanco frío, gris plateado
-- **Luz:** reflejo de cristales, sin luz propia
-- **Enemigos:** Gólem de Hielo, Cazador de Niebla Fría
-- **Recursos:** Cristal de Hielo, Escarcha Arcana, Viento Solidificado (metáfora de recurso)
-- **Secreto:** Cueva de Eco — requiere crear silencio absoluto durante la marcha (sin acciones activas)
-- **Peligro:** alto
-- **Loot tier:** 4–5
-- **Restricción:** equipo con protección de frío o criatura adaptada al frío
-
----
-
-#### Estrato 7 — Forjas Enterradas
-- **Profundidad:** 7
-- **Bioma:** hierro vivo, magma contenido, constructos durmientes, ruido metálico constante
-- **Color dominante:** negro hierro, naranja magma, rojo brasa
-- **Luz:** magma, brasas, forjas antiguas que aún arden
-- **Enemigos:** Constructo Dormido (despertado por vibración), Guardia de Forja
-- **Recursos:** Hierro Vivo, Polvo de Magma, Núcleo Constructo
-- **Secreto:** Cámara de planos de forja — requiere contratable con especialidad en constructos
-- **Peligro:** muy alto
-- **Loot tier:** 5
-
----
-
-#### Estrato 8 — Huesos Colosales
-- **Profundidad:** 8
-- **Bioma:** esqueletos de criaturas antiguas, cavernas enormes, polvo de eras extintas
-- **Color dominante:** blanco hueso, ocre, gris ceniza
-- **Luz:** hongos necrófagos, bio-luz de microorganismos en los huesos
-- **Enemigos:** Necrófago de Polvo, Eco de la Criatura (sombra fantasmal del animal del que son los huesos)
-- **Recursos:** Hueso Antiguo, Polvo de Era, Escama Fósil
-- **Secreto:** Cámara craneal — dentro del cráneo de una criatura colosal. Requiere explorador o criatura pequeña que quepa.
-- **Peligro:** extremo
-- **Loot tier:** 6
-
----
-
-#### Estrato 9 — Campo de Cristal Vivo
-- **Profundidad:** 9
-- **Bioma:** cristales que crecen, resuenan, cortan
-- **Color dominante:** violeta, azul frío, blanco diamante
-- **Luz:** los cristales emiten luz propia, pero cambia con el movimiento
-- **Enemigos:** Fragmento Animado, Resonador
-- **Recursos:** Cristal Vivo, Eco de Luz, Fragmento de Resonancia
-- **Secreto:** Cámara de resonancia perfecta — requiere mascota o criatura con habilidad de sintonía
-- **Peligro:** extremo
-- **Loot tier:** 7
-
----
-
-#### Fondo del Abismo — Sin nombre confirmado
-- **Profundidad:** máxima
-- **Estado:** desconocido
-- **Lore:** nadie ha llegado y vuelto igual. Los relatos son contradictorios.
-- **Nota de diseño:** se diseñará en profundidad cuando el resto del Abismo esté estable.
-
----
-
-## Zonas Secretas — Diseño Detallado
-
-### Por qué existen
-
-Las zonas secretas hacen que la misma ruta pueda sentirse diferente para dos jugadores. Son una recompensa por la preparación, la exploración activa y el conocimiento acumulado del mundo.
-
-No deben ser aleatorias puras. El jugador debe sentir que tiene agencia: si consigue la armadura adecuada, si lleva la mascota adecuada, si ha llegado al rango adecuado, podrá acceder a cosas que otros no ven.
-
-### Condiciones de acceso
-
-| Tipo de condición | Ejemplo |
-|---|---|
-| Equipo | Armadura resistente al fuego para Cámara de la Reina |
-| Mascota | Rastreador para detectar setas ocultas |
-| Herramienta | Disolvente para resina sellada |
-| Contratable | Especialista rúnico para archivos subterráneos |
-| Rango | Rango IV para acceder a Cámara Sellada Antigua |
-| Recurso | Quitina Dura como "llave" para puerta de colonia |
-| Arcano | Arquetipo Runario para leer sellos de acceso |
-| Probabilidad | Modificada por dominio del estrato + mascota de detección |
-| Silencio / inacción | Cueva de Eco (no hacer acciones durante X pasos) |
-| Combinación | Mascota + equipo + rango mínimo |
-
-### Visibilidad
-
-- Zona completamente oculta: ni la entrada existe en el mapa hasta que se descubre.
-- Zona bloqueada visible: la entrada existe, hay indicación de que hay algo, pero está sellada.
-- Zona revelada sin acceso: el jugador ve la entrada pero no puede entrar todavía.
-
-Cada opción genera una tensión diferente. La completamente oculta premia la exploración. La bloqueada visible genera objetivos a largo plazo.
-
----
-
-## Mascotas — Diseño de Exploración
-
-### Principio general
-
-La mascota no es un seguidor pasivo. Es un sensor activo del Abismo. Su especialidad natural (agua, fuego, tierra, oscuridad, etc.) determina con qué biomas resuena y qué puede detectar.
-
-### Sistema de habilidades de exploración (futuro)
-
-Cada mascota tiene uno o más rasgos de exploración que se activan al entrar en estratos compatibles.
-
-| Rasgo | Efecto |
-|---|---|
-| Olfato de esporas | Revela hongos ocultos, aumenta probabilidad de setas raras |
-| Resistencia ígnea | Puede acceder a zonas de calor sin penalización |
-| Instinto de niebla | Mejora detección de rutas ocultas y zonas de niebla |
-| Sintonía cristalina | Detecta cristales y recursos brillantes en paredes |
-| Aplastamiento | Puede abrir pasos derrumbados o sellados por peso |
-| Paso silencioso | No activa constructos durmientes ni guardias de vibración |
-| Lectura de aguas | Detecta ruinas bajo agua, mejora exploración en Ruinas Sumergidas |
-
-### Diseño por criatura existente
-
-**Velthar** (ciervo rúnico)
-- Instinto de Niebla: descubre rutas en zonas de niebla
-- Olfato arcano: puede detectar runas poco visibles
-- Mejor en: Linde de Raíz, Corredor de Esporas, Ruinas Sumergidas
-
-**Brontik** (bestia acorazada)
-- Aplastamiento: abre pasos bloqueados por derrumbe
-- Resistencia básica: tolera calor moderado sin penalización
-- Mejor en: Cuenca de Resina, Forjas Enterradas
-
-**Lúmora** (familiar cristalino)
-- Sintonía cristalina: detecta recursos en paredes
-- Emisión de luz: ilumina zonas de oscuridad total
-- Mejor en: Campo de Cristal Vivo, Desierto de Hielo, Cámara de los Huesos
-
----
-
-## Subordinados y Contratos — Diseño Detallado
-
-### Por qué existen
-
-El loop de marcha avanza cuando el jugador camina. Pero el jugador no puede estar siempre activo. Los contratos permiten que el juego avance en rutas ya conocidas mientras el jugador no está jugando activamente.
-
-No reemplazan la marcha activa. La complementan. El jugador que camina más sigue avanzando más lejos. Pero el que contrata bien puede optimizar su progresión general.
-
-### Tipos de contratables
-
-| Clase | Función principal |
-|---|---|
-| Explorador | Busca rutas, descubre zonas, genera informe de hallazgos |
-| Rastreador | Detecta zonas secretas, rastros de recursos raros |
-| Recolector | Vuelve con recursos de estratos conocidos |
-| Guerrero | Limpia amenazas en zonas de riesgo bajo o medio |
-| Rúnico | Lee sellos, descifra accesos, facilita Ruinas Sumergidas |
-| Guía de Abismo | Accede a estratos más profundos con menor riesgo |
-| Especialista | Función única (p.ej. especialista en constructos, en hongos) |
-
-### Ciclo de un contrato
-
-1. Jugador encuentra al contratable durante la marcha
-2. Jugador acepta o rechaza contratarlo
-3. Si acepta: el contratable queda disponible en lista
-4. Jugador asigna contrato: estrato objetivo, duración, modo
-5. El contratable parte (tiempo real cuenta)
-6. Al volver: informe narrativo breve + botín + posibles consecuencias
-7. Contratable disponible para nuevo contrato (salvo que haya sufrido consecuencia)
-
-### Sistema de consecuencias
-
-Los contratos no son seguros garantizados. Dependiendo del riesgo del estrato y el rango del contratable:
-
-- sin consecuencias (riesgo bajo + contratable adecuado)
-- herida leve (necesita descanso antes del siguiente contrato)
-- herida grave (tiempo de recuperación más largo)
-- objeto perdido (requería equipamiento que no tenía)
-- misión fallida (no trajo loot, solo el informe)
-- desaparecido (extremo, alta rareza — requiere rescate o se pierde)
-
-Los contratables de alto rango tienen menor probabilidad de consecuencias negativas.
-
-### Ejemplo de contrato
-
-```
-Contratable: Ivar, rastreador de esporas (Rango II)
-Especialidad: Hongos y túneles húmedos
-Contrato: Buscar zona secreta en Corredor de Esporas
-Duración: 3 horas tiempo real
-Riesgo: bajo (especialidad compatible, rango adecuado)
-Coste: 2x Espora Luminosa
-Resultado esperado: informe de 1-2 zonas detectadas + posible Espora Rara
-```
-
----
-
-## Rangos — Estructura Provisional
-
-### Por qué existen
-
-El rango representa el historial del expedicionario. No es el nivel del personaje en el sentido de stats. Es su reputación en el Abismo y su acceso a recursos avanzados.
-
-### Escala provisional
-
-| Rango | Nombre | Requisitos de desbloqueo |
-|---|---|---|
-| I | Iniciado | Completar primer descenso |
-| II | Caminante | Alcanzar estrato 3, completar 5 contratos |
-| III | Explorador | Alcanzar estrato 5, descubrir 3 zonas secretas |
-| IV | Expedicionario | Alcanzar estrato 7, tener contratable de Rango III |
-| V | Capataz del Abismo | Alcanzar estrato 9 |
-| VI | Señor de Profundidad | Llegar al fondo del Abismo |
-
-Los rangos desbloquean: contratos más largos, estratos restringidos, equipo avanzado, reputación para encontrar mejores contratables.
-
-### Relación con zonas secretas
-
-Algunas zonas secretas tienen requisito de rango mínimo, no de equipo. El mundo reconoce a quienes han sobrevivido más tiempo.
-
----
-
-## Encuentros con Contratables — Escenas
-
-### Momentos de encuentro
-
-Los encuentros deben sentirse narrativos, no como una pantalla de tienda.
-
-Ejemplos de escenas de encuentro:
-
-**Campamento en el Corredor de Esporas**
-> "Un hombre con máscara de cuero está sentado al lado de las esporas. Tiene dos frascos sellados y un palo largo con gancho. Se llama Ivar. Dice que lleva tres semanas aquí abajo rastreando la ruta de los hongos. No pide mucho."
-
-**Rescate tras combate**
-> "Una figura atrapada bajo una roca. La liberás. Se llama Marra. Es arquera. No tiene adónde ir. Pregunta si lleváis destino."
-
-**Posada subterránea**
-> "Hay una posada excavada en la roca. Cuatro mesas. Un tabernero sin cara visible. En la esquina, un mercenario con los brazos quemados ofrece sus servicios para los estratos de fuego."
-
-Cada encuentro tiene un nombre, una escena breve, y una propuesta de contrato o asociación.
-
----
-
-## Enciclopedia del Abismo — Estructura
-
-### Propósito
-
-El jugador descubre el mundo lentamente. La enciclopedia registra ese conocimiento. No es obligatoria para avanzar, pero es recompensada.
-
-### Categorías de entrada
-
-**Fauna** — criaturas, jefes, comportamientos observados, debilidades, resistencias, relación con su bioma.
-
-**Flora y Recursos** — materiales encontrados, usos, zonas de aparición, rareza, cómo conseguirlos.
-
-**Biomas** — descripción del estrato, primeras impresiones, riesgos, curiosidades.
-
-**Zonas Secretas** — registradas solo si se han visitado. Pueden quedar como "incompletas" si no se cumplió la condición de acceso pero se encontró la entrada.
-
-**Contratables** — nombre, especialidad, historial de contratos, rasgo de carácter.
-
-**Reliquias** — objetos únicos con historia en el mundo. Solo hay uno de cada uno.
-
-**Eventos** — microeventos que solo ocurren una vez. Cuando ocurren, quedan registrados.
-
-**Lore del Abismo** — fragmentos de historia encontrados en ruinas, sellos, archivos sumergidos.
-
-### Mecánica de progresión
-
-Completar una entrada de enciclopedia puede dar:
-- XP
-- Oro
-- Recurso raro
-- Información sobre un secreto del siguiente estrato
-- Título o reconocimiento
-
----
-
-## La Torre — Diseño Expandido
-
-La Torre no es el destino original. Es lo que hay después del Abismo.
-
-### Naturaleza
-
-La Torre es la inversión del Abismo. Donde el Abismo baja, la Torre sube. Donde el Abismo es oscuro y húmedo, la Torre es fría y ventosa. Donde el Abismo guarda cosas antiguas, la Torre guarda cosas futuras.
-
-No se sabe qué hay en la cima. Igual que nadie sabe qué hay en el fondo del Abismo.
-
-### Relación con el Abismo
-
-Ambos existen en el mismo mundo. La Torre está a la superficie, visible para quien no baja. El Abismo es invisible desde arriba. Los que han llegado al fondo del Abismo son los únicos que pueden ver la puerta de la Torre.
-
-### Diferencias de diseño respecto al Abismo
-
-| Aspecto | Abismo | Torre |
-|---|---|---|
-| Dirección | Descender | Ascender |
-| Luz | Disminuye | Aumenta (y duele) |
-| Enemigos | Criaturas subterráneas | Constructos, guardianes arcanos, eco de héroes caídos |
-| Recursos | Materiales orgánicos y arcanos | Cristales superiores, aleaciones raras, runas de poder |
-| Acceso | Desde inicio del juego | Solo tras completar el Abismo al menos una vez |
-| Peligro | Escalado por profundidad | Constante y extremo desde el primer piso |
-| Estética | Oscuridad, raíces, piedra húmeda | Viento, runas brillantes, piedra seca y fría, cielos imposibles |
-
-### Motivo narrativo
-
-El Abismo baja hacia lo que fue. La Torre sube hacia lo que podría ser. El jugador que ha bajado hasta el fondo y ha regresado lleva en sí algo que la Torre reconoce.
-
----
-
-## Notas de Diseño — Reglas Generales
-
-### Sobre la escala
-
-No poner números inflados. Un estrato 4 no debe requerir 10,000 pasos para conquistarse. El diseño de escalado debe priorizar la sensación de progreso semanal real, no el número absurdo.
-
-### Sobre la curva
-
-El Abismo debe sentirse como exploración, no como grind. Cada estrato nuevo debe traer algo visualmente diferente y una pregunta nueva ("¿qué hay más abajo?"). La curiosidad es el motor.
-
-### Sobre los secretos
-
-Nunca deben ser aleatorios puros. Si la condición no está cumplida, la zona no aparece. Esto da al jugador control real. La satisfacción de cumplir la condición y desbloquear algo es más potente que la suerte.
-
-### Sobre los contratos
-
-Los contratables no deben ser "set and forget" sin sentido. Cada contrato debe tener un pequeño riesgo y devolver algo narrativo, aunque sea una sola frase de informe.
-
-### Sobre la Torre
-
-No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y estables. La Torre es postgame, no aspiración de roadmap cercano.
-
----
-
-## Estado Actual de Implementación
-
-| Sistema | Estado |
-|---|---|
-| Loop de marcha | Implementado |
-| Modo prototipo de pasos (botones) | Implementado |
-| Sistema de pasos stepSource | Implementado como base técnica |
-| Podómetro web (DeviceMotionEvent) | Experimental, aparcado temporalmente por fiabilidad |
-| Combate con posturas | Implementado |
-| Guardado local | Implementado |
-| Eco de Marcha | Implementado |
-| Mapa del Abismo | Implementado en versión visual inicial (9A) |
-| Estratos del Abismo (datos base) | Implementado — 3 estratos, 8 sectores, incluida expansión Estrato I (14A) |
-| Loot por profundidad | Implementado en base inicial (9B) |
-| Enemigos por estrato (enemyPool) | Implementado en base inicial (9B) |
-| Códice del Abismo | Implementado en primera versión — 6 categorías (10A) |
-| Zonas secretas funcionales | Primera versión implementada: Cueva de Setas Huecas (Estrato I), acceso por Velthar/Exploración o dominio de la Ruina (14A) |
-| World scale | Primera versión de zonas y rutas explícitas añadida (18A). El mapa queda preparado para múltiples rutas y futuros tramos por ruta. WORLD_ROUTES (8 rutas), ABYSS_ZONES (6 zonas), worldScaleSystem.js. |
-| Route segments | Tramos internos añadidos (18B). WORLD_ROUTE_SEGMENTS: 24 tramos (3 por ruta × 8 rutas). routeSegmentSystem.js con getSegmentsForRoute, getRouteSegmentsTotalSteps, getRouteSegmentSummary. MapScreen muestra conteo + pasos totales y lista expandible. CaravanScreen muestra preview compacto "Tramo estimado". Ruta secreta oculta nombres pero muestra conteo. |
-| Route segments gameplay | Primera versión jugable (18C). Las rutas pueden recorrerse por segmentos internos. La marcha avanza automáticamente de segmento a segmento sin botón intermedio. Al completar todos los segmentos, la caravana se mueve al sector destino, se aplica discovery/mastery allí, y el Diario registra "Ruta completada · NOMBRE". El combate dentro de un segmento no rompe el progreso de ruta. |
-| Contratos básicos | Implementados: encargos por lugar seguro, un contrato activo, resultado variable y diario (13A–13B) |
-| Subordinados y contratos complejos | No implementado |
-| Rangos | Base implementada como cálculo derivado — Rango I/II/III según XP, sectores y contratos (15A) |
-| Mercenarios/exploradores contratables | Bloqueados hasta Rango II · UI preparada · temporizadores reales pendientes (15A) |
-| Rangos | No implementado |
-| Mascotas con habilidades activas | No implementado |
-| Sistema de equipo mecánico | No implementado |
-| Skins visuales | No implementado |
-| La Torre | No implementado |
-
----
-
-Map UX: mapa por zoom conceptual con tres vistas — Capas (asentamientos y grandes conexiones), Rutas (sectores y rutas visibles entre ellos) y Tramos (tramos internos de la expedición activa). Los tramos se descubren progresivamente: completados con nombre, actual marcado, siguiente como silueta, posteriores ocultos como niebla.
-
-*Este documento es una referencia de diseño viva. Se actualiza conforme el juego avanza.*
 </file>
 
 <file path="src/App.jsx">
@@ -8300,6 +7862,527 @@ export default function App() {
     </AppShell>
   )
 }
+</file>
+
+<file path="docs/ABYSS_DESIGN.md">
+# El Abismo — Diseño Expandido
+
+> Documento complementario al PROJECT_BRIEF. Profundiza en el diseño del mundo, los estratos y los sistemas de exploración.
+> Para la biblia de mundo completa (estratos, facciones, lugares, NPCs, zonas secretas, reglas de contenido), ver `docs/WORLD_BIBLE.md`.
+> Para la paleta de color, tokens CSS y reglas de uso visual, ver `docs/COLOR_BIBLE.md`.
+>
+> **Identidad visual:** Color Bible inicial implementada como tokens CSS y reglas de uso (17A).
+
+---
+
+## Concepto del Mundo
+
+El Abismo es una grieta profunda que lleva siglos existiendo bajo el mundo conocido. Nadie sabe dónde termina. Los mapas del Abismo son fragmentarios, contradictorios y siempre incompletos. Cada expedición que regresa trae versiones diferentes del mismo tramo.
+
+Lo que sí saben los expedicionarios:
+
+- Cada capa se vuelve más oscura, más antigua, más peligrosa.
+- Los recursos se vuelven más raros y más valiosos cuanto más abajo.
+- Algunas zonas solo existen para quienes saben mirar.
+- La criatura que llevas contigo cambia la forma en que percibes el Abismo.
+- No todos los que bajan pretenden subir.
+
+---
+
+## Geometría del Abismo
+
+El Abismo no es un pozo. Es una estructura en espiral, con niveles que se van abriendo hacia los lados conforme se baja.
+
+Cada estrato es un anillo de zonas interconectadas. El jugador puede moverse lateralmente dentro del estrato (de zona en zona) o descender al siguiente estrato usando una ruta de bajada.
+
+```
+          [Linde de Raíz]
+        /    |    \     |
+ [Zona A] [Zona B] [Zona C] [Zona Secreta]
+          |         |
+      [Corredor de Esporas]
+        /    |    \
+  [Zona D] [Zona E] ...
+          |
+      [Cuenca de Resina]
+          ...
+```
+
+Las rutas entre estratos no son simples escaleras. Pueden ser:
+
+- cornisas de roca
+- grietas verticales
+- escaleras excavadas por colonias
+- agujeros caídos
+- túneles de agua seca
+- corrientes de lava solidificada
+
+Cada tipo de ruta puede requerir condiciones especiales para cruzarse.
+
+---
+
+## Los Estratos
+
+### Principios de diseño por estrato
+
+Cada estrato debe tener:
+
+1. **Identidad visual clara** — se ve diferente desde el primer momento
+2. **Fauna específica** — al menos dos criaturas propias
+3. **Recurso propio** — al menos un material único
+4. **Zona secreta** — al menos una con condición de acceso no trivial
+5. **Peligro escalado** — coherente con la profundidad
+6. **Evento de primer descubrimiento** — primera vez que bajas aquí, ocurre algo especial
+
+### Catálogo provisional de estratos
+
+#### Estrato 1 — Linde de Raíz
+- **Profundidad:** 1
+- **Bioma:** raíces antiguas, tierra húmeda, hongos pequeños
+- **Color dominante:** verde oscuro, marrón tierra, negro cálido
+- **Luz:** tenues brillos de esporas pequeñas, faroles de exploradores anteriores
+- **Enemigos:** Saqueador Rúnico, Araña de Raíz
+- **Recursos:** Madera Rúnica, Raíz de Aethel
+- **Secreto:** Cueva de setas detrás de muro de raíces — requiere golpe contundente o mascota pesada
+- **Peligro:** bajo
+- **Loot tier:** 1
+- **Contratables encontrables:** Ivar, rastreador de esporas; Errante de Caminos
+
+---
+
+#### Estrato 2 — Corredor de Esporas
+- **Profundidad:** 2
+- **Bioma:** hongos luminosos, niebla de esporas, túneles estrechos
+- **Color dominante:** azul-violeta apagado, marrón húmedo, blanco sucio
+- **Luz:** hongos bioluminiscentes, nula luz exterior
+- **Enemigos:** Hongo Marchante, Araña de Esporas
+- **Recursos:** Quitina Blanda, Espora Luminosa
+- **Secreto:** Galería de hongos dorados — requiere máscara filtrante o criatura con resistencia a esporas
+- **Peligro:** bajo-medio
+- **Loot tier:** 2
+- **Riesgo especial:** exposición prolongada a esporas sin protección → penalización de marcha
+
+---
+
+#### Estrato 3 — Cuenca de Resina
+- **Profundidad:** 3
+- **Bioma:** resina endurecida, brasas enterradas, colonias primitivas
+- **Color dominante:** ámbar oscuro, negro, naranja profundo
+- **Luz:** brasas bajo la resina, grietas naranjas en la roca
+- **Enemigos:** Colono de Resina, Guardia Larvario
+- **Recursos:** Núcleo de Resina, Brasa Enterrada, Quitina Dura
+- **Secreto:** Galería sellada por resina antigua — requiere herramienta disolvente
+- **Peligro:** medio
+- **Loot tier:** 2–3
+
+---
+
+#### Estrato 4 — Cámara de las Hormigas de Fuego
+- **Profundidad:** 4
+- **Bioma:** túneles rojizos, resina ardiente, colonias subterráneas masivas
+- **Color dominante:** rojo ladrillo, negro quemado, ámbar intenso
+- **Luz:** galerías bioluminiscentes de la colonia, resina ardiente
+- **Enemigos:**
+  - Hormiga Obrera (daño bajo, en grupo, sin foco en jugador solo)
+  - Hormiga Soldado (daño medio, persigue)
+  - Reina Larvaria (jefe de estrato, acceso por zona secreta)
+- **Recursos:** Quitina Ardiente, Mandíbula Ígnea, Resina Viva
+- **Secreto:** Cámara de la Reina — requiere armadura resistente al fuego
+- **Peligro:** medio-alto
+- **Loot tier:** 3
+- **Restricción de acceso al estrato:** armadura con resistencia mínima al calor o mascota ígnea
+
+---
+
+#### Estrato 5 — Ruinas Sumergidas
+- **Profundidad:** 5
+- **Bioma:** piedra antigua bajo agua oscura, runas casi borradas, silencio
+- **Color dominante:** gris piedra, azul oscuro, verde musgo
+- **Luz:** runas brillando bajo el agua, roca fosforescente
+- **Enemigos:** Guardián de Piedra, Espectro de Agua
+- **Recursos:** Piedra Arcana, Runa Sumergida, Alga de Sellos
+- **Secreto:** Cámara de archivo subterráneo — requiere habilidad de lectura de runas (Runario Errante o contratable rúnico)
+- **Peligro:** alto
+- **Loot tier:** 4
+
+---
+
+#### Estrato 6 — Desierto de Hielo
+- **Profundidad:** 6
+- **Bioma:** viento helado, cristales de hielo, silencio absoluto
+- **Color dominante:** azul pálido, blanco frío, gris plateado
+- **Luz:** reflejo de cristales, sin luz propia
+- **Enemigos:** Gólem de Hielo, Cazador de Niebla Fría
+- **Recursos:** Cristal de Hielo, Escarcha Arcana, Viento Solidificado (metáfora de recurso)
+- **Secreto:** Cueva de Eco — requiere crear silencio absoluto durante la marcha (sin acciones activas)
+- **Peligro:** alto
+- **Loot tier:** 4–5
+- **Restricción:** equipo con protección de frío o criatura adaptada al frío
+
+---
+
+#### Estrato 7 — Forjas Enterradas
+- **Profundidad:** 7
+- **Bioma:** hierro vivo, magma contenido, constructos durmientes, ruido metálico constante
+- **Color dominante:** negro hierro, naranja magma, rojo brasa
+- **Luz:** magma, brasas, forjas antiguas que aún arden
+- **Enemigos:** Constructo Dormido (despertado por vibración), Guardia de Forja
+- **Recursos:** Hierro Vivo, Polvo de Magma, Núcleo Constructo
+- **Secreto:** Cámara de planos de forja — requiere contratable con especialidad en constructos
+- **Peligro:** muy alto
+- **Loot tier:** 5
+
+---
+
+#### Estrato 8 — Huesos Colosales
+- **Profundidad:** 8
+- **Bioma:** esqueletos de criaturas antiguas, cavernas enormes, polvo de eras extintas
+- **Color dominante:** blanco hueso, ocre, gris ceniza
+- **Luz:** hongos necrófagos, bio-luz de microorganismos en los huesos
+- **Enemigos:** Necrófago de Polvo, Eco de la Criatura (sombra fantasmal del animal del que son los huesos)
+- **Recursos:** Hueso Antiguo, Polvo de Era, Escama Fósil
+- **Secreto:** Cámara craneal — dentro del cráneo de una criatura colosal. Requiere explorador o criatura pequeña que quepa.
+- **Peligro:** extremo
+- **Loot tier:** 6
+
+---
+
+#### Estrato 9 — Campo de Cristal Vivo
+- **Profundidad:** 9
+- **Bioma:** cristales que crecen, resuenan, cortan
+- **Color dominante:** violeta, azul frío, blanco diamante
+- **Luz:** los cristales emiten luz propia, pero cambia con el movimiento
+- **Enemigos:** Fragmento Animado, Resonador
+- **Recursos:** Cristal Vivo, Eco de Luz, Fragmento de Resonancia
+- **Secreto:** Cámara de resonancia perfecta — requiere mascota o criatura con habilidad de sintonía
+- **Peligro:** extremo
+- **Loot tier:** 7
+
+---
+
+#### Fondo del Abismo — Sin nombre confirmado
+- **Profundidad:** máxima
+- **Estado:** desconocido
+- **Lore:** nadie ha llegado y vuelto igual. Los relatos son contradictorios.
+- **Nota de diseño:** se diseñará en profundidad cuando el resto del Abismo esté estable.
+
+---
+
+## Zonas Secretas — Diseño Detallado
+
+### Por qué existen
+
+Las zonas secretas hacen que la misma ruta pueda sentirse diferente para dos jugadores. Son una recompensa por la preparación, la exploración activa y el conocimiento acumulado del mundo.
+
+No deben ser aleatorias puras. El jugador debe sentir que tiene agencia: si consigue la armadura adecuada, si lleva la mascota adecuada, si ha llegado al rango adecuado, podrá acceder a cosas que otros no ven.
+
+### Condiciones de acceso
+
+| Tipo de condición | Ejemplo |
+|---|---|
+| Equipo | Armadura resistente al fuego para Cámara de la Reina |
+| Mascota | Rastreador para detectar setas ocultas |
+| Herramienta | Disolvente para resina sellada |
+| Contratable | Especialista rúnico para archivos subterráneos |
+| Rango | Rango IV para acceder a Cámara Sellada Antigua |
+| Recurso | Quitina Dura como "llave" para puerta de colonia |
+| Arcano | Arquetipo Runario para leer sellos de acceso |
+| Probabilidad | Modificada por dominio del estrato + mascota de detección |
+| Silencio / inacción | Cueva de Eco (no hacer acciones durante X pasos) |
+| Combinación | Mascota + equipo + rango mínimo |
+
+### Visibilidad
+
+- Zona completamente oculta: ni la entrada existe en el mapa hasta que se descubre.
+- Zona bloqueada visible: la entrada existe, hay indicación de que hay algo, pero está sellada.
+- Zona revelada sin acceso: el jugador ve la entrada pero no puede entrar todavía.
+
+Cada opción genera una tensión diferente. La completamente oculta premia la exploración. La bloqueada visible genera objetivos a largo plazo.
+
+---
+
+## Mascotas — Diseño de Exploración
+
+### Principio general
+
+La mascota no es un seguidor pasivo. Es un sensor activo del Abismo. Su especialidad natural (agua, fuego, tierra, oscuridad, etc.) determina con qué biomas resuena y qué puede detectar.
+
+### Sistema de habilidades de exploración (futuro)
+
+Cada mascota tiene uno o más rasgos de exploración que se activan al entrar en estratos compatibles.
+
+| Rasgo | Efecto |
+|---|---|
+| Olfato de esporas | Revela hongos ocultos, aumenta probabilidad de setas raras |
+| Resistencia ígnea | Puede acceder a zonas de calor sin penalización |
+| Instinto de niebla | Mejora detección de rutas ocultas y zonas de niebla |
+| Sintonía cristalina | Detecta cristales y recursos brillantes en paredes |
+| Aplastamiento | Puede abrir pasos derrumbados o sellados por peso |
+| Paso silencioso | No activa constructos durmientes ni guardias de vibración |
+| Lectura de aguas | Detecta ruinas bajo agua, mejora exploración en Ruinas Sumergidas |
+
+### Diseño por criatura existente
+
+**Velthar** (ciervo rúnico)
+- Instinto de Niebla: descubre rutas en zonas de niebla
+- Olfato arcano: puede detectar runas poco visibles
+- Mejor en: Linde de Raíz, Corredor de Esporas, Ruinas Sumergidas
+
+**Brontik** (bestia acorazada)
+- Aplastamiento: abre pasos bloqueados por derrumbe
+- Resistencia básica: tolera calor moderado sin penalización
+- Mejor en: Cuenca de Resina, Forjas Enterradas
+
+**Lúmora** (familiar cristalino)
+- Sintonía cristalina: detecta recursos en paredes
+- Emisión de luz: ilumina zonas de oscuridad total
+- Mejor en: Campo de Cristal Vivo, Desierto de Hielo, Cámara de los Huesos
+
+---
+
+## Subordinados y Contratos — Diseño Detallado
+
+### Por qué existen
+
+El loop de marcha avanza cuando el jugador camina. Pero el jugador no puede estar siempre activo. Los contratos permiten que el juego avance en rutas ya conocidas mientras el jugador no está jugando activamente.
+
+No reemplazan la marcha activa. La complementan. El jugador que camina más sigue avanzando más lejos. Pero el que contrata bien puede optimizar su progresión general.
+
+### Tipos de contratables
+
+| Clase | Función principal |
+|---|---|
+| Explorador | Busca rutas, descubre zonas, genera informe de hallazgos |
+| Rastreador | Detecta zonas secretas, rastros de recursos raros |
+| Recolector | Vuelve con recursos de estratos conocidos |
+| Guerrero | Limpia amenazas en zonas de riesgo bajo o medio |
+| Rúnico | Lee sellos, descifra accesos, facilita Ruinas Sumergidas |
+| Guía de Abismo | Accede a estratos más profundos con menor riesgo |
+| Especialista | Función única (p.ej. especialista en constructos, en hongos) |
+
+### Ciclo de un contrato
+
+1. Jugador encuentra al contratable durante la marcha
+2. Jugador acepta o rechaza contratarlo
+3. Si acepta: el contratable queda disponible en lista
+4. Jugador asigna contrato: estrato objetivo, duración, modo
+5. El contratable parte (tiempo real cuenta)
+6. Al volver: informe narrativo breve + botín + posibles consecuencias
+7. Contratable disponible para nuevo contrato (salvo que haya sufrido consecuencia)
+
+### Sistema de consecuencias
+
+Los contratos no son seguros garantizados. Dependiendo del riesgo del estrato y el rango del contratable:
+
+- sin consecuencias (riesgo bajo + contratable adecuado)
+- herida leve (necesita descanso antes del siguiente contrato)
+- herida grave (tiempo de recuperación más largo)
+- objeto perdido (requería equipamiento que no tenía)
+- misión fallida (no trajo loot, solo el informe)
+- desaparecido (extremo, alta rareza — requiere rescate o se pierde)
+
+Los contratables de alto rango tienen menor probabilidad de consecuencias negativas.
+
+### Ejemplo de contrato
+
+```
+Contratable: Ivar, rastreador de esporas (Rango II)
+Especialidad: Hongos y túneles húmedos
+Contrato: Buscar zona secreta en Corredor de Esporas
+Duración: 3 horas tiempo real
+Riesgo: bajo (especialidad compatible, rango adecuado)
+Coste: 2x Espora Luminosa
+Resultado esperado: informe de 1-2 zonas detectadas + posible Espora Rara
+```
+
+---
+
+## Rangos — Estructura Provisional
+
+### Por qué existen
+
+El rango representa el historial del expedicionario. No es el nivel del personaje en el sentido de stats. Es su reputación en el Abismo y su acceso a recursos avanzados.
+
+### Escala provisional
+
+| Rango | Nombre | Requisitos de desbloqueo |
+|---|---|---|
+| I | Iniciado | Completar primer descenso |
+| II | Caminante | Alcanzar estrato 3, completar 5 contratos |
+| III | Explorador | Alcanzar estrato 5, descubrir 3 zonas secretas |
+| IV | Expedicionario | Alcanzar estrato 7, tener contratable de Rango III |
+| V | Capataz del Abismo | Alcanzar estrato 9 |
+| VI | Señor de Profundidad | Llegar al fondo del Abismo |
+
+Los rangos desbloquean: contratos más largos, estratos restringidos, equipo avanzado, reputación para encontrar mejores contratables.
+
+### Relación con zonas secretas
+
+Algunas zonas secretas tienen requisito de rango mínimo, no de equipo. El mundo reconoce a quienes han sobrevivido más tiempo.
+
+---
+
+## Encuentros con Contratables — Escenas
+
+### Momentos de encuentro
+
+Los encuentros deben sentirse narrativos, no como una pantalla de tienda.
+
+Ejemplos de escenas de encuentro:
+
+**Campamento en el Corredor de Esporas**
+> "Un hombre con máscara de cuero está sentado al lado de las esporas. Tiene dos frascos sellados y un palo largo con gancho. Se llama Ivar. Dice que lleva tres semanas aquí abajo rastreando la ruta de los hongos. No pide mucho."
+
+**Rescate tras combate**
+> "Una figura atrapada bajo una roca. La liberás. Se llama Marra. Es arquera. No tiene adónde ir. Pregunta si lleváis destino."
+
+**Posada subterránea**
+> "Hay una posada excavada en la roca. Cuatro mesas. Un tabernero sin cara visible. En la esquina, un mercenario con los brazos quemados ofrece sus servicios para los estratos de fuego."
+
+Cada encuentro tiene un nombre, una escena breve, y una propuesta de contrato o asociación.
+
+---
+
+## Enciclopedia del Abismo — Estructura
+
+### Propósito
+
+El jugador descubre el mundo lentamente. La enciclopedia registra ese conocimiento. No es obligatoria para avanzar, pero es recompensada.
+
+### Categorías de entrada
+
+**Fauna** — criaturas, jefes, comportamientos observados, debilidades, resistencias, relación con su bioma.
+
+**Flora y Recursos** — materiales encontrados, usos, zonas de aparición, rareza, cómo conseguirlos.
+
+**Biomas** — descripción del estrato, primeras impresiones, riesgos, curiosidades.
+
+**Zonas Secretas** — registradas solo si se han visitado. Pueden quedar como "incompletas" si no se cumplió la condición de acceso pero se encontró la entrada.
+
+**Contratables** — nombre, especialidad, historial de contratos, rasgo de carácter.
+
+**Reliquias** — objetos únicos con historia en el mundo. Solo hay uno de cada uno.
+
+**Eventos** — microeventos que solo ocurren una vez. Cuando ocurren, quedan registrados.
+
+**Lore del Abismo** — fragmentos de historia encontrados en ruinas, sellos, archivos sumergidos.
+
+### Mecánica de progresión
+
+Completar una entrada de enciclopedia puede dar:
+- XP
+- Oro
+- Recurso raro
+- Información sobre un secreto del siguiente estrato
+- Título o reconocimiento
+
+---
+
+## La Torre — Diseño Expandido
+
+La Torre no es el destino original. Es lo que hay después del Abismo.
+
+### Naturaleza
+
+La Torre es la inversión del Abismo. Donde el Abismo baja, la Torre sube. Donde el Abismo es oscuro y húmedo, la Torre es fría y ventosa. Donde el Abismo guarda cosas antiguas, la Torre guarda cosas futuras.
+
+No se sabe qué hay en la cima. Igual que nadie sabe qué hay en el fondo del Abismo.
+
+### Relación con el Abismo
+
+Ambos existen en el mismo mundo. La Torre está a la superficie, visible para quien no baja. El Abismo es invisible desde arriba. Los que han llegado al fondo del Abismo son los únicos que pueden ver la puerta de la Torre.
+
+### Diferencias de diseño respecto al Abismo
+
+| Aspecto | Abismo | Torre |
+|---|---|---|
+| Dirección | Descender | Ascender |
+| Luz | Disminuye | Aumenta (y duele) |
+| Enemigos | Criaturas subterráneas | Constructos, guardianes arcanos, eco de héroes caídos |
+| Recursos | Materiales orgánicos y arcanos | Cristales superiores, aleaciones raras, runas de poder |
+| Acceso | Desde inicio del juego | Solo tras completar el Abismo al menos una vez |
+| Peligro | Escalado por profundidad | Constante y extremo desde el primer piso |
+| Estética | Oscuridad, raíces, piedra húmeda | Viento, runas brillantes, piedra seca y fría, cielos imposibles |
+
+### Motivo narrativo
+
+El Abismo baja hacia lo que fue. La Torre sube hacia lo que podría ser. El jugador que ha bajado hasta el fondo y ha regresado lleva en sí algo que la Torre reconoce.
+
+---
+
+## Notas de Diseño — Reglas Generales
+
+### Sobre la escala
+
+No poner números inflados. Un estrato 4 no debe requerir 10,000 pasos para conquistarse. El diseño de escalado debe priorizar la sensación de progreso semanal real, no el número absurdo.
+
+### Sobre la curva
+
+El Abismo debe sentirse como exploración, no como grind. Cada estrato nuevo debe traer algo visualmente diferente y una pregunta nueva ("¿qué hay más abajo?"). La curiosidad es el motor.
+
+### Sobre los secretos
+
+Nunca deben ser aleatorios puros. Si la condición no está cumplida, la zona no aparece. Esto da al jugador control real. La satisfacción de cumplir la condición y desbloquear algo es más potente que la suerte.
+
+### Sobre los contratos
+
+Los contratables no deben ser "set and forget" sin sentido. Cada contrato debe tener un pequeño riesgo y devolver algo narrativo, aunque sea una sola frase de informe.
+
+### Sobre la Torre
+
+No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y estables. La Torre es postgame, no aspiración de roadmap cercano.
+
+---
+
+## Estado Actual de Implementación
+
+| Sistema | Estado |
+|---|---|
+| Loop de marcha | Implementado |
+| Modo prototipo de pasos (botones) | Implementado |
+| Sistema de pasos stepSource | Implementado como base técnica |
+| Podómetro web (DeviceMotionEvent) | Experimental, aparcado temporalmente por fiabilidad |
+| Combate con posturas | Implementado |
+| Guardado local | Implementado |
+| Eco de Marcha | Implementado |
+| Mapa del Abismo | Implementado en versión visual inicial (9A) |
+| Estratos del Abismo (datos base) | Implementado — 3 estratos, 8 sectores, incluida expansión Estrato I (14A) |
+| Loot por profundidad | Implementado en base inicial (9B) |
+| Enemigos por estrato (enemyPool) | Implementado en base inicial (9B) |
+| Códice del Abismo | Implementado en primera versión — 6 categorías (10A) |
+| Zonas secretas funcionales | Primera versión implementada: Cueva de Setas Huecas (Estrato I), acceso por Velthar/Exploración o dominio de la Ruina (14A) |
+| World scale | Primera versión de zonas y rutas explícitas añadida (18A). El mapa queda preparado para múltiples rutas y futuros tramos por ruta. WORLD_ROUTES (8 rutas), ABYSS_ZONES (6 zonas), worldScaleSystem.js. |
+| Route segments | Tramos internos añadidos (18B). WORLD_ROUTE_SEGMENTS: 24 tramos (3 por ruta × 8 rutas). routeSegmentSystem.js con getSegmentsForRoute, getRouteSegmentsTotalSteps, getRouteSegmentSummary. MapScreen muestra conteo + pasos totales y lista expandible. CaravanScreen muestra preview compacto "Tramo estimado". Ruta secreta oculta nombres pero muestra conteo. |
+| Route segments gameplay | Primera versión jugable (18C). Las rutas pueden recorrerse por segmentos internos. La marcha avanza automáticamente de segmento a segmento sin botón intermedio. Al completar todos los segmentos, la caravana se mueve al sector destino, se aplica discovery/mastery allí, y el Diario registra "Ruta completada · NOMBRE". El combate dentro de un segmento no rompe el progreso de ruta. |
+| Contratos básicos | Implementados: encargos por lugar seguro, un contrato activo, resultado variable y diario (13A–13B) |
+| Subordinados y contratos complejos | No implementado |
+| Rangos | Base implementada como cálculo derivado — Rango I/II/III según XP, sectores y contratos (15A) |
+| Mercenarios/exploradores contratables | Bloqueados hasta Rango II · UI preparada · temporizadores reales pendientes (15A) |
+| Rangos | No implementado |
+| Mascotas con habilidades activas | No implementado |
+| Sistema de equipo mecánico | No implementado |
+| Skins visuales | No implementado |
+| La Torre | No implementado |
+
+---
+
+## UX del Mapa Visual (19A)
+
+El mapa del Abismo es una pantalla SVG interactiva con navegación en tres niveles:
+
+**Nivel Abismo** — vista general: tres bandas de estrato con colores de bioma, profundidad en metros, recuento de asentamientos y rutas. Toca una banda para descender.
+
+**Nivel Capa** — vista de capa: asentamientos como nodos SVG con iconos por tipo (aldea, mercado, fuerte, puerto, caravansarai). Las rutas entre asentamientos son trazados curvos Bézier con color por nivel de peligro. Los asentamientos no descubiertos aparecen como niebla (`?`). Toca una ruta para ver sus tramos.
+
+**Nivel Ruta** — vista de ruta: los tramos se distribuyen en curva suave. Completados muestran nombre, el actual está marcado, el siguiente tiene silueta, los posteriores son niebla (`?`). Toca un tramo para ver su detalle.
+
+Interacción:
+- Pan/arrastre sin librerías externas (pointer events, ref `didDragRef` para discriminar tap vs. drag)
+- Botón "Centrar" resetea pan sin recargar
+- Breadcrumb "El Abismo / Capa / Ruta" con botón "← Volver"
+- Panel de detalle inferior al seleccionar un nodo
+
+*Este documento es una referencia de diseño viva. Se actualiza conforme el juego avanza.*
 </file>
 
 <file path="src/screens/CaravanScreen.jsx">
@@ -13260,6 +13343,94 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   font-style: italic;
   opacity: 0.8;
 }
+
+/* ── Visual Map ──────────────────────────────────────────────────────────── */
+
+.visual-map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-bottom: 1px solid rgba(98,107,111,0.14);
+  background: rgba(0,0,0,0.22);
+  flex-shrink: 0;
+}
+
+.visual-map-breadcrumb {
+  flex: 1;
+  font-size: 0.56rem;
+  color: var(--color-stone-light);
+  opacity: 0.8;
+  font-family: Georgia,serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.visual-map-back {
+  font-size: 0.58rem;
+  background: none;
+  border: 1px solid rgba(98,107,111,0.28);
+  color: var(--color-mist);
+  padding: 3px 9px;
+  border-radius: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.visual-map-center {
+  font-size: 0.56rem;
+  background: none;
+  border: 1px solid rgba(98,107,111,0.22);
+  color: var(--color-stone-light);
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.visual-map-viewport {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.visual-map-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.visual-map-svg {
+  width: 100%;
+  flex: 1;
+  display: block;
+  min-height: 260px;
+  max-height: 400px;
+  background: radial-gradient(ellipse at 50% 20%, rgba(20,15,8,0.9) 0%, rgba(6,4,2,1) 100%);
+}
+
+.visual-map-detail-panel {
+  background: rgba(10,8,5,0.94);
+  border-top: 1px solid rgba(98,107,111,0.18);
+  padding: 9px 14px;
+  flex-shrink: 0;
+}
+
+.visual-map-empty-detail {
+  padding: 8px 14px;
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  text-align: center;
+  opacity: 0.5;
+  font-style: italic;
+  border-top: 1px solid rgba(98,107,111,0.12);
+  flex-shrink: 0;
+}
 </file>
 
 <file path="docs/PROJECT_BRIEF.md">
@@ -13781,7 +13952,7 @@ No es modal encima de la ruta. Es una escena propia.
 ## Mapa — Hacia el Abismo en Espiral
 
 ### Estado actual
-Mapa visual del Abismo implementado en versión inicial (9A): tablero vertical con bandas de estrato, nodos en espiral, panel de detalle, niebla para zonas no descubiertas. Los 6 sectores actuales están distribuidos en 3 estratos.
+Mapa visual interactivo implementado (19A): navegación por tres niveles (Abismo → Capa → Ruta), asentamientos como nodos SVG con iconos por tipo, rutas como trazados curvos Bézier, niebla de descubrimiento por segmento, pan/arrastre con discriminación tap/drag, y breadcrumb de navegación.
 
 ### Dirección futura
 El mapa evolucionará conforme se añadan estratos y sectores:
@@ -13948,11 +14119,12 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 18B — Tramos internos por ruta: routeSegmentSystem.js, 24 segmentos (8 rutas × 3), visualización en MapScreen y CaravanScreen.
 - ✅ 18C — Avance real por tramos internos: las rutas se recorren segmento a segmento y terminan en un sector destino.
 - ✅ 18D — Mapa vivo y asentamientos: zoom conceptual (Capas/Rutas/Tramos), tramos descubiertos progresivamente, pausa de 20 s entre tramos, modo bloqueado durante expedición, botón Salir de expedición, popup global de combate fuera de Caravana y primera capa con 5 asentamientos base.
+- ✅ 19A — Mapa visual interactivo: navegación Abismo → Capa → Ruta con asentamientos SVG, rutas curvas, tramos dibujados, niebla de descubrimiento y pan/arrastre.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
 - 🔲 15B — Primer estrato completo con contenido funcional diferenciado
-- 🔲 19A — Primer NPC contratable funcional
+- 🔲 19B — Primer NPC contratable funcional
 
 ### Largo Plazo
 - 🔲 Múltiples estratos con biomas propios
