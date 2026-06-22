@@ -82,9 +82,11 @@ src/systems/pedometerSystem.js
 src/systems/poiSystem.js
 src/systems/preparationSystem.js
 src/systems/rankSystem.js
+src/systems/routeSegmentSystem.js
 src/systems/saveSystem.js
 src/systems/secretSystem.js
 src/systems/stepSourceSystem.js
+src/systems/worldScaleSystem.js
 src/utils/helpers.js
 vite.config.js
 </directory_structure>
@@ -2153,6 +2155,71 @@ export function canUseMercenaryContracts({ player, sectors, contractState }) {
 }
 </file>
 
+<file path="src/systems/routeSegmentSystem.js">
+export const ROUTE_SEGMENT_TYPES = {
+  APPROACH: 'approach',
+  CROSSING: 'crossing',
+  LANDMARK: 'landmark',
+  DANGER:   'danger',
+  REST:     'rest',
+  SECRET:   'secret',
+  DESCENT:  'descent',
+  RETURN:   'return',
+}
+
+export function getRouteSegmentTypeLabel(type) {
+  const LABELS = {
+    approach: 'Aproximación',
+    crossing: 'Cruce',
+    landmark: 'Referencia',
+    danger:   'Zona de peligro',
+    rest:     'Zona de descanso',
+    secret:   'Tramo secreto',
+    descent:  'Descenso',
+    return:   'Retorno',
+  }
+  return LABELS[type] ?? type
+}
+
+export function getSegmentsForRoute({ segments, routeId }) {
+  return (segments ?? [])
+    .filter(seg => seg.routeId === routeId)
+    .sort((a, b) => a.order - b.order)
+}
+
+export function getVisibleSegmentsForRoute({ segments, route, destinationSectorDiscovered }) {
+  if (route?.type === 'secret' && !destinationSectorDiscovered) return []
+  return getSegmentsForRoute({ segments, routeId: route?.id })
+}
+
+export function getRouteSegmentStepRangeLabel(segment) {
+  if (!segment?.stepMin || !segment?.stepMax) return '—'
+  return `${segment.stepMin}–${segment.stepMax} pasos`
+}
+
+export function getRouteSegmentsTotalSteps(segments) {
+  const min = (segments ?? []).reduce((s, seg) => s + (seg.stepMin ?? 0), 0)
+  const max = (segments ?? []).reduce((s, seg) => s + (seg.stepMax ?? 0), 0)
+  return { min, max }
+}
+
+export function getRouteSegmentSummary({ route, segments }) {
+  const segs = getSegmentsForRoute({ segments, routeId: route?.id })
+  const { min, max } = getRouteSegmentsTotalSteps(segs)
+  return {
+    count: segs.length,
+    totalStepMin: min,
+    totalStepMax: max,
+    firstSegment: segs[0] ?? null,
+  }
+}
+
+export function getRouteSegmentDangerLabel(segment) {
+  const LABELS = { low: 'Riesgo bajo', medium: 'Riesgo medio', high: 'Riesgo alto' }
+  return LABELS[segment?.danger] ?? '—'
+}
+</file>
+
 <file path="src/systems/secretSystem.js">
 export function isSecretSector(sector) {
   return sector?.secret === true
@@ -2253,6 +2320,99 @@ export function getAvailableEchoSteps(stepSource) {
 }
 </file>
 
+<file path="src/systems/worldScaleSystem.js">
+export const ROUTE_TYPES = {
+  MAIN:      'main',
+  SAFE:      'safe',
+  DANGEROUS: 'dangerous',
+  SECRET:    'secret',
+  LOCKED:    'locked',
+  DESCENT:   'descent',
+  RETURN:    'return',
+  SHORTCUT:  'shortcut',
+}
+
+export const ROUTE_STATUS = {
+  OPEN:       'open',
+  HIDDEN:     'hidden',
+  LOCKED:     'locked',
+  DISCOVERED: 'discovered',
+}
+
+export function getRouteTypeLabel(type) {
+  const LABELS = {
+    main:      'Ruta principal',
+    safe:      'Ruta segura',
+    dangerous: 'Ruta peligrosa',
+    secret:    'Ruta secreta',
+    locked:    'Ruta bloqueada',
+    descent:   'Ruta de descenso',
+    return:    'Ruta de retorno',
+    shortcut:  'Atajo',
+  }
+  return LABELS[type] ?? type
+}
+
+export function getRouteStatusLabel(status) {
+  const LABELS = {
+    open:       'Abierta',
+    hidden:     'Oculta',
+    locked:     'Bloqueada',
+    discovered: 'Descubierta',
+  }
+  return LABELS[status] ?? status
+}
+
+export function getRouteDangerLabel(route) {
+  const LABELS = { low: 'Riesgo bajo', medium: 'Riesgo medio', high: 'Riesgo alto' }
+  return LABELS[route?.danger] ?? '—'
+}
+
+export function getRouteStepRangeLabel(route) {
+  if (!route?.stepMin || !route?.stepMax) return '—'
+  return `${route.stepMin}–${route.stepMax} pasos`
+}
+
+export function getRoutesFromSector({ routes, sectorId }) {
+  return (routes ?? []).filter(
+    r => r.fromSectorId === sectorId || r.toSectorId === sectorId
+  )
+}
+
+export function getVisibleRoutesFromSector({ routes, sectorId, player, sectors, contractState }) {
+  const all = getRoutesFromSector({ routes, sectorId })
+  return all.filter(r =>
+    r.status === ROUTE_STATUS.OPEN ||
+    r.status === ROUTE_STATUS.DISCOVERED
+  )
+}
+
+export function canUseRoute({ route, player, sectors, contractState }) {
+  if (!route) return false
+  if (route.status === ROUTE_STATUS.LOCKED) return false
+  if (route.status === ROUTE_STATUS.HIDDEN) return false
+  return true
+}
+
+export function getWorldScaleSummary({ sectors, routes, zones, strata }) {
+  const discoveredSectorCount = (sectors ?? []).filter(s => s.discovered).length
+  const visibleRouteCount = (routes ?? []).filter(
+    r => r.status === ROUTE_STATUS.OPEN || r.status === ROUTE_STATUS.DISCOVERED
+  ).length
+  const maxDepthMeters = Math.max(0, ...(sectors ?? []).map(s => s.depthMeters ?? 0))
+
+  return {
+    knownStrataCount:     (strata ?? []).length,
+    zoneCount:            (zones ?? []).length,
+    routeCount:           (routes ?? []).length,
+    visibleRouteCount,
+    sectorCount:          (sectors ?? []).length,
+    discoveredSectorCount,
+    maxDepthMeters,
+  }
+}
+</file>
+
 <file path="src/utils/helpers.js">
 export function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -2265,6 +2425,1184 @@ export function randomFrom(arr) {
 export function formatDate(date) {
   return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
 }
+</file>
+
+<file path="src/components/BottomNav.jsx">
+function CodexIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ display:'block' }}>
+      <path d="M2 3 C2 2 3 2 4 2 L8 3 L12 2 C13 2 14 2 14 3 L14 12 C14 13 13 13 12 13 L8 12 L4 13 C3 13 2 13 2 12 Z"
+            stroke="currentColor" strokeWidth="1.2"/>
+      <line x1="8" y1="3" x2="8" y2="12" stroke="currentColor" strokeWidth="0.8"/>
+    </svg>
+  )
+}
+
+const TABS = [
+  { id: 'caravana',   label: 'Caravana',  icon: '⛺' },
+  { id: 'mapa',       label: 'Mapa',       icon: '🗺' },
+  { id: 'diario',     label: 'Diario',     icon: '📜' },
+  { id: 'inventario', label: 'Inventario', icon: '🎒' },
+  { id: 'criatura',   label: 'Criatura',   icon: '🐾' },
+  { id: 'codice',     label: 'Códice',     icon: null },
+]
+
+export default function BottomNav({ currentTab, onChangeTab }) {
+  return (
+    <nav className="bottom-nav">
+      {TABS.map(t => (
+        <button
+          key={t.id}
+          className={currentTab === t.id ? 'active' : ''}
+          onClick={() => onChangeTab(t.id)}
+        >
+          <span className="nav-icon">
+            {t.icon !== null ? t.icon : <CodexIcon />}
+          </span>
+          {t.label}
+        </button>
+      ))}
+    </nav>
+  )
+}
+</file>
+
+<file path="src/systems/contractSystem.js">
+import { RESOURCES } from '../data/gameData.js'
+
+export const CONTRACT_STATUS = {
+  AVAILABLE: 'available',
+  ACTIVE:    'active',
+  COMPLETED: 'completed',
+}
+
+export const CONTRACT_OUTCOMES = {
+  SUCCESS: 'success',
+  PARTIAL: 'partial',
+  FAILURE: 'failure',
+}
+
+const RISK_LABELS = { low: 'Bajo', medium: 'Medio', high: 'Alto' }
+
+const CONTRACT_TEMPLATES = {
+  shelter: {
+    id:             'shelter_repair_markers',
+    title:          'Reparar marcas de farol',
+    type:           'maintenance',
+    contractorName: 'Mira de las Cornisas',
+    durationLabel:  '45 min',
+    risk:           'low',
+    description:    'Mira revisa las marcas del sendero cercano para que otras caravanas no se pierdan entre raíces.',
+    rewards:        { xp: 4, resources: { runic_wood: 1 } },
+  },
+  trader: {
+    id:             'trader_courier',
+    title:          'Recado del mercader',
+    type:           'courier',
+    contractorName: 'Tolk el Salinero',
+    durationLabel:  '1 h',
+    risk:           'low',
+    description:    'Un mercader pide entregar un paquete sellado a otro grupo de paso. Dice que no pesa, pero no deja de mirarlo.',
+    rewards:        { xp: 3, resources: { aethel_root: 1 } },
+  },
+  inn: {
+    id:             'inn_scout_route',
+    title:          'Guía hasta una senda segura',
+    type:           'scout',
+    contractorName: 'Mira de las Cornisas',
+    durationLabel:  '2 h',
+    risk:           'medium',
+    description:    'Una guía acepta revisar una ruta lateral y marcar señales para futuras expediciones.',
+    rewards:        { xp: 6, resources: { arcane_salt: 1 } },
+  },
+  tavern: {
+    id:             'tavern_sealed_chamber',
+    title:          'Rumor de cámara sellada',
+    type:           'intel',
+    contractorName: 'Dos el Silencioso',
+    durationLabel:  '3 h',
+    risk:           'medium',
+    description:    'Entre murmullos, alguien menciona una cámara cerrada. Dos puede comprobar si la pista es real.',
+    rewards:        { xp: 7, resources: { tide_crystal: 1 } },
+  },
+  forge: {
+    id:             'forge_ember_survey',
+    title:          'Inspección de brasas antiguas',
+    type:           'forge_survey',
+    contractorName: 'Sala la Herrera',
+    durationLabel:  '2 h',
+    risk:           'medium',
+    description:    'Sala revisa restos de forja y busca metal aprovechable entre placas y carbón.',
+    rewards:        { xp: 5, resources: { forge_mineral: 1 } },
+  },
+  supply: {
+    id:             'supply_box_inventory',
+    title:          'Inventario de cajas viejas',
+    type:           'supply_check',
+    contractorName: 'Tolk el Salinero',
+    durationLabel:  '1 h',
+    risk:           'low',
+    description:    'Tolk revisa cajas antiguas del puesto y separa lo útil de lo podrido.',
+    rewards:        { xp: 4, resources: { resonant_coal: 1 } },
+  },
+}
+
+// ── Estado inicial ────────────────────────────────────────────────────────────
+
+export function createInitialContractState() {
+  return {
+    activeContract:       null,
+    completedContractIds: [],
+    contractLog:          [],
+  }
+}
+
+export function sanitizeContractState(raw) {
+  if (!raw || typeof raw !== 'object') return createInitialContractState()
+  return {
+    activeContract:       (raw.activeContract && typeof raw.activeContract === 'object')
+                            ? raw.activeContract
+                            : null,
+    completedContractIds: Array.isArray(raw.completedContractIds) ? raw.completedContractIds : [],
+    contractLog:          Array.isArray(raw.contractLog) ? raw.contractLog : [],
+  }
+}
+
+// ── Consultas ─────────────────────────────────────────────────────────────────
+
+export function getAvailableContracts({ sector, contractState }) {
+  if (!sector?.poiId) return []
+  const template = CONTRACT_TEMPLATES[sector.poiId]
+  if (!template) return []
+  if (contractState?.activeContract) return []
+  if ((contractState?.completedContractIds ?? []).includes(template.id)) return []
+  return [{
+    ...template,
+    riskLabel:        RISK_LABELS[template.risk] ?? template.risk,
+    sourcePoiId:      sector.poiId,
+    sourceSectorId:   sector.id,
+    sourceSectorName: sector.name,
+  }]
+}
+
+export function isSectorContractCompleted(poiId, contractState) {
+  const template = CONTRACT_TEMPLATES[poiId]
+  if (!template) return false
+  return (contractState?.completedContractIds ?? []).includes(template.id)
+}
+
+export function canStartContract({ contractState, expedition, combat }) {
+  if (contractState?.activeContract)
+    return { ok: false, reason: 'Ya hay un contrato activo.' }
+  if (expedition?.status === 'marching')
+    return { ok: false, reason: 'No puedes aceptar contratos mientras la caravana está en marcha.' }
+  if (expedition?.status === 'combat' || combat?.status === 'awaiting_choice')
+    return { ok: false, reason: 'No puedes aceptar contratos durante un combate.' }
+  return { ok: true }
+}
+
+// ── Probabilidad ──────────────────────────────────────────────────────────────
+
+export function getContractSuccessChance({ contract, player, sector }) {
+  const BASE = { low: 85, medium: 65, high: 45 }
+  let chance = BASE[contract.risk] ?? 65
+
+  if (player?.archetypeId === 'rastreador' && (contract.type === 'scout' || contract.type === 'intel')) chance += 10
+  if (player?.archetypeId === 'guardian'   && (contract.type === 'maintenance' || contract.type === 'courier')) chance += 5
+  if (player?.archetypeId === 'runario'    && (contract.type === 'intel' || contract.type === 'forge_survey')) chance += 8
+
+  if (player?.creatureId === 'velthar' && (contract.type === 'scout' || contract.type === 'intel')) chance += 8
+  if (player?.creatureId === 'brontik' && (contract.risk === 'medium' || contract.risk === 'high')) chance += 5
+  if (player?.creatureId === 'lumora'  && Object.keys(contract.rewards?.resources ?? {}).length > 0) chance += 5
+
+  if (sector?.threat === 'high')        chance -= 10
+  else if (sector?.threat === 'medium') chance -= 5
+  if (sector?.masteryLevel >= 3)        chance += 10
+  else if (sector?.masteryLevel >= 2)   chance += 5
+
+  return Math.min(95, Math.max(5, Math.round(chance)))
+}
+
+export function getContractOutcomeLabel(outcome) {
+  if (outcome === CONTRACT_OUTCOMES.SUCCESS) return 'Éxito'
+  if (outcome === CONTRACT_OUTCOMES.PARTIAL) return 'Éxito parcial'
+  if (outcome === CONTRACT_OUTCOMES.FAILURE) return 'Fracaso'
+  return '—'
+}
+
+const OUTCOME_TEXTS = {
+  [CONTRACT_OUTCOMES.SUCCESS]: 'El encargo se completó sin incidentes. La recompensa llega íntegra a la caravana.',
+  [CONTRACT_OUTCOMES.PARTIAL]: 'El encargo se completó con complicaciones. Parte del botín se perdió durante el regreso.',
+  [CONTRACT_OUTCOMES.FAILURE]: 'El encargo salió mal. No hubo pérdidas graves, pero el contratista volvió sin materiales útiles.',
+}
+
+// ── Acciones ──────────────────────────────────────────────────────────────────
+
+export function startContract({ contract, now }) {
+  return {
+    ...contract,
+    startedAt: now ?? new Date().toISOString(),
+    status:    CONTRACT_STATUS.ACTIVE,
+  }
+}
+
+export function resolveContract({ activeContract, player, sector, now, randomValue }) {
+  if (!activeContract) return null
+
+  const successChance = getContractSuccessChance({ contract: activeContract, player, sector })
+  const roll          = Math.round((randomValue !== undefined ? randomValue : Math.random()) * 100)
+
+  let outcome
+  if (roll <= successChance) {
+    outcome = CONTRACT_OUTCOMES.SUCCESS
+  } else if (roll - successChance <= 20) {
+    outcome = CONTRACT_OUTCOMES.PARTIAL
+  } else {
+    outcome = CONTRACT_OUTCOMES.FAILURE
+  }
+
+  const baseRewards = activeContract.rewards ?? { xp: 0, resources: {} }
+  let rewardsGranted
+
+  if (outcome === CONTRACT_OUTCOMES.SUCCESS) {
+    rewardsGranted = { xp: baseRewards.xp ?? 0, resources: { ...baseRewards.resources } }
+  } else if (outcome === CONTRACT_OUTCOMES.PARTIAL) {
+    const xp        = Math.ceil((baseRewards.xp ?? 0) / 2)
+    const resources = {}
+    for (const [id, qty] of Object.entries(baseRewards.resources ?? {})) {
+      resources[id] = Math.max(1, Math.ceil(qty / 2))
+    }
+    rewardsGranted = { xp, resources }
+  } else {
+    rewardsGranted = { xp: 1, resources: {} }
+  }
+
+  const consequence = outcome === CONTRACT_OUTCOMES.FAILURE
+    ? { type: 'delay', text: 'El encargo no salió bien. La caravana gana experiencia, pero no obtiene materiales.' }
+    : null
+
+  return {
+    ...activeContract,
+    resolvedAt:    now ?? new Date().toISOString(),
+    status:        CONTRACT_STATUS.COMPLETED,
+    successChance,
+    roll,
+    outcome,
+    outcomeLabel:  getContractOutcomeLabel(outcome),
+    baseRewards,
+    rewardsGranted,
+    summaryText:   OUTCOME_TEXTS[outcome],
+    consequence,
+  }
+}
+
+export function getContractRewardText(rewards) {
+  const parts = []
+  if ((rewards?.xp ?? 0) > 0) parts.push(`+${rewards.xp} XP`)
+  for (const [id, qty] of Object.entries(rewards?.resources ?? {})) {
+    const name = RESOURCES[id]?.name ?? id.replace(/_/g, ' ')
+    parts.push(`${name} ×${qty}`)
+  }
+  return parts.join(' · ')
+}
+</file>
+
+<file path="src/systems/expeditionSystem.js">
+import { BIOMES, RESOURCES } from '../data/gameData.js'
+
+// ── Pesos por modo ────────────────────────────────────────────────────────────
+const MODE_WEIGHTS = {
+  free_march: { resource: 30, exploration: 25, creature: 20, threat: 15, microevent: 10 },
+  hunt:       { threat: 45,   creature: 15,    exploration: 15, resource: 15, microevent: 10 },
+  gather:     { resource: 55, creature: 15,    exploration: 15, microevent: 10, threat: 5  },
+  explore:    { exploration: 45, creature: 20, resource: 15,    threat: 10,  microevent: 10 },
+}
+
+// ── Texto por tipo y bioma ────────────────────────────────────────────────────
+const RESOURCE_TEXTS = {
+  forest: [
+    'Madera Rúnica asoma entre las raíces marcadas del camino.',
+    'Una raíz de Aethel crece entre las piedras de la senda.',
+    'Una hoja luminaria cae al paso de la caravana.',
+    'La tierra revela materiales entre las raíces del bosque.',
+  ],
+  coast: [
+    'Sal arcana cristalizada en una roca de la orilla.',
+    'Un cristal de marea emerge entre las piedras costeras.',
+    'Escama nácar bajo una roca a la orilla del camino.',
+    'La bruma costera deja al descubierto materiales valiosos.',
+  ],
+  forge: [
+    'Mineral de forja entre los escombros de la senda.',
+    'Una placa antigua asoma bajo el polvo del camino.',
+    'Carbón resonante junto a las brasas olvidadas.',
+    'Los restos de la forja guardan materiales todavía útiles.',
+  ],
+  default: ['Un recurso oculto al borde de la senda.'],
+}
+
+const EXPLORATION_TEXTS = [
+  'La niebla se abre y deja ver una senda estrecha entre las raíces.',
+  'Una piedra rúnica marca el borde del camino con signos antiguos.',
+  'La bruma baja y revela huellas antiguas grabadas en el barro.',
+  'Un claro entre los árboles muestra rastros de paso antiguo.',
+  'La caravana detecta una desviación oculta al margen del camino.',
+  'Una bifurcación no cartografiada aparece entre la niebla.',
+]
+
+const CREATURE_TEXTS = {
+  velthar: [
+    'Velthar olfatea una senda oculta entre la niebla.',
+    'Velthar se detiene un instante y señala algo entre los árboles.',
+    'El instinto de Velthar guía a la caravana por un paso más seguro.',
+  ],
+  brontik: [
+    'Brontik pisa firme y estabiliza el paso de la caravana.',
+    'Brontik marca el territorio con un gruñido suave y protector.',
+    'La presencia de Brontik mantiene a la caravana unida.',
+  ],
+  lumora: [
+    'Lúmora señala un brillo enterrado junto al camino.',
+    'La luz de Lúmora revela una marca oculta en la corteza.',
+    'Lúmora vibra suavemente, alertando de algo cercano.',
+  ],
+  default: ['La criatura reacciona a algo invisible en el aire.'],
+}
+
+const THREAT_TEXTS = {
+  forest: [
+    'Unas huellas profundas cruzan el camino. La caravana avanza con cautela.',
+    'Un rastro hostil corta el barro entre las raíces.',
+    'Algo se mueve entre los árboles. La caravana se detiene un instante.',
+    'Las ramas de los costados aparecen partidas de forma reciente.',
+  ],
+  coast: [
+    'Marcas en la roca de la costa indican paso reciente de algo grande.',
+    'Un sonido sordo llega desde el mar. La caravana no se detiene.',
+    'La bruma marina esconde algo que respira cerca del camino.',
+  ],
+  forge: [
+    'Un ruido metálico resuena entre las ruinas. La caravana avanza alerta.',
+    'Brasas removidas indican que algo despertó hace poco aquí.',
+    'Una sombra pesada se mueve entre las columnas rotas.',
+  ],
+  default: ['Una presencia hostil ronda el camino.'],
+}
+
+const MICROEVENT_TEXTS = {
+  forest: [
+    'El farol tiembla con el viento bajo los árboles.',
+    'La niebla sube y envuelve las botas de marcha.',
+    'Un pájaro de noche cruza el camino en silencio.',
+    'El bosque guarda silencio un instante extraño.',
+  ],
+  coast: [
+    'El viento del mar apaga el farol un instante.',
+    'La bruma costera espesa y el camino se vuelve resbaladizo.',
+    'Un olor a sal y algas invade el tramo.',
+  ],
+  forge: [
+    'Una brasa solitaria ilumina el paso por un momento.',
+    'El suelo vibra levemente. El calor es notable.',
+    'El humo antiguo de la forja envuelve la senda.',
+  ],
+  default: ['Un momento de silencio extraño cae sobre la caravana.'],
+}
+
+const EVENT_TITLES = {
+  resource:    'Hallazgo',
+  exploration: 'Senda revelada',
+  creature:    'Reacción de criatura',
+  threat:      'Rastro hostil',
+  microevent:  'Atmósfera del camino',
+}
+
+// ── Auxiliares ────────────────────────────────────────────────────────────────
+function pickEventType(modeId) {
+  const weights = MODE_WEIGHTS[modeId] ?? MODE_WEIGHTS.free_march
+  const total   = Object.values(weights).reduce((a, b) => a + b, 0)
+  let r = Math.random() * total
+  for (const [type, w] of Object.entries(weights)) {
+    r -= w
+    if (r <= 0) return type
+  }
+  return 'microevent'
+}
+
+function pickFromPool(pool, biomeId) {
+  const list = pool[biomeId] ?? pool.default ?? pool.forest ?? ['...']
+  return list[Math.floor(Math.random() * list.length)]
+}
+
+function pickFromList(list) {
+  return list[Math.floor(Math.random() * list.length)]
+}
+
+// ── Generador de eventos ──────────────────────────────────────────────────────
+// sector es opcional — si se pasa, se usa su enemyPool y resources para mayor coherencia
+export function generateEvent(modeId, creatureId, threshold, biomeId, sector) {
+  const type  = pickEventType(modeId)
+  const id    = `evt-${threshold}-${Date.now()}`
+  const title = EVENT_TITLES[type] ?? type
+
+  let text         = ''
+  let resourceId   = null
+  let resourceGain = null
+  let enemyId      = null
+  let xpGain       = 0
+  let masteryGain  = 0
+  let tone         = 'neutral'
+
+  if (type === 'resource') {
+    text = pickFromPool(RESOURCE_TEXTS, biomeId)
+    const rids = sector?.resources?.length ? sector.resources : (BIOMES[biomeId]?.resourceIds ?? [])
+    resourceId = rids.length ? rids[Math.floor(Math.random() * rids.length)] : null
+    if (resourceId) resourceGain = { [resourceId]: 1 }
+    xpGain      = 1
+    masteryGain = 0
+    tone        = 'discovery'
+
+  } else if (type === 'exploration') {
+    text        = pickFromList(EXPLORATION_TEXTS)
+    xpGain      = 2
+    masteryGain = 5
+    tone        = 'discovery'
+
+  } else if (type === 'creature') {
+    const cPool = CREATURE_TEXTS[creatureId] ?? CREATURE_TEXTS.default
+    text        = pickFromList(cPool)
+    xpGain      = 3
+    masteryGain = 1
+    tone        = 'neutral'
+
+  } else if (type === 'threat') {
+    text = pickFromPool(THREAT_TEXTS, biomeId)
+    const eids = sector?.enemyPool?.length ? sector.enemyPool : (BIOMES[biomeId]?.enemyIds ?? [])
+    enemyId     = eids.length ? eids[Math.floor(Math.random() * eids.length)] : null
+    xpGain      = 4
+    masteryGain = 1
+    tone        = 'danger'
+
+  } else {
+    text        = pickFromPool(MICROEVENT_TEXTS, biomeId)
+    xpGain      = 1
+    masteryGain = 0
+    tone        = 'atmospheric'
+  }
+
+  return { id, type, title, text, threshold, resourceId, resourceGain, enemyId, xpGain, masteryGain, tone }
+}
+
+// ── Cálculo de recompensas ────────────────────────────────────────────────────
+export function calculateRewards(events) {
+  let xp          = 0
+  let masteryGain = 2  // base por completar cualquier tramo
+  const resources = {}
+  let threatCount = 0, resourceCount = 0, explorationCount = 0, creatureCount = 0, microeventCount = 0
+
+  for (const e of events) {
+    xp          += e.xpGain ?? 0
+    masteryGain += e.masteryGain ?? 0
+
+    if (e.resourceGain) {
+      for (const [id, qty] of Object.entries(e.resourceGain)) {
+        resources[id] = (resources[id] ?? 0) + qty
+      }
+    }
+
+    if      (e.type === 'resource')    resourceCount++
+    else if (e.type === 'exploration') explorationCount++
+    else if (e.type === 'creature')    creatureCount++
+    else if (e.type === 'threat')      threatCount++
+    else if (e.type === 'microevent')  microeventCount++
+  }
+
+  return { xp, resources, masteryGain, threatCount, resourceCount, explorationCount, creatureCount, microeventCount }
+}
+
+// ── Constructor de entrada del diario ─────────────────────────────────────────
+// sector opcional — si se pasa, guarda metadatos de Abismo en la entrada
+export function buildDiaryEntry(expedition, sectorName, discovery = null, sector = null) {
+  const rewards       = expedition.rewards ?? {}
+  const combatResults = expedition.combatResults ?? []
+  const sName         = sectorName ?? expedition.sectorId ?? '—'
+  const xp            = rewards.xp ?? 0
+  const threats       = rewards.threatCount ?? 0
+  const expls         = rewards.explorationCount ?? 0
+
+  const resText = Object.entries(rewards.resources ?? {})
+    .map(([id, qty]) => `${qty}× ${RESOURCES[id]?.name ?? id}`)
+    .join(', ')
+
+  const parts = []
+  if (resText)     parts.push(`Materiales: ${resText}`)
+  if (expls > 0)   parts.push(`${expls} hallazgo${expls > 1 ? 's' : ''} de senda`)
+  if (threats > 0) parts.push(`${threats} rastro${threats > 1 ? 's' : ''} hostil${threats > 1 ? 'es' : ''}`)
+  if (xp > 0)      parts.push(`+${xp} XP`)
+
+  if (combatResults.length > 0) {
+    const names = [...new Set(combatResults.map(c => c.enemyName).filter(Boolean))]
+    parts.push(names.length ? `Repelido: ${names.join(', ')}` : `${combatResults.length} combate${combatResults.length > 1 ? 's' : ''}`)
+  }
+
+  if (discovery) {
+    parts.push(`Al final de la jornada, la niebla cedió y reveló el acceso a ${discovery.sectorName}`)
+  }
+
+  const summaryText = parts.length
+    ? parts.join('. ') + '.'
+    : 'Tramo tranquilo sin hallazgos notables.'
+
+  return {
+    id:            `tramo-${expedition.currentTramo}-${Date.now()}`,
+    title:         `Tramo ${expedition.currentTramo} · ${sName}`,
+    tramoNumber:   expedition.currentTramo,
+    modeId:        expedition.modeId,
+    sectorId:      expedition.sectorId,
+    sectorName:    sName,
+    biomeId:       expedition.biomeId,
+    completedAt:   new Date().toISOString(),
+    steps:         expedition.currentSteps,
+    events:        expedition.events,
+    rewards,
+    combatResults,
+    summaryText,
+    discovery:     discovery ?? null,
+    stratumName:   sector?.stratumName  ?? null,
+    depthMeters:   sector?.depthMeters  ?? null,
+    lootTier:      sector?.lootTier     ?? null,
+  }
+}
+</file>
+
+<file path="src/systems/preparationSystem.js">
+import { ENEMIES, RESOURCES } from '../data/gameData.js'
+
+const DANGER_LABELS = { low: 'bajo', medium: 'medio', high: 'alto', extreme: 'extremo' }
+
+// ── Riesgo base por modo ──────────────────────────────────────────────────────
+
+const MODE_RISK = {
+  free_march: {
+    level:       'medio',
+    label:       'Riesgo equilibrado',
+    description: 'La senda mezcla hallazgos, rastros y amenazas con equilibrio.',
+  },
+  hunt: {
+    level:       'alto',
+    label:       'Riesgo alto',
+    description: 'La caravana sigue señales hostiles. Más combates, más experiencia.',
+  },
+  gather: {
+    level:       'bajo',
+    label:       'Riesgo bajo',
+    description: 'La marcha avanza despacio para recoger materiales. Menos enfrentamientos.',
+  },
+  explore: {
+    level:       'incierto',
+    label:       'Riesgo incierto',
+    description: 'La niebla guarda rutas, secretos y peligros sin clasificar.',
+  },
+  custom: {
+    level:       'incierto',
+    label:       'Riesgo incierto',
+    description: 'Modo personalizado aún en preparación.',
+  },
+}
+
+export function getRiskLevel({ modeId, sector }) {
+  const base            = MODE_RISK[modeId] ?? MODE_RISK.free_march
+  const sectorHighThreat = sector?.threat === 'high'
+
+  if (sectorHighThreat && base.level !== 'alto') {
+    return {
+      ...base,
+      description: base.description + ' El sector es conocido por sus rastros hostiles.',
+    }
+  }
+  return base
+}
+
+// ── Hallazgos esperados por modo ──────────────────────────────────────────────
+
+const MODE_RESOURCE_FREQ = {
+  gather:     'muy probable en Recolección',
+  free_march: 'posible hallazgo',
+  explore:    'secundario en Exploración',
+  hunt:       'ocasional en Caza',
+  custom:     'posible hallazgo',
+}
+
+const MODE_EVENTS = {
+  hunt:       ['rastros hostiles', 'amenazas', 'combate', 'reacciones de criatura'],
+  gather:     ['hallazgos de recursos', 'atmósfera', 'reacciones de criatura'],
+  explore:    ['sendas reveladas', 'exploración', 'recursos', 'reacciones de criatura'],
+  free_march: ['recursos', 'sendas', 'reacciones de criatura', 'posibles amenazas'],
+  custom:     ['variado'],
+}
+
+const MODE_XP = {
+  hunt:       'media a alta — combates frecuentes',
+  gather:     'baja — pocos enfrentamientos',
+  explore:    'baja a media — rutas y descubrimientos',
+  free_march: 'baja a media — equilibrado',
+  custom:     'variable',
+}
+
+export function getExpectedFinds({ sector, biome, modeId }) {
+  const pool      = sector?.resources ?? biome?.resourceIds ?? []
+  const freq      = MODE_RESOURCE_FREQ[modeId] ?? 'posible hallazgo'
+  const resources = pool.map(id => ({ id, freq }))
+  const events    = MODE_EVENTS[modeId] ?? MODE_EVENTS.free_march
+  const xpLabel   = MODE_XP[modeId] ?? 'baja a media'
+
+  return {
+    resources,
+    events,
+    xpLabel,
+    masteryLabel: 'progreso ligero de dominio',
+  }
+}
+
+// ── Avisos de preparación ─────────────────────────────────────────────────────
+
+export function getPreparationWarnings({ player, sector, modeId }) {
+  const warnings = []
+  const hpThreshold = Math.floor((player?.maxHp ?? 30) / 3)
+  if ((player?.hp ?? 30) <= hpThreshold) {
+    warnings.push('La caravana está muy debilitada. Considera esperar antes de partir.')
+  }
+  if (modeId === 'hunt' && sector?.threat === 'low') {
+    warnings.push('En este sector tranquilo, la Caza puede dar pocos resultados.')
+  }
+  return warnings
+}
+
+// ── Pistas de criatura y arquetipo ────────────────────────────────────────────
+
+const CREATURE_HINTS = {
+  velthar: 'Velthar puede revelar rastros ocultos y sendas entre la niebla.',
+  brontik: 'Brontik reducirá parte del daño si la marcha se tuerce.',
+  lumora:  'Lúmora mejora la obtención de materiales durante la jornada.',
+}
+
+const ARCHETYPE_HINTS = {
+  guardian:   'El Guardián del Camino resiste mejor los golpes si aparece una amenaza.',
+  runario:    'El Runario Errante percibe señales antiguas que otros pasarían por alto.',
+  rastreador: 'El Rastreador de Bruma puede abrir rutas que otros no ven.',
+}
+
+const MODE_LABELS_PREP = {
+  free_march: 'Marcha Libre',
+  hunt:       'Caza',
+  gather:     'Recolección',
+  explore:    'Exploración',
+  custom:     'Personalizada',
+}
+
+// ── Función principal ─────────────────────────────────────────────────────────
+
+export function getExpeditionPreparation({ modeId, sector, biome, creature, archetype }) {
+  const risk     = getRiskLevel({ modeId, sector })
+  const expected = getExpectedFinds({ sector, biome, modeId })
+
+  const routeLabel = sector
+    ? `${sector.name} · ${biome?.name ?? sector.biomeId}`
+    : 'Destino desconocido'
+
+  const enemyNames    = (sector?.enemyPool ?? []).map(id => ENEMIES[id]?.name).filter(Boolean)
+  const resourceNames = (sector?.resources ?? biome?.resourceIds ?? []).map(id => RESOURCES[id]?.name).filter(Boolean)
+
+  const stratumInfo = sector?.stratumName ? {
+    stratumName:   sector.stratumName,
+    depthMeters:   sector.depthMeters  ?? null,
+    lootTier:      sector.lootTier     ?? 1,
+    dangerRank:    sector.dangerRank   ?? 'low',
+    dangerLabel:   DANGER_LABELS[sector.dangerRank] ?? 'bajo',
+    enemyNames,
+    resourceNames,
+  } : null
+
+  return {
+    routeLabel,
+    modeLabel:     MODE_LABELS_PREP[modeId] ?? 'Marcha Libre',
+    risk,
+    expected,
+    creatureHint:  CREATURE_HINTS[creature?.id]   ?? creature?.passiveDescription ?? '',
+    archetypeHint: ARCHETYPE_HINTS[archetype?.id] ?? archetype?.passiveDescription ?? '',
+    stratumInfo,
+  }
+}
+</file>
+
+<file path="src/systems/codexSystem.js">
+import { ABYSS_STRATA, RESOURCES, ENEMIES, CREATURES, POIS } from '../data/gameData.js'
+
+const DANGER_LABELS  = { low: 'Bajo', medium: 'Medio', high: 'Alto', extreme: 'Extremo' }
+const BIOME_NAMES    = { forest: 'Bosque Rúnico', coast: 'Costa Arcana', forge: 'Forja Arcanista' }
+const THREAT_LABELS  = { low: 'Baja', medium: 'Media', high: 'Alta' }
+const RARITY_LABELS  = { comun: 'Común', poco_comun: 'Poco común', raro: 'Raro' }
+const MASTERY_LABELS = ['Sin rastro', 'Conocido', 'Familiar', 'Dominado', 'Legendario']
+
+const FOG_DESC   = 'La expedición no ha registrado datos suficientes.'
+const FOG_SECTOR = 'La expedición no ha cartografiado esta zona.'
+const FOG_ENEMY  = 'La expedición no ha registrado datos de esta amenaza.'
+const FOG_RES    = 'Aún no hay datos suficientes en el códice.'
+const FOG_POI    = 'La expedición no ha registrado este lugar.'
+const FOG_CREATURE = 'Esta criatura aún no ha sido observada.'
+
+// ── Helper de inventario ──────────────────────────────────────────────────────
+// Soporta inventario plano { runic_wood: 2 } e inventario con items { items: { runic_wood: 2 } }
+
+function getInventoryQty(inventory, resourceId) {
+  if (!inventory) return 0
+  if (typeof inventory[resourceId] === 'number') return inventory[resourceId]
+  if (typeof inventory.items?.[resourceId] === 'number') return inventory.items[resourceId]
+  return 0
+}
+
+// ── Predicados de descubrimiento ─────────────────────────────────────────────
+
+export function isStratumDiscovered(stratumId, sectors) {
+  return (sectors ?? []).some(s => (s.stratumId ?? 'stratum_01') === stratumId && s.discovered)
+}
+
+export function isSectorDiscovered(sectorId, sectors) {
+  return (sectors ?? []).some(s => s.id === sectorId && s.discovered)
+}
+
+export function isResourceDiscovered(resourceId, inventory, diary) {
+  if (getInventoryQty(inventory, resourceId) > 0) return true
+  for (const entry of (diary ?? [])) {
+    if (entry.rewards?.resources?.[resourceId]) return true
+    for (const ev of (entry.events ?? [])) {
+      if (ev.resourceId === resourceId) return true
+    }
+  }
+  return false
+}
+
+export function isEnemyDiscovered(enemyId, diary) {
+  for (const entry of (diary ?? [])) {
+    if ((entry.combatResults ?? []).some(c => c.enemyId === enemyId)) return true
+    if ((entry.events ?? []).some(e => e.type === 'threat' && e.enemyId === enemyId)) return true
+  }
+  return false
+}
+
+// ── Estado inicial del Códice ─────────────────────────────────────────────────
+// El Códice se deriva del estado del juego — no necesita guardarse por separado.
+// createCodexState / sanitizeCodexState existen para compatibilidad futura.
+
+export function createCodexState() {
+  return { version: 1 }
+}
+
+export function sanitizeCodexState(raw) {
+  if (!raw || typeof raw !== 'object') return createCodexState()
+  return { version: 1 }
+}
+
+// ── Constructor de entradas ───────────────────────────────────────────────────
+
+export function buildCodexEntries({ player, sectors, inventory, diary }) {
+  const entries = []
+
+  // ─ Estratos ─────────────────────────────────────────────────────────────────
+  for (const stratum of ABYSS_STRATA) {
+    const discovered  = isStratumDiscovered(stratum.id, sectors)
+    const inStratum   = (sectors ?? []).filter(s => (s.stratumId ?? 'stratum_01') === stratum.id)
+    const found       = inStratum.filter(s => s.discovered).length
+    entries.push({
+      id:          `stratum_${stratum.id}`,
+      category:    'strata',
+      name:        discovered ? stratum.name : '????',
+      discovered,
+      subtitle:    discovered ? `${stratum.depthRange} · Loot T${stratum.lootTier}` : 'Estrato no cartografiado',
+      description: discovered ? stratum.theme : FOG_DESC,
+      meta:        discovered ? [
+        `Peligro: ${DANGER_LABELS[stratum.dangerRank] ?? stratum.dangerRank}`,
+        `Sectores cartografiados: ${found} / ${inStratum.length}`,
+      ] : [],
+    })
+  }
+
+  // ─ Sectores ──────────────────────────────────────────────────────────────────
+  for (const sector of (sectors ?? [])) {
+    const discovered = sector.discovered
+    entries.push({
+      id:          `sector_${sector.id}`,
+      category:    'sectors',
+      name:        discovered ? sector.name : '????',
+      discovered,
+      subtitle:    discovered ? (sector.stratumName ?? '—') : 'Zona en bruma',
+      description: discovered
+        ? (BIOME_NAMES[sector.biomeId] ?? sector.biomeId) + (sector.depthMeters ? ` · ${sector.depthMeters} m` : '')
+        : FOG_SECTOR,
+      meta: discovered ? [
+        ...(sector.secret            ? ['Secreto descubierto']                                                               : []),
+        ...(sector.threat            ? [`Amenaza: ${THREAT_LABELS[sector.threat]  ?? sector.threat}`]                     : []),
+        ...(sector.visits > 0        ? [`Visitas: ${sector.visits}`]                                                        : []),
+        ...(sector.masteryLevel != null ? [`Dominio: ${MASTERY_LABELS[sector.masteryLevel] ?? '—'}`]                      : []),
+        ...(sector.poiId             ? [`Lugar: ${POIS[sector.poiId]?.name ?? sector.poiId}`]                               : []),
+      ] : [],
+    })
+  }
+
+  // ─ Recursos ──────────────────────────────────────────────────────────────────
+  for (const [rid, res] of Object.entries(RESOURCES)) {
+    const discovered = isResourceDiscovered(rid, inventory, diary)
+    const qty        = getInventoryQty(inventory, rid)
+    entries.push({
+      id:          `resource_${rid}`,
+      category:    'resources',
+      name:        discovered ? res.name : '????',
+      discovered,
+      subtitle:    discovered ? `Material · ${BIOME_NAMES[res.biomeId] ?? res.biomeId}` : 'Recurso no registrado',
+      description: discovered ? res.utility : FOG_RES,
+      meta:        discovered ? [
+        qty > 0 ? `En inventario: ${qty}` : 'No en inventario',
+        `Rareza: ${RARITY_LABELS[res.rarity] ?? res.rarity}`,
+      ] : [],
+    })
+  }
+
+  // ─ Enemigos ───────────────────────────────────────────────────────────────────
+  for (const [eid, enemy] of Object.entries(ENEMIES)) {
+    const discovered = isEnemyDiscovered(eid, diary)
+    const timesFound = (diary ?? []).reduce((acc, entry) =>
+      acc + (entry.combatResults ?? []).filter(c => c.enemyId === eid).length, 0)
+    entries.push({
+      id:          `enemy_${eid}`,
+      category:    'enemies',
+      name:        discovered ? enemy.name : '????',
+      discovered,
+      subtitle:    discovered ? 'Amenaza conocida' : 'Amenaza no registrada',
+      description: discovered ? enemy.concept : FOG_ENEMY,
+      meta:        discovered ? [
+        ...(timesFound > 0 ? [`Encuentros en combate: ${timesFound}`] : ['Observada, no derrotada']),
+        ...(enemy.biomeIds?.length ? [`Biomas: ${enemy.biomeIds.map(b => BIOME_NAMES[b] ?? b).join(', ')}`] : []),
+      ] : [],
+    })
+  }
+
+  // ─ Criaturas ─────────────────────────────────────────────────────────────────
+  for (const creature of CREATURES) {
+    const isOwned    = creature.id === player?.creatureId
+    const discovered = isOwned
+    entries.push({
+      id:          `creature_${creature.id}`,
+      category:    'creatures',
+      name:        discovered ? creature.name : '????',
+      discovered,
+      subtitle:    discovered ? creature.role : 'Criatura no registrada',
+      description: discovered ? creature.description : FOG_CREATURE,
+      meta:        discovered ? [
+        `Pasiva: ${creature.passiveName}`,
+        creature.passiveDescription,
+        ...(isOwned ? ['Compañera actual de expedición'] : []),
+      ] : [],
+    })
+  }
+
+  // ─ Puntos de interés ─────────────────────────────────────────────────────────
+  const discoveredPoiIds = new Set(
+    (sectors ?? []).filter(s => s.discovered && s.poiId).map(s => s.poiId)
+  )
+  for (const [poiId, poi] of Object.entries(POIS)) {
+    const discovered    = discoveredPoiIds.has(poiId)
+    const sectorWithPoi = (sectors ?? []).find(s => s.poiId === poiId && s.discovered)
+    entries.push({
+      id:          `poi_${poiId}`,
+      category:    'pois',
+      name:        discovered ? poi.name : '????',
+      discovered,
+      subtitle:    discovered
+        ? (sectorWithPoi ? `En ${sectorWithPoi.name}` : 'Localización conocida')
+        : 'Lugar no cartografiado',
+      description: discovered ? poi.description : FOG_POI,
+      meta:        discovered && sectorWithPoi ? [
+        sectorWithPoi.stratumName ?? '—',
+      ] : [],
+    })
+  }
+
+  return entries
+}
+
+// ── Progreso global ───────────────────────────────────────────────────────────
+
+export function getCodexProgress(entries) {
+  const total      = entries.length
+  const discovered = entries.filter(e => e.discovered).length
+  return { total, discovered }
+}
+</file>
+
+<file path="src/systems/mapSystem.js">
+import { isSecretSector, canRevealSecretSector, getSecretRevealReason } from './secretSystem.js'
+
+// ── Consultas básicas ─────────────────────────────────────────────────────────
+
+export function getDiscoveredSectors(sectors) {
+  return sectors.filter(s => s.discovered)
+}
+
+export function getHiddenConnectedSectors(sectors, currentSectorId) {
+  const current = sectors.find(s => s.id === currentSectorId)
+  if (!current) return []
+  return sectors.filter(s => !s.discovered && (current.connections ?? []).includes(s.id))
+}
+
+export function calculateMasteryLevel(mastery) {
+  if (mastery >= 100) return 4
+  if (mastery >= 50)  return 3
+  if (mastery >= 25)  return 2
+  if (mastery >= 10)  return 1
+  return 0
+}
+
+export function revealSector(sectors, sectorId) {
+  return sectors.map(s =>
+    s.id === sectorId ? { ...s, discovered: true, recentlyDiscovered: true } : s
+  )
+}
+
+// ── Textos de descubrimiento ──────────────────────────────────────────────────
+
+const DISCOVERY_TEXTS = {
+  explore:    name => `La niebla cedió al final del tramo. La caravana encontró el acceso a ${name}.`,
+  free_march: name => `Un hallazgo de senda reveló el camino hacia ${name}. La bruma retrocedió.`,
+  gather:     name => `Entre los senderos de recolección, la caravana encontró un paso hacia ${name}.`,
+  hunt:       name => `La persecución de rastros llevó a la caravana hasta ${name}.`,
+}
+
+// ── Prioridad de descubrimiento normal ────────────────────────────────────────
+// Desde sector_mist_root, la Ruina de Guardia Rúnica debe descubrirse antes
+// que la Fragua Dormida (que aparece antes en el array de sectores globales).
+
+function pickNextNormalDiscovery(normalHidden, currentSectorId) {
+  if (!normalHidden.length) return null
+  if (currentSectorId === 'sector_mist_root') {
+    return (
+      normalHidden.find(s => s.id === 'sector_runic_guard_ruins') ??
+      normalHidden[0]
+    )
+  }
+  return normalHidden[0]
+}
+
+// ── Resolver descubrimiento ───────────────────────────────────────────────────
+
+export function resolveSectorDiscovery({ sectors, currentSectorId, modeId, events, masteryGain, player }) {
+  const currentSector = sectors.find(s => s.id === currentSectorId)
+  if (!currentSector) return { sectors, discovery: null }
+
+  const allHidden    = getHiddenConnectedSectors(sectors, currentSectorId)
+  const normalHidden = allHidden.filter(s => !isSecretSector(s))
+  const secretHidden = allHidden.filter(s => isSecretSector(s))
+
+  const explorationCount = events.filter(e => e.type === 'exploration').length
+  const oldMastery       = currentSector.mastery ?? 0
+  const crossedMastery   = oldMastery < 25 && (oldMastery + (masteryGain ?? 0)) >= 25
+
+  // ── Normal discovery ─────────────────────────────────────────────────────────
+  if (normalHidden.length > 0) {
+    let shouldDiscover = false
+    if (modeId === 'explore'    && explorationCount >= 1) shouldDiscover = true
+    if (modeId === 'free_march' && explorationCount >= 2) shouldDiscover = true
+    if (modeId === 'gather'     && explorationCount >= 2) shouldDiscover = true
+    if (modeId === 'hunt'       && explorationCount >= 3) shouldDiscover = true
+    if (crossedMastery)                                   shouldDiscover = true
+
+    if (shouldDiscover) {
+      const target = pickNextNormalDiscovery(normalHidden, currentSectorId)
+      if (!target) return { sectors, discovery: null }
+      const newSectors = revealSector(sectors, target.id)
+      const textFn     = DISCOVERY_TEXTS[modeId] ?? (name => `La caravana encontró el acceso a ${name} al final del tramo.`)
+      const text       = crossedMastery && !DISCOVERY_TEXTS[modeId]
+        ? `El dominio acumulado en la zona abrió el camino hacia ${target.name}.`
+        : textFn(target.name)
+      const reason     = crossedMastery ? 'Dominio acumulado'
+        : modeId === 'explore'           ? 'Modo Exploración'
+        :                                  'Sendas descubiertas'
+      return {
+        sectors: newSectors,
+        discovery: { sectorId: target.id, sectorName: target.name, biomeId: target.biomeId, reason, text },
+      }
+    }
+  }
+
+  // ── Secret discovery ─────────────────────────────────────────────────────────
+  if (secretHidden.length > 0) {
+    const newMastery       = (currentSector.mastery ?? 0) + (masteryGain ?? 0)
+    const newMasteryLevel  = calculateMasteryLevel(newMastery)
+    const effectiveCurrent = { ...currentSector, mastery: newMastery, masteryLevel: newMasteryLevel }
+
+    for (const secretSector of secretHidden) {
+      if (canRevealSecretSector({ sector: secretSector, currentSector: effectiveCurrent, player, expeditionModeId: modeId })) {
+        const newSectors = revealSector(sectors, secretSector.id)
+        const reason     = getSecretRevealReason({ sector: secretSector, player, expeditionModeId: modeId })
+        const text       = `${reason} La caravana encontró ${secretSector.name}.`
+        return {
+          sectors: newSectors,
+          discovery: {
+            sectorId:   secretSector.id,
+            sectorName: secretSector.name,
+            biomeId:    secretSector.biomeId,
+            reason:     'Secreto descubierto',
+            text,
+            isSecret:   true,
+          },
+        }
+      }
+    }
+  }
+
+  return { sectors, discovery: null }
+}
+
+// ── Limpiar marcas recientes ──────────────────────────────────────────────────
+
+export function clearRecentDiscoveries(sectors) {
+  return sectors.map(s => s.recentlyDiscovered ? { ...s, recentlyDiscovered: false } : s)
+}
+</file>
+
+<file path="src/systems/saveSystem.js">
+export const SAVE_KEY     = 'aethermarch_save_v1'
+export const SAVE_VERSION = 1
+
+// Statuses that indicate an active session (march / combat in progress)
+const ACTIVE_STATUSES = ['marching', 'combat']
+// Statuses that must be sanitized to 'resting' before writing
+const UNSAFE_STATUSES = ['marching', 'combat', 'awaiting_choice', 'resolved', 'completed']
+
+// ── Acceso a localStorage ─────────────────────────────────────────────────────
+
+export function hasSave() {
+  try { return !!localStorage.getItem(SAVE_KEY) } catch { return false }
+}
+
+export function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+export function writeSave(saveData) {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(saveData)) } catch { /* quota / privacy */ }
+}
+
+export function clearSave() {
+  try { localStorage.removeItem(SAVE_KEY) } catch { /* ignore */ }
+}
+
+// ── Crear snapshot serializable desde el estado de App ────────────────────────
+
+export function createSaveSnapshot({
+  player,
+  selectedArchetypeId,
+  selectedCreatureId,
+  inventory,
+  diary,
+  sectors,
+  expedition,
+  lastEchoClaimAt,
+  stepSource,
+  contractState,
+}) {
+  // Track whether the save was created while a run was active
+  const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
+
+  const safeExp = { ...(expedition ?? {}) }
+  if (UNSAFE_STATUSES.includes(safeExp.status)) {
+    safeExp.status        = 'resting'
+    safeExp.currentSteps  = 0
+    safeExp.progress      = 0
+    safeExp.events        = []
+    safeExp.rewards       = {}
+    safeExp.combatResults = []
+  }
+
+  return {
+    version:             SAVE_VERSION,
+    savedAt:             new Date().toISOString(),
+    player,
+    selectedArchetypeId,
+    selectedCreatureId,
+    inventory,
+    diary,
+    sectors,
+    expedition:       safeExp,
+    lastEchoClaimAt:  lastEchoClaimAt ?? null,
+    stepSource:       stepSource ?? null,
+    contractState:    contractState ?? null,
+    meta: {
+      recoveredFromInterruptedRun: wasActive,
+    },
+  }
+}
+
+// ── Validar y sanear partida cargada ──────────────────────────────────────────
+
+export function sanitizeLoadedSave(rawSave) {
+  if (!rawSave || rawSave.version !== SAVE_VERSION) return null
+  if (!rawSave.player || typeof rawSave.player !== 'object') return null
+  if (!rawSave.selectedArchetypeId || !rawSave.selectedCreatureId) return null
+  if (!rawSave.inventory || typeof rawSave.inventory !== 'object') return null
+  if (!Array.isArray(rawSave.diary)) return null
+  if (!Array.isArray(rawSave.sectors) || rawSave.sectors.length === 0) return null
+
+  const save = JSON.parse(JSON.stringify(rawSave))  // deep clone
+
+  // Safety net: sanitize dangerous statuses that should not have been saved
+  const exp            = save.expedition ?? {}
+  const wasInterrupted = ACTIVE_STATUSES.includes(exp.status)
+  const needsSanitize  = UNSAFE_STATUSES.includes(exp.status)
+
+  if (needsSanitize) {
+    save.expedition = {
+      ...exp,
+      status:        'resting',
+      currentSteps:  0,
+      progress:      0,
+      events:        [],
+      rewards:       {},
+      combatResults: [],
+    }
+  }
+  if (wasInterrupted) {
+    save.meta = { ...(save.meta ?? {}), recoveredFromInterruptedRun: true }
+  }
+
+  return save
+}
+</file>
+
+<file path="vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  base: '/Aethermarch/',
+  server: {
+    port: parseInt(process.env.PORT) || 5173,
+    strictPort: false,
+  },
+  build: {
+    chunkSizeWarningLimit: 400,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+        },
+      },
+    },
+  },
+})
 </file>
 
 <file path="docs/WORLD_BIBLE.md">
@@ -3163,717 +4501,88 @@ Estado actual y gaps de los primeros 3 estratos.
 
 ---
 
+---
+
+## 18. Escala futura del Abismo
+
+El Abismo está pensado para crecer por encima de 20 capas jugables. Las primeras capas (actualmente I–III) son solo el arranque del descenso.
+
+Cada capa puede tener zonas, rutas, tramos, secretos y lugares seguros propios. No todas estarán implementadas desde el principio: el juego añade capas nuevas conforme el contenido existente se estabiliza.
+
+El objetivo es una sensación de **viaje largo**: meses de progresión, mapa ramificado, profundidad real y siempre la pregunta "¿qué hay más abajo?". No se trata de un mapa pequeño con 8 nodos, sino de un mundo vertical que crece hacia lo desconocido.
+
+### Lista provisional de 20 capas
+
+> Esta lista es provisional. Los nombres y el orden definitivo se fijarán durante el diseño de contenido.
+
+1. I · Linde de las Raíces Ciegas
+2. II · Cornisa de la Sal Negra
+3. III · Hornacinas de Ceniza
+4. IV · Cámara de la Colmena Roja
+5. V · Galerías de Espora Muerta
+6. VI · Acueductos Hundidos
+7. VII · Jardines sin Sol
+8. VIII · Foso de Resina Negra
+9. IX · Bastiones del Hueso Antiguo
+10. X · Desierto de Hielo Bajo
+11. XI · Claustros de Vidrio
+12. XII · Umbral de las Campanas Rotas
+13. XIII · Forjas del Hierro Vivo
+14. XIV · Caverna de los Titanes Dormidos
+15. XV · Mar Interior de Piedra
+16. XVI · Campo del Cristal Vivo
+17. XVII · Catedral de Raíz Fósil
+18. XVIII · Cámara de los Nombres Perdidos
+19. XIX · Garganta del Primer Farol
+20. XX · Fondo sin Cielo
+
+Las capas 4–20 están reservadas para contenido futuro. No se implementan todavía en código.
+
+### Estructura de una capa madura
+
+Cada capa jugable completa tendrá:
+- **Zonas** (2–4 por capa): áreas navegables con identidad propia.
+- **Rutas** (1–3 por zona): trayectos definidos con tipo, pasos, peligro y posibles requisitos.
+- **Tramos** (1–N por ruta): segmentos de marcha con eventos propios.
+- **Secretos** (1–2 por capa): zonas ocultas con condición de acceso no trivial.
+- **Lugares seguros** (al menos 1 por capa): refugio, posada, forja o puesto.
+
+---
+
+## 19. Tramos internos por ruta (18B)
+
+Cada ruta tiene entre 3 y 5 tramos (`WORLD_ROUTE_SEGMENTS` en `gameData.js`). Cada tramo define:
+
+| Campo | Descripción |
+|-------|-------------|
+| `routeId` | Ruta a la que pertenece |
+| `order` | Posición en la ruta (1, 2, 3…) |
+| `name` | Nombre evocador del tramo |
+| `type` | `approach / crossing / landmark / danger / rest / secret / descent / return` |
+| `danger` | `low / medium / high` — afecta colores en UI y futuros eventos |
+| `stepMin / stepMax` | Rango de pasos para completar el tramo |
+| `eventBias` | Pesos de eventos preparados: `{ resource, exploration, creature, threat, microevent }` |
+
+Los tramos del Estrato I actualmente implementados:
+
+| Ruta | Tramo 1 | Tramo 2 | Tramo 3 |
+|------|---------|---------|---------|
+| Senda de los Faroles Bajos | Faroles hundidos | Raíces de paso | Boca de niebla |
+| Bajada a la Cornisa | Piedra húmeda | Primer olor a sal | Bajada fría |
+| Senda de las Marcas | Marcas partidas | Arco de raíces | Umbral rúnico |
+| Pasaje secreto (oculto) | Raíz sellada | Respiración hueca | Luz de setas |
+| Senda de la Forja | Desvío sin marcas | Pendiente de hierro | Horno dormido |
+| Senda de la Marea | Cornisa mojada | Rocas de sal negra | Marea sin luna |
+| Descenso al Bastión | Senda de humo | Carbón bajo el agua | Bajada oscura |
+| Galería de Ceniza | Galería apagada | Columnas de hollín | Bastión de carbón |
+
+La lógica de marcha (`marchSystem.js`) no consume aún `eventBias` — los pesos están preparados para la iteración siguiente.
+
+---
+
 *Este documento es la base de diseño del mundo de Aethermarch. Se actualiza conforme el juego avanza.*
 *Para estado de implementación técnica, ver `docs/ABYSS_DESIGN.md`.*
 *Para roadmap de bloques, ver `docs/PROJECT_BRIEF.md`.*
-</file>
-
-<file path="src/components/BottomNav.jsx">
-function CodexIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ display:'block' }}>
-      <path d="M2 3 C2 2 3 2 4 2 L8 3 L12 2 C13 2 14 2 14 3 L14 12 C14 13 13 13 12 13 L8 12 L4 13 C3 13 2 13 2 12 Z"
-            stroke="currentColor" strokeWidth="1.2"/>
-      <line x1="8" y1="3" x2="8" y2="12" stroke="currentColor" strokeWidth="0.8"/>
-    </svg>
-  )
-}
-
-const TABS = [
-  { id: 'caravana',   label: 'Caravana',  icon: '⛺' },
-  { id: 'mapa',       label: 'Mapa',       icon: '🗺' },
-  { id: 'diario',     label: 'Diario',     icon: '📜' },
-  { id: 'inventario', label: 'Inventario', icon: '🎒' },
-  { id: 'criatura',   label: 'Criatura',   icon: '🐾' },
-  { id: 'codice',     label: 'Códice',     icon: null },
-]
-
-export default function BottomNav({ currentTab, onChangeTab }) {
-  return (
-    <nav className="bottom-nav">
-      {TABS.map(t => (
-        <button
-          key={t.id}
-          className={currentTab === t.id ? 'active' : ''}
-          onClick={() => onChangeTab(t.id)}
-        >
-          <span className="nav-icon">
-            {t.icon !== null ? t.icon : <CodexIcon />}
-          </span>
-          {t.label}
-        </button>
-      ))}
-    </nav>
-  )
-}
-</file>
-
-<file path="src/systems/contractSystem.js">
-import { RESOURCES } from '../data/gameData.js'
-
-export const CONTRACT_STATUS = {
-  AVAILABLE: 'available',
-  ACTIVE:    'active',
-  COMPLETED: 'completed',
-}
-
-export const CONTRACT_OUTCOMES = {
-  SUCCESS: 'success',
-  PARTIAL: 'partial',
-  FAILURE: 'failure',
-}
-
-const RISK_LABELS = { low: 'Bajo', medium: 'Medio', high: 'Alto' }
-
-const CONTRACT_TEMPLATES = {
-  shelter: {
-    id:             'shelter_repair_markers',
-    title:          'Reparar marcas de farol',
-    type:           'maintenance',
-    contractorName: 'Mira de las Cornisas',
-    durationLabel:  '45 min',
-    risk:           'low',
-    description:    'Mira revisa las marcas del sendero cercano para que otras caravanas no se pierdan entre raíces.',
-    rewards:        { xp: 4, resources: { runic_wood: 1 } },
-  },
-  trader: {
-    id:             'trader_courier',
-    title:          'Recado del mercader',
-    type:           'courier',
-    contractorName: 'Tolk el Salinero',
-    durationLabel:  '1 h',
-    risk:           'low',
-    description:    'Un mercader pide entregar un paquete sellado a otro grupo de paso. Dice que no pesa, pero no deja de mirarlo.',
-    rewards:        { xp: 3, resources: { aethel_root: 1 } },
-  },
-  inn: {
-    id:             'inn_scout_route',
-    title:          'Guía hasta una senda segura',
-    type:           'scout',
-    contractorName: 'Mira de las Cornisas',
-    durationLabel:  '2 h',
-    risk:           'medium',
-    description:    'Una guía acepta revisar una ruta lateral y marcar señales para futuras expediciones.',
-    rewards:        { xp: 6, resources: { arcane_salt: 1 } },
-  },
-  tavern: {
-    id:             'tavern_sealed_chamber',
-    title:          'Rumor de cámara sellada',
-    type:           'intel',
-    contractorName: 'Dos el Silencioso',
-    durationLabel:  '3 h',
-    risk:           'medium',
-    description:    'Entre murmullos, alguien menciona una cámara cerrada. Dos puede comprobar si la pista es real.',
-    rewards:        { xp: 7, resources: { tide_crystal: 1 } },
-  },
-  forge: {
-    id:             'forge_ember_survey',
-    title:          'Inspección de brasas antiguas',
-    type:           'forge_survey',
-    contractorName: 'Sala la Herrera',
-    durationLabel:  '2 h',
-    risk:           'medium',
-    description:    'Sala revisa restos de forja y busca metal aprovechable entre placas y carbón.',
-    rewards:        { xp: 5, resources: { forge_mineral: 1 } },
-  },
-  supply: {
-    id:             'supply_box_inventory',
-    title:          'Inventario de cajas viejas',
-    type:           'supply_check',
-    contractorName: 'Tolk el Salinero',
-    durationLabel:  '1 h',
-    risk:           'low',
-    description:    'Tolk revisa cajas antiguas del puesto y separa lo útil de lo podrido.',
-    rewards:        { xp: 4, resources: { resonant_coal: 1 } },
-  },
-}
-
-// ── Estado inicial ────────────────────────────────────────────────────────────
-
-export function createInitialContractState() {
-  return {
-    activeContract:       null,
-    completedContractIds: [],
-    contractLog:          [],
-  }
-}
-
-export function sanitizeContractState(raw) {
-  if (!raw || typeof raw !== 'object') return createInitialContractState()
-  return {
-    activeContract:       (raw.activeContract && typeof raw.activeContract === 'object')
-                            ? raw.activeContract
-                            : null,
-    completedContractIds: Array.isArray(raw.completedContractIds) ? raw.completedContractIds : [],
-    contractLog:          Array.isArray(raw.contractLog) ? raw.contractLog : [],
-  }
-}
-
-// ── Consultas ─────────────────────────────────────────────────────────────────
-
-export function getAvailableContracts({ sector, contractState }) {
-  if (!sector?.poiId) return []
-  const template = CONTRACT_TEMPLATES[sector.poiId]
-  if (!template) return []
-  if (contractState?.activeContract) return []
-  if ((contractState?.completedContractIds ?? []).includes(template.id)) return []
-  return [{
-    ...template,
-    riskLabel:        RISK_LABELS[template.risk] ?? template.risk,
-    sourcePoiId:      sector.poiId,
-    sourceSectorId:   sector.id,
-    sourceSectorName: sector.name,
-  }]
-}
-
-export function isSectorContractCompleted(poiId, contractState) {
-  const template = CONTRACT_TEMPLATES[poiId]
-  if (!template) return false
-  return (contractState?.completedContractIds ?? []).includes(template.id)
-}
-
-export function canStartContract({ contractState, expedition, combat }) {
-  if (contractState?.activeContract)
-    return { ok: false, reason: 'Ya hay un contrato activo.' }
-  if (expedition?.status === 'marching')
-    return { ok: false, reason: 'No puedes aceptar contratos mientras la caravana está en marcha.' }
-  if (expedition?.status === 'combat' || combat?.status === 'awaiting_choice')
-    return { ok: false, reason: 'No puedes aceptar contratos durante un combate.' }
-  return { ok: true }
-}
-
-// ── Probabilidad ──────────────────────────────────────────────────────────────
-
-export function getContractSuccessChance({ contract, player, sector }) {
-  const BASE = { low: 85, medium: 65, high: 45 }
-  let chance = BASE[contract.risk] ?? 65
-
-  if (player?.archetypeId === 'rastreador' && (contract.type === 'scout' || contract.type === 'intel')) chance += 10
-  if (player?.archetypeId === 'guardian'   && (contract.type === 'maintenance' || contract.type === 'courier')) chance += 5
-  if (player?.archetypeId === 'runario'    && (contract.type === 'intel' || contract.type === 'forge_survey')) chance += 8
-
-  if (player?.creatureId === 'velthar' && (contract.type === 'scout' || contract.type === 'intel')) chance += 8
-  if (player?.creatureId === 'brontik' && (contract.risk === 'medium' || contract.risk === 'high')) chance += 5
-  if (player?.creatureId === 'lumora'  && Object.keys(contract.rewards?.resources ?? {}).length > 0) chance += 5
-
-  if (sector?.threat === 'high')        chance -= 10
-  else if (sector?.threat === 'medium') chance -= 5
-  if (sector?.masteryLevel >= 3)        chance += 10
-  else if (sector?.masteryLevel >= 2)   chance += 5
-
-  return Math.min(95, Math.max(5, Math.round(chance)))
-}
-
-export function getContractOutcomeLabel(outcome) {
-  if (outcome === CONTRACT_OUTCOMES.SUCCESS) return 'Éxito'
-  if (outcome === CONTRACT_OUTCOMES.PARTIAL) return 'Éxito parcial'
-  if (outcome === CONTRACT_OUTCOMES.FAILURE) return 'Fracaso'
-  return '—'
-}
-
-const OUTCOME_TEXTS = {
-  [CONTRACT_OUTCOMES.SUCCESS]: 'El encargo se completó sin incidentes. La recompensa llega íntegra a la caravana.',
-  [CONTRACT_OUTCOMES.PARTIAL]: 'El encargo se completó con complicaciones. Parte del botín se perdió durante el regreso.',
-  [CONTRACT_OUTCOMES.FAILURE]: 'El encargo salió mal. No hubo pérdidas graves, pero el contratista volvió sin materiales útiles.',
-}
-
-// ── Acciones ──────────────────────────────────────────────────────────────────
-
-export function startContract({ contract, now }) {
-  return {
-    ...contract,
-    startedAt: now ?? new Date().toISOString(),
-    status:    CONTRACT_STATUS.ACTIVE,
-  }
-}
-
-export function resolveContract({ activeContract, player, sector, now, randomValue }) {
-  if (!activeContract) return null
-
-  const successChance = getContractSuccessChance({ contract: activeContract, player, sector })
-  const roll          = Math.round((randomValue !== undefined ? randomValue : Math.random()) * 100)
-
-  let outcome
-  if (roll <= successChance) {
-    outcome = CONTRACT_OUTCOMES.SUCCESS
-  } else if (roll - successChance <= 20) {
-    outcome = CONTRACT_OUTCOMES.PARTIAL
-  } else {
-    outcome = CONTRACT_OUTCOMES.FAILURE
-  }
-
-  const baseRewards = activeContract.rewards ?? { xp: 0, resources: {} }
-  let rewardsGranted
-
-  if (outcome === CONTRACT_OUTCOMES.SUCCESS) {
-    rewardsGranted = { xp: baseRewards.xp ?? 0, resources: { ...baseRewards.resources } }
-  } else if (outcome === CONTRACT_OUTCOMES.PARTIAL) {
-    const xp        = Math.ceil((baseRewards.xp ?? 0) / 2)
-    const resources = {}
-    for (const [id, qty] of Object.entries(baseRewards.resources ?? {})) {
-      resources[id] = Math.max(1, Math.ceil(qty / 2))
-    }
-    rewardsGranted = { xp, resources }
-  } else {
-    rewardsGranted = { xp: 1, resources: {} }
-  }
-
-  const consequence = outcome === CONTRACT_OUTCOMES.FAILURE
-    ? { type: 'delay', text: 'El encargo no salió bien. La caravana gana experiencia, pero no obtiene materiales.' }
-    : null
-
-  return {
-    ...activeContract,
-    resolvedAt:    now ?? new Date().toISOString(),
-    status:        CONTRACT_STATUS.COMPLETED,
-    successChance,
-    roll,
-    outcome,
-    outcomeLabel:  getContractOutcomeLabel(outcome),
-    baseRewards,
-    rewardsGranted,
-    summaryText:   OUTCOME_TEXTS[outcome],
-    consequence,
-  }
-}
-
-export function getContractRewardText(rewards) {
-  const parts = []
-  if ((rewards?.xp ?? 0) > 0) parts.push(`+${rewards.xp} XP`)
-  for (const [id, qty] of Object.entries(rewards?.resources ?? {})) {
-    const name = RESOURCES[id]?.name ?? id.replace(/_/g, ' ')
-    parts.push(`${name} ×${qty}`)
-  }
-  return parts.join(' · ')
-}
-</file>
-
-<file path="src/systems/expeditionSystem.js">
-import { BIOMES, RESOURCES } from '../data/gameData.js'
-
-// ── Pesos por modo ────────────────────────────────────────────────────────────
-const MODE_WEIGHTS = {
-  free_march: { resource: 30, exploration: 25, creature: 20, threat: 15, microevent: 10 },
-  hunt:       { threat: 45,   creature: 15,    exploration: 15, resource: 15, microevent: 10 },
-  gather:     { resource: 55, creature: 15,    exploration: 15, microevent: 10, threat: 5  },
-  explore:    { exploration: 45, creature: 20, resource: 15,    threat: 10,  microevent: 10 },
-}
-
-// ── Texto por tipo y bioma ────────────────────────────────────────────────────
-const RESOURCE_TEXTS = {
-  forest: [
-    'Madera Rúnica asoma entre las raíces marcadas del camino.',
-    'Una raíz de Aethel crece entre las piedras de la senda.',
-    'Una hoja luminaria cae al paso de la caravana.',
-    'La tierra revela materiales entre las raíces del bosque.',
-  ],
-  coast: [
-    'Sal arcana cristalizada en una roca de la orilla.',
-    'Un cristal de marea emerge entre las piedras costeras.',
-    'Escama nácar bajo una roca a la orilla del camino.',
-    'La bruma costera deja al descubierto materiales valiosos.',
-  ],
-  forge: [
-    'Mineral de forja entre los escombros de la senda.',
-    'Una placa antigua asoma bajo el polvo del camino.',
-    'Carbón resonante junto a las brasas olvidadas.',
-    'Los restos de la forja guardan materiales todavía útiles.',
-  ],
-  default: ['Un recurso oculto al borde de la senda.'],
-}
-
-const EXPLORATION_TEXTS = [
-  'La niebla se abre y deja ver una senda estrecha entre las raíces.',
-  'Una piedra rúnica marca el borde del camino con signos antiguos.',
-  'La bruma baja y revela huellas antiguas grabadas en el barro.',
-  'Un claro entre los árboles muestra rastros de paso antiguo.',
-  'La caravana detecta una desviación oculta al margen del camino.',
-  'Una bifurcación no cartografiada aparece entre la niebla.',
-]
-
-const CREATURE_TEXTS = {
-  velthar: [
-    'Velthar olfatea una senda oculta entre la niebla.',
-    'Velthar se detiene un instante y señala algo entre los árboles.',
-    'El instinto de Velthar guía a la caravana por un paso más seguro.',
-  ],
-  brontik: [
-    'Brontik pisa firme y estabiliza el paso de la caravana.',
-    'Brontik marca el territorio con un gruñido suave y protector.',
-    'La presencia de Brontik mantiene a la caravana unida.',
-  ],
-  lumora: [
-    'Lúmora señala un brillo enterrado junto al camino.',
-    'La luz de Lúmora revela una marca oculta en la corteza.',
-    'Lúmora vibra suavemente, alertando de algo cercano.',
-  ],
-  default: ['La criatura reacciona a algo invisible en el aire.'],
-}
-
-const THREAT_TEXTS = {
-  forest: [
-    'Unas huellas profundas cruzan el camino. La caravana avanza con cautela.',
-    'Un rastro hostil corta el barro entre las raíces.',
-    'Algo se mueve entre los árboles. La caravana se detiene un instante.',
-    'Las ramas de los costados aparecen partidas de forma reciente.',
-  ],
-  coast: [
-    'Marcas en la roca de la costa indican paso reciente de algo grande.',
-    'Un sonido sordo llega desde el mar. La caravana no se detiene.',
-    'La bruma marina esconde algo que respira cerca del camino.',
-  ],
-  forge: [
-    'Un ruido metálico resuena entre las ruinas. La caravana avanza alerta.',
-    'Brasas removidas indican que algo despertó hace poco aquí.',
-    'Una sombra pesada se mueve entre las columnas rotas.',
-  ],
-  default: ['Una presencia hostil ronda el camino.'],
-}
-
-const MICROEVENT_TEXTS = {
-  forest: [
-    'El farol tiembla con el viento bajo los árboles.',
-    'La niebla sube y envuelve las botas de marcha.',
-    'Un pájaro de noche cruza el camino en silencio.',
-    'El bosque guarda silencio un instante extraño.',
-  ],
-  coast: [
-    'El viento del mar apaga el farol un instante.',
-    'La bruma costera espesa y el camino se vuelve resbaladizo.',
-    'Un olor a sal y algas invade el tramo.',
-  ],
-  forge: [
-    'Una brasa solitaria ilumina el paso por un momento.',
-    'El suelo vibra levemente. El calor es notable.',
-    'El humo antiguo de la forja envuelve la senda.',
-  ],
-  default: ['Un momento de silencio extraño cae sobre la caravana.'],
-}
-
-const EVENT_TITLES = {
-  resource:    'Hallazgo',
-  exploration: 'Senda revelada',
-  creature:    'Reacción de criatura',
-  threat:      'Rastro hostil',
-  microevent:  'Atmósfera del camino',
-}
-
-// ── Auxiliares ────────────────────────────────────────────────────────────────
-function pickEventType(modeId) {
-  const weights = MODE_WEIGHTS[modeId] ?? MODE_WEIGHTS.free_march
-  const total   = Object.values(weights).reduce((a, b) => a + b, 0)
-  let r = Math.random() * total
-  for (const [type, w] of Object.entries(weights)) {
-    r -= w
-    if (r <= 0) return type
-  }
-  return 'microevent'
-}
-
-function pickFromPool(pool, biomeId) {
-  const list = pool[biomeId] ?? pool.default ?? pool.forest ?? ['...']
-  return list[Math.floor(Math.random() * list.length)]
-}
-
-function pickFromList(list) {
-  return list[Math.floor(Math.random() * list.length)]
-}
-
-// ── Generador de eventos ──────────────────────────────────────────────────────
-// sector es opcional — si se pasa, se usa su enemyPool y resources para mayor coherencia
-export function generateEvent(modeId, creatureId, threshold, biomeId, sector) {
-  const type  = pickEventType(modeId)
-  const id    = `evt-${threshold}-${Date.now()}`
-  const title = EVENT_TITLES[type] ?? type
-
-  let text         = ''
-  let resourceId   = null
-  let resourceGain = null
-  let enemyId      = null
-  let xpGain       = 0
-  let masteryGain  = 0
-  let tone         = 'neutral'
-
-  if (type === 'resource') {
-    text = pickFromPool(RESOURCE_TEXTS, biomeId)
-    const rids = sector?.resources?.length ? sector.resources : (BIOMES[biomeId]?.resourceIds ?? [])
-    resourceId = rids.length ? rids[Math.floor(Math.random() * rids.length)] : null
-    if (resourceId) resourceGain = { [resourceId]: 1 }
-    xpGain      = 1
-    masteryGain = 0
-    tone        = 'discovery'
-
-  } else if (type === 'exploration') {
-    text        = pickFromList(EXPLORATION_TEXTS)
-    xpGain      = 2
-    masteryGain = 5
-    tone        = 'discovery'
-
-  } else if (type === 'creature') {
-    const cPool = CREATURE_TEXTS[creatureId] ?? CREATURE_TEXTS.default
-    text        = pickFromList(cPool)
-    xpGain      = 3
-    masteryGain = 1
-    tone        = 'neutral'
-
-  } else if (type === 'threat') {
-    text = pickFromPool(THREAT_TEXTS, biomeId)
-    const eids = sector?.enemyPool?.length ? sector.enemyPool : (BIOMES[biomeId]?.enemyIds ?? [])
-    enemyId     = eids.length ? eids[Math.floor(Math.random() * eids.length)] : null
-    xpGain      = 4
-    masteryGain = 1
-    tone        = 'danger'
-
-  } else {
-    text        = pickFromPool(MICROEVENT_TEXTS, biomeId)
-    xpGain      = 1
-    masteryGain = 0
-    tone        = 'atmospheric'
-  }
-
-  return { id, type, title, text, threshold, resourceId, resourceGain, enemyId, xpGain, masteryGain, tone }
-}
-
-// ── Cálculo de recompensas ────────────────────────────────────────────────────
-export function calculateRewards(events) {
-  let xp          = 0
-  let masteryGain = 2  // base por completar cualquier tramo
-  const resources = {}
-  let threatCount = 0, resourceCount = 0, explorationCount = 0, creatureCount = 0, microeventCount = 0
-
-  for (const e of events) {
-    xp          += e.xpGain ?? 0
-    masteryGain += e.masteryGain ?? 0
-
-    if (e.resourceGain) {
-      for (const [id, qty] of Object.entries(e.resourceGain)) {
-        resources[id] = (resources[id] ?? 0) + qty
-      }
-    }
-
-    if      (e.type === 'resource')    resourceCount++
-    else if (e.type === 'exploration') explorationCount++
-    else if (e.type === 'creature')    creatureCount++
-    else if (e.type === 'threat')      threatCount++
-    else if (e.type === 'microevent')  microeventCount++
-  }
-
-  return { xp, resources, masteryGain, threatCount, resourceCount, explorationCount, creatureCount, microeventCount }
-}
-
-// ── Constructor de entrada del diario ─────────────────────────────────────────
-// sector opcional — si se pasa, guarda metadatos de Abismo en la entrada
-export function buildDiaryEntry(expedition, sectorName, discovery = null, sector = null) {
-  const rewards       = expedition.rewards ?? {}
-  const combatResults = expedition.combatResults ?? []
-  const sName         = sectorName ?? expedition.sectorId ?? '—'
-  const xp            = rewards.xp ?? 0
-  const threats       = rewards.threatCount ?? 0
-  const expls         = rewards.explorationCount ?? 0
-
-  const resText = Object.entries(rewards.resources ?? {})
-    .map(([id, qty]) => `${qty}× ${RESOURCES[id]?.name ?? id}`)
-    .join(', ')
-
-  const parts = []
-  if (resText)     parts.push(`Materiales: ${resText}`)
-  if (expls > 0)   parts.push(`${expls} hallazgo${expls > 1 ? 's' : ''} de senda`)
-  if (threats > 0) parts.push(`${threats} rastro${threats > 1 ? 's' : ''} hostil${threats > 1 ? 'es' : ''}`)
-  if (xp > 0)      parts.push(`+${xp} XP`)
-
-  if (combatResults.length > 0) {
-    const names = [...new Set(combatResults.map(c => c.enemyName).filter(Boolean))]
-    parts.push(names.length ? `Repelido: ${names.join(', ')}` : `${combatResults.length} combate${combatResults.length > 1 ? 's' : ''}`)
-  }
-
-  if (discovery) {
-    parts.push(`Al final de la jornada, la niebla cedió y reveló el acceso a ${discovery.sectorName}`)
-  }
-
-  const summaryText = parts.length
-    ? parts.join('. ') + '.'
-    : 'Tramo tranquilo sin hallazgos notables.'
-
-  return {
-    id:            `tramo-${expedition.currentTramo}-${Date.now()}`,
-    title:         `Tramo ${expedition.currentTramo} · ${sName}`,
-    tramoNumber:   expedition.currentTramo,
-    modeId:        expedition.modeId,
-    sectorId:      expedition.sectorId,
-    sectorName:    sName,
-    biomeId:       expedition.biomeId,
-    completedAt:   new Date().toISOString(),
-    steps:         expedition.currentSteps,
-    events:        expedition.events,
-    rewards,
-    combatResults,
-    summaryText,
-    discovery:     discovery ?? null,
-    stratumName:   sector?.stratumName  ?? null,
-    depthMeters:   sector?.depthMeters  ?? null,
-    lootTier:      sector?.lootTier     ?? null,
-  }
-}
-</file>
-
-<file path="src/systems/preparationSystem.js">
-import { ENEMIES, RESOURCES } from '../data/gameData.js'
-
-const DANGER_LABELS = { low: 'bajo', medium: 'medio', high: 'alto', extreme: 'extremo' }
-
-// ── Riesgo base por modo ──────────────────────────────────────────────────────
-
-const MODE_RISK = {
-  free_march: {
-    level:       'medio',
-    label:       'Riesgo equilibrado',
-    description: 'La senda mezcla hallazgos, rastros y amenazas con equilibrio.',
-  },
-  hunt: {
-    level:       'alto',
-    label:       'Riesgo alto',
-    description: 'La caravana sigue señales hostiles. Más combates, más experiencia.',
-  },
-  gather: {
-    level:       'bajo',
-    label:       'Riesgo bajo',
-    description: 'La marcha avanza despacio para recoger materiales. Menos enfrentamientos.',
-  },
-  explore: {
-    level:       'incierto',
-    label:       'Riesgo incierto',
-    description: 'La niebla guarda rutas, secretos y peligros sin clasificar.',
-  },
-  custom: {
-    level:       'incierto',
-    label:       'Riesgo incierto',
-    description: 'Modo personalizado aún en preparación.',
-  },
-}
-
-export function getRiskLevel({ modeId, sector }) {
-  const base            = MODE_RISK[modeId] ?? MODE_RISK.free_march
-  const sectorHighThreat = sector?.threat === 'high'
-
-  if (sectorHighThreat && base.level !== 'alto') {
-    return {
-      ...base,
-      description: base.description + ' El sector es conocido por sus rastros hostiles.',
-    }
-  }
-  return base
-}
-
-// ── Hallazgos esperados por modo ──────────────────────────────────────────────
-
-const MODE_RESOURCE_FREQ = {
-  gather:     'muy probable en Recolección',
-  free_march: 'posible hallazgo',
-  explore:    'secundario en Exploración',
-  hunt:       'ocasional en Caza',
-  custom:     'posible hallazgo',
-}
-
-const MODE_EVENTS = {
-  hunt:       ['rastros hostiles', 'amenazas', 'combate', 'reacciones de criatura'],
-  gather:     ['hallazgos de recursos', 'atmósfera', 'reacciones de criatura'],
-  explore:    ['sendas reveladas', 'exploración', 'recursos', 'reacciones de criatura'],
-  free_march: ['recursos', 'sendas', 'reacciones de criatura', 'posibles amenazas'],
-  custom:     ['variado'],
-}
-
-const MODE_XP = {
-  hunt:       'media a alta — combates frecuentes',
-  gather:     'baja — pocos enfrentamientos',
-  explore:    'baja a media — rutas y descubrimientos',
-  free_march: 'baja a media — equilibrado',
-  custom:     'variable',
-}
-
-export function getExpectedFinds({ sector, biome, modeId }) {
-  const pool      = sector?.resources ?? biome?.resourceIds ?? []
-  const freq      = MODE_RESOURCE_FREQ[modeId] ?? 'posible hallazgo'
-  const resources = pool.map(id => ({ id, freq }))
-  const events    = MODE_EVENTS[modeId] ?? MODE_EVENTS.free_march
-  const xpLabel   = MODE_XP[modeId] ?? 'baja a media'
-
-  return {
-    resources,
-    events,
-    xpLabel,
-    masteryLabel: 'progreso ligero de dominio',
-  }
-}
-
-// ── Avisos de preparación ─────────────────────────────────────────────────────
-
-export function getPreparationWarnings({ player, sector, modeId }) {
-  const warnings = []
-  const hpThreshold = Math.floor((player?.maxHp ?? 30) / 3)
-  if ((player?.hp ?? 30) <= hpThreshold) {
-    warnings.push('La caravana está muy debilitada. Considera esperar antes de partir.')
-  }
-  if (modeId === 'hunt' && sector?.threat === 'low') {
-    warnings.push('En este sector tranquilo, la Caza puede dar pocos resultados.')
-  }
-  return warnings
-}
-
-// ── Pistas de criatura y arquetipo ────────────────────────────────────────────
-
-const CREATURE_HINTS = {
-  velthar: 'Velthar puede revelar rastros ocultos y sendas entre la niebla.',
-  brontik: 'Brontik reducirá parte del daño si la marcha se tuerce.',
-  lumora:  'Lúmora mejora la obtención de materiales durante la jornada.',
-}
-
-const ARCHETYPE_HINTS = {
-  guardian:   'El Guardián del Camino resiste mejor los golpes si aparece una amenaza.',
-  runario:    'El Runario Errante percibe señales antiguas que otros pasarían por alto.',
-  rastreador: 'El Rastreador de Bruma puede abrir rutas que otros no ven.',
-}
-
-const MODE_LABELS_PREP = {
-  free_march: 'Marcha Libre',
-  hunt:       'Caza',
-  gather:     'Recolección',
-  explore:    'Exploración',
-  custom:     'Personalizada',
-}
-
-// ── Función principal ─────────────────────────────────────────────────────────
-
-export function getExpeditionPreparation({ modeId, sector, biome, creature, archetype }) {
-  const risk     = getRiskLevel({ modeId, sector })
-  const expected = getExpectedFinds({ sector, biome, modeId })
-
-  const routeLabel = sector
-    ? `${sector.name} · ${biome?.name ?? sector.biomeId}`
-    : 'Destino desconocido'
-
-  const enemyNames    = (sector?.enemyPool ?? []).map(id => ENEMIES[id]?.name).filter(Boolean)
-  const resourceNames = (sector?.resources ?? biome?.resourceIds ?? []).map(id => RESOURCES[id]?.name).filter(Boolean)
-
-  const stratumInfo = sector?.stratumName ? {
-    stratumName:   sector.stratumName,
-    depthMeters:   sector.depthMeters  ?? null,
-    lootTier:      sector.lootTier     ?? 1,
-    dangerRank:    sector.dangerRank   ?? 'low',
-    dangerLabel:   DANGER_LABELS[sector.dangerRank] ?? 'bajo',
-    enemyNames,
-    resourceNames,
-  } : null
-
-  return {
-    routeLabel,
-    modeLabel:     MODE_LABELS_PREP[modeId] ?? 'Marcha Libre',
-    risk,
-    expected,
-    creatureHint:  CREATURE_HINTS[creature?.id]   ?? creature?.passiveDescription ?? '',
-    archetypeHint: ARCHETYPE_HINTS[archetype?.id] ?? archetype?.passiveDescription ?? '',
-    stratumInfo,
-  }
-}
 </file>
 
 <file path="src/data/gameData.js">
@@ -4132,10 +4841,10 @@ export const ABYSS_STRATA = [
   {
     id: 'stratum_01',
     number: 1,
-    name: 'Estrato I · Linde de Raíz',
-    shortName: 'Estrato I',
+    name: 'I · Linde de las Raíces Ciegas',
+    shortName: 'Raíces Ciegas',
     depthRange: '0-250 m',
-    theme: 'Bosque rúnico, raíces antiguas y bruma baja.',
+    theme: 'Bosque subterráneo de raíces gigantes, bruma baja y faroles antiguos.',
     dangerRank: 'low',
     lootTier: 1,
     biomeIds: ['forest'],
@@ -4146,10 +4855,10 @@ export const ABYSS_STRATA = [
   {
     id: 'stratum_02',
     number: 2,
-    name: 'Estrato II · Cornisa Salina',
-    shortName: 'Estrato II',
+    name: 'II · Cornisa de la Sal Negra',
+    shortName: 'Sal Negra',
     depthRange: '250-500 m',
-    theme: 'Costa hundida, sal arcana, rocas húmedas y viento frío.',
+    theme: 'Cornisas húmedas, sal arcana, roca fría y viento de profundidad.',
     dangerRank: 'medium',
     lootTier: 2,
     biomeIds: ['coast'],
@@ -4160,10 +4869,10 @@ export const ABYSS_STRATA = [
   {
     id: 'stratum_03',
     number: 3,
-    name: 'Estrato III · Forjas Hundidas',
-    shortName: 'Estrato III',
+    name: 'III · Hornacinas de Ceniza',
+    shortName: 'Hornacinas',
     depthRange: '500-850 m',
-    theme: 'Ruinas de forja, hierro viejo, humo bajo y carbón resonante.',
+    theme: 'Forjas abandonadas, hierro viejo, humo bajo y brasas enterradas.',
     dangerRank: 'high',
     lootTier: 3,
     biomeIds: ['forge'],
@@ -4198,7 +4907,7 @@ export const INITIAL_SECTORS = [
     poiId: 'shelter',
     connections: ['sector_mist_root', 'sector_salt_beacon'],
     stratumId: 'stratum_01',
-    stratumName: 'Estrato I · Linde de Raíz',
+    stratumName: 'I · Linde de las Raíces Ciegas',
     depth: 1,
     depthMeters: 120,
     abyssRing: 1,
@@ -4220,7 +4929,7 @@ export const INITIAL_SECTORS = [
     poiId: 'trader',
     connections: ['sector_aethel_edge', 'sector_sleeping_forge', 'sector_runic_guard_ruins'],
     stratumId: 'stratum_01',
-    stratumName: 'Estrato I · Linde de Raíz',
+    stratumName: 'I · Linde de las Raíces Ciegas',
     depth: 1,
     depthMeters: 180,
     abyssRing: 1,
@@ -4242,7 +4951,7 @@ export const INITIAL_SECTORS = [
     poiId: 'inn',
     connections: ['sector_aethel_edge', 'sector_tide_rock'],
     stratumId: 'stratum_02',
-    stratumName: 'Estrato II · Cornisa Salina',
+    stratumName: 'II · Cornisa de la Sal Negra',
     depth: 2,
     depthMeters: 340,
     abyssRing: 2,
@@ -4264,7 +4973,7 @@ export const INITIAL_SECTORS = [
     poiId: 'tavern',
     connections: ['sector_salt_beacon', 'sector_coal_bastion'],
     stratumId: 'stratum_02',
-    stratumName: 'Estrato II · Cornisa Salina',
+    stratumName: 'II · Cornisa de la Sal Negra',
     depth: 2,
     depthMeters: 410,
     abyssRing: 2,
@@ -4286,7 +4995,7 @@ export const INITIAL_SECTORS = [
     poiId: 'forge',
     connections: ['sector_mist_root', 'sector_coal_bastion'],
     stratumId: 'stratum_03',
-    stratumName: 'Estrato III · Forjas Hundidas',
+    stratumName: 'III · Hornacinas de Ceniza',
     depth: 3,
     depthMeters: 690,
     abyssRing: 3,
@@ -4308,7 +5017,7 @@ export const INITIAL_SECTORS = [
     poiId: 'supply',
     connections: ['sector_sleeping_forge', 'sector_tide_rock'],
     stratumId: 'stratum_03',
-    stratumName: 'Estrato III · Forjas Hundidas',
+    stratumName: 'III · Hornacinas de Ceniza',
     depth: 3,
     depthMeters: 760,
     abyssRing: 3,
@@ -4330,7 +5039,7 @@ export const INITIAL_SECTORS = [
     poiId: null,
     connections: ['sector_mist_root', 'sector_hollow_mushroom_cave'],
     stratumId: 'stratum_01',
-    stratumName: 'Estrato I · Linde de Raíz',
+    stratumName: 'I · Linde de las Raíces Ciegas',
     depth: 1,
     depthMeters: 210,
     abyssRing: 1,
@@ -4355,7 +5064,7 @@ export const INITIAL_SECTORS = [
     poiId: null,
     connections: ['sector_runic_guard_ruins'],
     stratumId: 'stratum_01',
-    stratumName: 'Estrato I · Linde de Raíz',
+    stratumName: 'I · Linde de las Raíces Ciegas',
     depth: 1,
     depthMeters: 235,
     abyssRing: 1,
@@ -4366,805 +5075,395 @@ export const INITIAL_SECTORS = [
     loreTag: 'hollow_mushrooms',
   },
 ]
-</file>
 
-<file path="src/systems/codexSystem.js">
-import { ABYSS_STRATA, RESOURCES, ENEMIES, CREATURES, POIS } from '../data/gameData.js'
-
-const DANGER_LABELS  = { low: 'Bajo', medium: 'Medio', high: 'Alto', extreme: 'Extremo' }
-const BIOME_NAMES    = { forest: 'Bosque Rúnico', coast: 'Costa Arcana', forge: 'Forja Arcanista' }
-const THREAT_LABELS  = { low: 'Baja', medium: 'Media', high: 'Alta' }
-const RARITY_LABELS  = { comun: 'Común', poco_comun: 'Poco común', raro: 'Raro' }
-const MASTERY_LABELS = ['Sin rastro', 'Conocido', 'Familiar', 'Dominado', 'Legendario']
-
-const FOG_DESC   = 'La expedición no ha registrado datos suficientes.'
-const FOG_SECTOR = 'La expedición no ha cartografiado esta zona.'
-const FOG_ENEMY  = 'La expedición no ha registrado datos de esta amenaza.'
-const FOG_RES    = 'Aún no hay datos suficientes en el códice.'
-const FOG_POI    = 'La expedición no ha registrado este lugar.'
-const FOG_CREATURE = 'Esta criatura aún no ha sido observada.'
-
-// ── Helper de inventario ──────────────────────────────────────────────────────
-// Soporta inventario plano { runic_wood: 2 } e inventario con items { items: { runic_wood: 2 } }
-
-function getInventoryQty(inventory, resourceId) {
-  if (!inventory) return 0
-  if (typeof inventory[resourceId] === 'number') return inventory[resourceId]
-  if (typeof inventory.items?.[resourceId] === 'number') return inventory.items[resourceId]
-  return 0
-}
-
-// ── Predicados de descubrimiento ─────────────────────────────────────────────
-
-export function isStratumDiscovered(stratumId, sectors) {
-  return (sectors ?? []).some(s => (s.stratumId ?? 'stratum_01') === stratumId && s.discovered)
-}
-
-export function isSectorDiscovered(sectorId, sectors) {
-  return (sectors ?? []).some(s => s.id === sectorId && s.discovered)
-}
-
-export function isResourceDiscovered(resourceId, inventory, diary) {
-  if (getInventoryQty(inventory, resourceId) > 0) return true
-  for (const entry of (diary ?? [])) {
-    if (entry.rewards?.resources?.[resourceId]) return true
-    for (const ev of (entry.events ?? [])) {
-      if (ev.resourceId === resourceId) return true
-    }
-  }
-  return false
-}
-
-export function isEnemyDiscovered(enemyId, diary) {
-  for (const entry of (diary ?? [])) {
-    if ((entry.combatResults ?? []).some(c => c.enemyId === enemyId)) return true
-    if ((entry.events ?? []).some(e => e.type === 'threat' && e.enemyId === enemyId)) return true
-  }
-  return false
-}
-
-// ── Estado inicial del Códice ─────────────────────────────────────────────────
-// El Códice se deriva del estado del juego — no necesita guardarse por separado.
-// createCodexState / sanitizeCodexState existen para compatibilidad futura.
-
-export function createCodexState() {
-  return { version: 1 }
-}
-
-export function sanitizeCodexState(raw) {
-  if (!raw || typeof raw !== 'object') return createCodexState()
-  return { version: 1 }
-}
-
-// ── Constructor de entradas ───────────────────────────────────────────────────
-
-export function buildCodexEntries({ player, sectors, inventory, diary }) {
-  const entries = []
-
-  // ─ Estratos ─────────────────────────────────────────────────────────────────
-  for (const stratum of ABYSS_STRATA) {
-    const discovered  = isStratumDiscovered(stratum.id, sectors)
-    const inStratum   = (sectors ?? []).filter(s => (s.stratumId ?? 'stratum_01') === stratum.id)
-    const found       = inStratum.filter(s => s.discovered).length
-    entries.push({
-      id:          `stratum_${stratum.id}`,
-      category:    'strata',
-      name:        discovered ? stratum.name : '????',
-      discovered,
-      subtitle:    discovered ? `${stratum.depthRange} · Loot T${stratum.lootTier}` : 'Estrato no cartografiado',
-      description: discovered ? stratum.theme : FOG_DESC,
-      meta:        discovered ? [
-        `Peligro: ${DANGER_LABELS[stratum.dangerRank] ?? stratum.dangerRank}`,
-        `Sectores cartografiados: ${found} / ${inStratum.length}`,
-      ] : [],
-    })
-  }
-
-  // ─ Sectores ──────────────────────────────────────────────────────────────────
-  for (const sector of (sectors ?? [])) {
-    const discovered = sector.discovered
-    entries.push({
-      id:          `sector_${sector.id}`,
-      category:    'sectors',
-      name:        discovered ? sector.name : '????',
-      discovered,
-      subtitle:    discovered ? (sector.stratumName ?? '—') : 'Zona en bruma',
-      description: discovered
-        ? (BIOME_NAMES[sector.biomeId] ?? sector.biomeId) + (sector.depthMeters ? ` · ${sector.depthMeters} m` : '')
-        : FOG_SECTOR,
-      meta: discovered ? [
-        ...(sector.secret            ? ['Secreto descubierto']                                                               : []),
-        ...(sector.threat            ? [`Amenaza: ${THREAT_LABELS[sector.threat]  ?? sector.threat}`]                     : []),
-        ...(sector.visits > 0        ? [`Visitas: ${sector.visits}`]                                                        : []),
-        ...(sector.masteryLevel != null ? [`Dominio: ${MASTERY_LABELS[sector.masteryLevel] ?? '—'}`]                      : []),
-        ...(sector.poiId             ? [`Lugar: ${POIS[sector.poiId]?.name ?? sector.poiId}`]                               : []),
-      ] : [],
-    })
-  }
-
-  // ─ Recursos ──────────────────────────────────────────────────────────────────
-  for (const [rid, res] of Object.entries(RESOURCES)) {
-    const discovered = isResourceDiscovered(rid, inventory, diary)
-    const qty        = getInventoryQty(inventory, rid)
-    entries.push({
-      id:          `resource_${rid}`,
-      category:    'resources',
-      name:        discovered ? res.name : '????',
-      discovered,
-      subtitle:    discovered ? `Material · ${BIOME_NAMES[res.biomeId] ?? res.biomeId}` : 'Recurso no registrado',
-      description: discovered ? res.utility : FOG_RES,
-      meta:        discovered ? [
-        qty > 0 ? `En inventario: ${qty}` : 'No en inventario',
-        `Rareza: ${RARITY_LABELS[res.rarity] ?? res.rarity}`,
-      ] : [],
-    })
-  }
-
-  // ─ Enemigos ───────────────────────────────────────────────────────────────────
-  for (const [eid, enemy] of Object.entries(ENEMIES)) {
-    const discovered = isEnemyDiscovered(eid, diary)
-    const timesFound = (diary ?? []).reduce((acc, entry) =>
-      acc + (entry.combatResults ?? []).filter(c => c.enemyId === eid).length, 0)
-    entries.push({
-      id:          `enemy_${eid}`,
-      category:    'enemies',
-      name:        discovered ? enemy.name : '????',
-      discovered,
-      subtitle:    discovered ? 'Amenaza conocida' : 'Amenaza no registrada',
-      description: discovered ? enemy.concept : FOG_ENEMY,
-      meta:        discovered ? [
-        ...(timesFound > 0 ? [`Encuentros en combate: ${timesFound}`] : ['Observada, no derrotada']),
-        ...(enemy.biomeIds?.length ? [`Biomas: ${enemy.biomeIds.map(b => BIOME_NAMES[b] ?? b).join(', ')}`] : []),
-      ] : [],
-    })
-  }
-
-  // ─ Criaturas ─────────────────────────────────────────────────────────────────
-  for (const creature of CREATURES) {
-    const isOwned    = creature.id === player?.creatureId
-    const discovered = isOwned
-    entries.push({
-      id:          `creature_${creature.id}`,
-      category:    'creatures',
-      name:        discovered ? creature.name : '????',
-      discovered,
-      subtitle:    discovered ? creature.role : 'Criatura no registrada',
-      description: discovered ? creature.description : FOG_CREATURE,
-      meta:        discovered ? [
-        `Pasiva: ${creature.passiveName}`,
-        creature.passiveDescription,
-        ...(isOwned ? ['Compañera actual de expedición'] : []),
-      ] : [],
-    })
-  }
-
-  // ─ Puntos de interés ─────────────────────────────────────────────────────────
-  const discoveredPoiIds = new Set(
-    (sectors ?? []).filter(s => s.discovered && s.poiId).map(s => s.poiId)
-  )
-  for (const [poiId, poi] of Object.entries(POIS)) {
-    const discovered    = discoveredPoiIds.has(poiId)
-    const sectorWithPoi = (sectors ?? []).find(s => s.poiId === poiId && s.discovered)
-    entries.push({
-      id:          `poi_${poiId}`,
-      category:    'pois',
-      name:        discovered ? poi.name : '????',
-      discovered,
-      subtitle:    discovered
-        ? (sectorWithPoi ? `En ${sectorWithPoi.name}` : 'Localización conocida')
-        : 'Lugar no cartografiado',
-      description: discovered ? poi.description : FOG_POI,
-      meta:        discovered && sectorWithPoi ? [
-        sectorWithPoi.stratumName ?? '—',
-      ] : [],
-    })
-  }
-
-  return entries
-}
-
-// ── Progreso global ───────────────────────────────────────────────────────────
-
-export function getCodexProgress(entries) {
-  const total      = entries.length
-  const discovered = entries.filter(e => e.discovered).length
-  return { total, discovered }
-}
-</file>
-
-<file path="src/systems/mapSystem.js">
-import { isSecretSector, canRevealSecretSector, getSecretRevealReason } from './secretSystem.js'
-
-// ── Consultas básicas ─────────────────────────────────────────────────────────
-
-export function getDiscoveredSectors(sectors) {
-  return sectors.filter(s => s.discovered)
-}
-
-export function getHiddenConnectedSectors(sectors, currentSectorId) {
-  const current = sectors.find(s => s.id === currentSectorId)
-  if (!current) return []
-  return sectors.filter(s => !s.discovered && (current.connections ?? []).includes(s.id))
-}
-
-export function calculateMasteryLevel(mastery) {
-  if (mastery >= 100) return 4
-  if (mastery >= 50)  return 3
-  if (mastery >= 25)  return 2
-  if (mastery >= 10)  return 1
-  return 0
-}
-
-export function revealSector(sectors, sectorId) {
-  return sectors.map(s =>
-    s.id === sectorId ? { ...s, discovered: true, recentlyDiscovered: true } : s
-  )
-}
-
-// ── Textos de descubrimiento ──────────────────────────────────────────────────
-
-const DISCOVERY_TEXTS = {
-  explore:    name => `La niebla cedió al final del tramo. La caravana encontró el acceso a ${name}.`,
-  free_march: name => `Un hallazgo de senda reveló el camino hacia ${name}. La bruma retrocedió.`,
-  gather:     name => `Entre los senderos de recolección, la caravana encontró un paso hacia ${name}.`,
-  hunt:       name => `La persecución de rastros llevó a la caravana hasta ${name}.`,
-}
-
-// ── Prioridad de descubrimiento normal ────────────────────────────────────────
-// Desde sector_mist_root, la Ruina de Guardia Rúnica debe descubrirse antes
-// que la Fragua Dormida (que aparece antes en el array de sectores globales).
-
-function pickNextNormalDiscovery(normalHidden, currentSectorId) {
-  if (!normalHidden.length) return null
-  if (currentSectorId === 'sector_mist_root') {
-    return (
-      normalHidden.find(s => s.id === 'sector_runic_guard_ruins') ??
-      normalHidden[0]
-    )
-  }
-  return normalHidden[0]
-}
-
-// ── Resolver descubrimiento ───────────────────────────────────────────────────
-
-export function resolveSectorDiscovery({ sectors, currentSectorId, modeId, events, masteryGain, player }) {
-  const currentSector = sectors.find(s => s.id === currentSectorId)
-  if (!currentSector) return { sectors, discovery: null }
-
-  const allHidden    = getHiddenConnectedSectors(sectors, currentSectorId)
-  const normalHidden = allHidden.filter(s => !isSecretSector(s))
-  const secretHidden = allHidden.filter(s => isSecretSector(s))
-
-  const explorationCount = events.filter(e => e.type === 'exploration').length
-  const oldMastery       = currentSector.mastery ?? 0
-  const crossedMastery   = oldMastery < 25 && (oldMastery + (masteryGain ?? 0)) >= 25
-
-  // ── Normal discovery ─────────────────────────────────────────────────────────
-  if (normalHidden.length > 0) {
-    let shouldDiscover = false
-    if (modeId === 'explore'    && explorationCount >= 1) shouldDiscover = true
-    if (modeId === 'free_march' && explorationCount >= 2) shouldDiscover = true
-    if (modeId === 'gather'     && explorationCount >= 2) shouldDiscover = true
-    if (modeId === 'hunt'       && explorationCount >= 3) shouldDiscover = true
-    if (crossedMastery)                                   shouldDiscover = true
-
-    if (shouldDiscover) {
-      const target = pickNextNormalDiscovery(normalHidden, currentSectorId)
-      if (!target) return { sectors, discovery: null }
-      const newSectors = revealSector(sectors, target.id)
-      const textFn     = DISCOVERY_TEXTS[modeId] ?? (name => `La caravana encontró el acceso a ${name} al final del tramo.`)
-      const text       = crossedMastery && !DISCOVERY_TEXTS[modeId]
-        ? `El dominio acumulado en la zona abrió el camino hacia ${target.name}.`
-        : textFn(target.name)
-      const reason     = crossedMastery ? 'Dominio acumulado'
-        : modeId === 'explore'           ? 'Modo Exploración'
-        :                                  'Sendas descubiertas'
-      return {
-        sectors: newSectors,
-        discovery: { sectorId: target.id, sectorName: target.name, biomeId: target.biomeId, reason, text },
-      }
-    }
-  }
-
-  // ── Secret discovery ─────────────────────────────────────────────────────────
-  if (secretHidden.length > 0) {
-    const newMastery       = (currentSector.mastery ?? 0) + (masteryGain ?? 0)
-    const newMasteryLevel  = calculateMasteryLevel(newMastery)
-    const effectiveCurrent = { ...currentSector, mastery: newMastery, masteryLevel: newMasteryLevel }
-
-    for (const secretSector of secretHidden) {
-      if (canRevealSecretSector({ sector: secretSector, currentSector: effectiveCurrent, player, expeditionModeId: modeId })) {
-        const newSectors = revealSector(sectors, secretSector.id)
-        const reason     = getSecretRevealReason({ sector: secretSector, player, expeditionModeId: modeId })
-        const text       = `${reason} La caravana encontró ${secretSector.name}.`
-        return {
-          sectors: newSectors,
-          discovery: {
-            sectorId:   secretSector.id,
-            sectorName: secretSector.name,
-            biomeId:    secretSector.biomeId,
-            reason:     'Secreto descubierto',
-            text,
-            isSecret:   true,
-          },
-        }
-      }
-    }
-  }
-
-  return { sectors, discovery: null }
-}
-
-// ── Limpiar marcas recientes ──────────────────────────────────────────────────
-
-export function clearRecentDiscoveries(sectors) {
-  return sectors.map(s => s.recentlyDiscovered ? { ...s, recentlyDiscovered: false } : s)
-}
-</file>
-
-<file path="src/systems/saveSystem.js">
-export const SAVE_KEY     = 'aethermarch_save_v1'
-export const SAVE_VERSION = 1
-
-// Statuses that indicate an active session (march / combat in progress)
-const ACTIVE_STATUSES = ['marching', 'combat']
-// Statuses that must be sanitized to 'resting' before writing
-const UNSAFE_STATUSES = ['marching', 'combat', 'awaiting_choice', 'resolved', 'completed']
-
-// ── Acceso a localStorage ─────────────────────────────────────────────────────
-
-export function hasSave() {
-  try { return !!localStorage.getItem(SAVE_KEY) } catch { return false }
-}
-
-export function loadSave() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch { return null }
-}
-
-export function writeSave(saveData) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(saveData)) } catch { /* quota / privacy */ }
-}
-
-export function clearSave() {
-  try { localStorage.removeItem(SAVE_KEY) } catch { /* ignore */ }
-}
-
-// ── Crear snapshot serializable desde el estado de App ────────────────────────
-
-export function createSaveSnapshot({
-  player,
-  selectedArchetypeId,
-  selectedCreatureId,
-  inventory,
-  diary,
-  sectors,
-  expedition,
-  lastEchoClaimAt,
-  stepSource,
-  contractState,
-}) {
-  // Track whether the save was created while a run was active
-  const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
-
-  const safeExp = { ...(expedition ?? {}) }
-  if (UNSAFE_STATUSES.includes(safeExp.status)) {
-    safeExp.status        = 'resting'
-    safeExp.currentSteps  = 0
-    safeExp.progress      = 0
-    safeExp.events        = []
-    safeExp.rewards       = {}
-    safeExp.combatResults = []
-  }
-
-  return {
-    version:             SAVE_VERSION,
-    savedAt:             new Date().toISOString(),
-    player,
-    selectedArchetypeId,
-    selectedCreatureId,
-    inventory,
-    diary,
-    sectors,
-    expedition:       safeExp,
-    lastEchoClaimAt:  lastEchoClaimAt ?? null,
-    stepSource:       stepSource ?? null,
-    contractState:    contractState ?? null,
-    meta: {
-      recoveredFromInterruptedRun: wasActive,
-    },
-  }
-}
-
-// ── Validar y sanear partida cargada ──────────────────────────────────────────
-
-export function sanitizeLoadedSave(rawSave) {
-  if (!rawSave || rawSave.version !== SAVE_VERSION) return null
-  if (!rawSave.player || typeof rawSave.player !== 'object') return null
-  if (!rawSave.selectedArchetypeId || !rawSave.selectedCreatureId) return null
-  if (!rawSave.inventory || typeof rawSave.inventory !== 'object') return null
-  if (!Array.isArray(rawSave.diary)) return null
-  if (!Array.isArray(rawSave.sectors) || rawSave.sectors.length === 0) return null
-
-  const save = JSON.parse(JSON.stringify(rawSave))  // deep clone
-
-  // Safety net: sanitize dangerous statuses that should not have been saved
-  const exp            = save.expedition ?? {}
-  const wasInterrupted = ACTIVE_STATUSES.includes(exp.status)
-  const needsSanitize  = UNSAFE_STATUSES.includes(exp.status)
-
-  if (needsSanitize) {
-    save.expedition = {
-      ...exp,
-      status:        'resting',
-      currentSteps:  0,
-      progress:      0,
-      events:        [],
-      rewards:       {},
-      combatResults: [],
-    }
-  }
-  if (wasInterrupted) {
-    save.meta = { ...(save.meta ?? {}), recoveredFromInterruptedRun: true }
-  }
-
-  return save
-}
-</file>
-
-<file path="vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-export default defineConfig({
-  plugins: [react()],
-  base: '/Aethermarch/',
-  server: {
-    port: parseInt(process.env.PORT) || 5173,
-    strictPort: false,
+// ── RUTAS DEL MUNDO ───────────────────────────────────────────────────────────
+// Capa de diseño explícita de rutas. No sustituye sector.connections todavía.
+export const WORLD_ROUTES = [
+  {
+    id: 'route_aethel_to_mist',
+    name: 'Senda de los Faroles Bajos',
+    fromSectorId: 'sector_aethel_edge',
+    toSectorId: 'sector_mist_root',
+    type: 'main',
+    status: 'open',
+    stratumId: 'stratum_01',
+    zoneId: 'zone_root_lanterns',
+    stepMin: 600,
+    stepMax: 1000,
+    danger: 'low',
+    description: 'Camino marcado con faroles viejos entre raíces húmedas. Es la primera ruta real del descenso.',
+    requirements: [],
+    tags: ['forest', 'starter', 'marked'],
   },
-  build: {
-    chunkSizeWarningLimit: 400,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-        },
-      },
-    },
+  {
+    id: 'route_aethel_to_salt',
+    name: 'Bajada de la Sal Fría',
+    fromSectorId: 'sector_aethel_edge',
+    toSectorId: 'sector_salt_beacon',
+    type: 'descent',
+    status: 'open',
+    stratumId: 'stratum_01',
+    zoneId: 'zone_outer_descent',
+    stepMin: 900,
+    stepMax: 1300,
+    danger: 'medium',
+    description: 'Una bajada húmeda donde el olor del bosque se mezcla con sal negra y viento subterráneo.',
+    requirements: [],
+    tags: ['descent', 'coast', 'salt'],
   },
-})
-</file>
-
-<file path="src/screens/MapScreen.jsx">
-import { useState } from 'react'
-import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA } from '../data/gameData.js'
-import { getStratumProgress } from '../systems/abyssSystem.js'
-
-const THREAT_LABEL  = { low: 'Baja', medium: 'Media', high: 'Alta' }
-const MASTERY_LABEL = ['Sin rastro', 'Conocido', 'Familiar', 'Dominado', 'Legendario']
-const THREAT_COLOR  = { low: 'var(--color-xp)', medium: 'var(--color-ember)', high: 'var(--color-hp)' }
-
-// Posiciones en espiral descendente (x%, y%)
-const ABYSS_NODE_POS = {
-  sector_aethel_edge:         { x: 50, y: 10 },
-  sector_mist_root:           { x: 26, y: 26 },
-  sector_runic_guard_ruins:   { x: 20, y: 31 },
-  sector_hollow_mushroom_cave:{ x: 44, y: 35 },
-  sector_salt_beacon:         { x: 74, y: 39 },
-  sector_tide_rock:           { x: 28, y: 54 },
-  sector_sleeping_forge:      { x: 72, y: 69 },
-  sector_coal_bastion:        { x: 50, y: 83 },
-}
-
-const CONNECTIONS = [
-  ['sector_aethel_edge',        'sector_mist_root'],
-  ['sector_aethel_edge',        'sector_salt_beacon'],
-  ['sector_mist_root',          'sector_runic_guard_ruins'],
-  ['sector_mist_root',          'sector_sleeping_forge'],
-  ['sector_runic_guard_ruins',  'sector_hollow_mushroom_cave'],
-  ['sector_salt_beacon',        'sector_tide_rock'],
-  ['sector_sleeping_forge',     'sector_coal_bastion'],
-  ['sector_tide_rock',          'sector_coal_bastion'],
+  {
+    id: 'route_mist_to_ruins',
+    name: 'Paso de las Piedras Marcadas',
+    fromSectorId: 'sector_mist_root',
+    toSectorId: 'sector_runic_guard_ruins',
+    type: 'main',
+    status: 'hidden',
+    stratumId: 'stratum_01',
+    zoneId: 'zone_runic_ruins',
+    stepMin: 700,
+    stepMax: 1100,
+    danger: 'medium',
+    description: 'Un sendero cubierto por raíces que conduce a una antigua guardia rúnica.',
+    requirements: [],
+    tags: ['forest', 'ruin', 'rune'],
+  },
+  {
+    id: 'route_ruins_to_mushroom',
+    name: 'Grieta de las Setas Huecas',
+    fromSectorId: 'sector_runic_guard_ruins',
+    toSectorId: 'sector_hollow_mushroom_cave',
+    type: 'secret',
+    status: 'hidden',
+    stratumId: 'stratum_01',
+    zoneId: 'zone_runic_ruins',
+    stepMin: 500,
+    stepMax: 800,
+    danger: 'low',
+    description: 'Una entrada oculta tras raíces compactas. La cueva no aparece en mapas comunes.',
+    requirements: ['Velthar + Exploración', 'o dominio suficiente de la Ruina'],
+    tags: ['secret', 'forest', 'creature', 'mushroom'],
+  },
+  {
+    id: 'route_mist_to_forge',
+    name: 'Desvío del Hierro Dormido',
+    fromSectorId: 'sector_mist_root',
+    toSectorId: 'sector_sleeping_forge',
+    type: 'dangerous',
+    status: 'hidden',
+    stratumId: 'stratum_01',
+    zoneId: 'zone_deep_crack',
+    stepMin: 1200,
+    stepMax: 1700,
+    danger: 'high',
+    description: 'Una ruta mala, empinada y demasiado silenciosa. Baja hacia restos de forja antes de tiempo.',
+    requirements: [],
+    tags: ['dangerous', 'forge', 'early_deep'],
+  },
+  {
+    id: 'route_salt_to_tide',
+    name: 'Cornisa de la Marea Negra',
+    fromSectorId: 'sector_salt_beacon',
+    toSectorId: 'sector_tide_rock',
+    type: 'main',
+    status: 'open',
+    stratumId: 'stratum_02',
+    zoneId: 'zone_salt_cornice',
+    stepMin: 700,
+    stepMax: 1100,
+    danger: 'high',
+    description: 'Cornisa mojada, estrecha y abierta al rumor de agua negra.',
+    requirements: [],
+    tags: ['coast', 'salt', 'danger'],
+  },
+  {
+    id: 'route_tide_to_coal',
+    name: 'Bajada del Carbón Húmedo',
+    fromSectorId: 'sector_tide_rock',
+    toSectorId: 'sector_coal_bastion',
+    type: 'descent',
+    status: 'hidden',
+    stratumId: 'stratum_02',
+    zoneId: 'zone_salt_descent',
+    stepMin: 1000,
+    stepMax: 1500,
+    danger: 'high',
+    description: 'Una bajada negra donde la humedad se convierte poco a poco en humo y polvo de carbón.',
+    requirements: [],
+    tags: ['descent', 'forge', 'coal'],
+  },
+  {
+    id: 'route_forge_to_coal',
+    name: 'Galería de las Brasas Muertas',
+    fromSectorId: 'sector_sleeping_forge',
+    toSectorId: 'sector_coal_bastion',
+    type: 'main',
+    status: 'open',
+    stratumId: 'stratum_03',
+    zoneId: 'zone_sunken_forges',
+    stepMin: 800,
+    stepMax: 1300,
+    danger: 'medium',
+    description: 'Galería entre hornos apagados, columnas rotas y carbón resonante.',
+    requirements: [],
+    tags: ['forge', 'coal', 'main'],
+  },
 ]
 
-// Bandas de estrato: y% de inicio/fin y metadatos
-const STRATA_BANDS = [
-  { id: 'stratum_01', cssClass: 'stratum-1', label: 'Estrato I',   depth: '120 m',  yMid: 18 },
-  { id: 'stratum_02', cssClass: 'stratum-2', label: 'Estrato II',  depth: '340 m',  yMid: 50 },
-  { id: 'stratum_03', cssClass: 'stratum-3', label: 'Estrato III', depth: '690 m',  yMid: 82 },
+// ── ZONAS DEL ABISMO ──────────────────────────────────────────────────────────
+export const ABYSS_ZONES = [
+  {
+    id: 'zone_root_lanterns',
+    stratumId: 'stratum_01',
+    name: 'Faroles de Raíz',
+    shortName: 'Faroles',
+    description: 'Primer anillo habitable del Abismo. Raíces, faroles viejos, refugios y señales de expediciones anteriores.',
+    visualTheme: 'verde oscuro, cuero, niebla baja, faroles cálidos',
+    danger: 'low',
+    sectorIds: ['sector_aethel_edge', 'sector_mist_root'],
+    routeIds: ['route_aethel_to_mist'],
+  },
+  {
+    id: 'zone_runic_ruins',
+    stratumId: 'stratum_01',
+    name: 'Ruinas Rúnicas',
+    shortName: 'Ruinas',
+    description: 'Restos de guardias antiguas y piedras marcadas. La niebla se comporta de forma extraña alrededor de las runas.',
+    visualTheme: 'piedra antigua, violeta rúnico, raíces partidas',
+    danger: 'medium',
+    sectorIds: ['sector_runic_guard_ruins', 'sector_hollow_mushroom_cave'],
+    routeIds: ['route_mist_to_ruins', 'route_ruins_to_mushroom'],
+  },
+  {
+    id: 'zone_outer_descent',
+    stratumId: 'stratum_01',
+    name: 'Umbral de Sal',
+    shortName: 'Umbral',
+    description: 'La primera bajada donde el bosque empieza a desaparecer y aparece la sal negra.',
+    visualTheme: 'verde apagado, azul niebla, piedra húmeda',
+    danger: 'medium',
+    sectorIds: ['sector_aethel_edge', 'sector_salt_beacon'],
+    routeIds: ['route_aethel_to_salt'],
+  },
+  {
+    id: 'zone_salt_cornice',
+    stratumId: 'stratum_02',
+    name: 'Cornisa de Sal Negra',
+    shortName: 'Sal Negra',
+    description: 'Cornisas húmedas, faros apagados, roca fría y viento de profundidad.',
+    visualTheme: 'azul niebla, sal blanca apagada, roca negra',
+    danger: 'medium',
+    sectorIds: ['sector_salt_beacon', 'sector_tide_rock'],
+    routeIds: ['route_salt_to_tide'],
+  },
+  {
+    id: 'zone_salt_descent',
+    stratumId: 'stratum_02',
+    name: 'Descenso del Carbón',
+    shortName: 'Carbón',
+    description: 'Bajada de transición entre sal, humedad y humo.',
+    visualTheme: 'azul oscuro, negro carbón, brasa tenue',
+    danger: 'high',
+    sectorIds: ['sector_tide_rock', 'sector_coal_bastion'],
+    routeIds: ['route_tide_to_coal'],
+  },
+  {
+    id: 'zone_sunken_forges',
+    stratumId: 'stratum_03',
+    name: 'Hornacinas de Ceniza',
+    shortName: 'Ceniza',
+    description: 'Forjas hundidas, hierro viejo, hornos apagados y brasas que aún respiran.',
+    visualTheme: 'brasa, hierro oscuro, piedra caliente',
+    danger: 'high',
+    sectorIds: ['sector_sleeping_forge', 'sector_coal_bastion'],
+    routeIds: ['route_forge_to_coal'],
+  },
 ]
 
-// Fallback para saves sin campos de Abismo (merge en handleContinue lo resuelve,
-// pero se mantiene por seguridad en renderizado).
-const STRATUM_FALLBACK = {
-  sector_aethel_edge:          { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 120, lootTier: 1 },
-  sector_mist_root:            { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 180, lootTier: 1 },
-  sector_runic_guard_ruins:    { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 210, lootTier: 1 },
-  sector_hollow_mushroom_cave: { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz',    depth: 1, depthMeters: 235, lootTier: 1 },
-  sector_salt_beacon:          { stratumId: 'stratum_02', stratumName: 'Estrato II · Cornisa Salina',   depth: 2, depthMeters: 340, lootTier: 2 },
-  sector_tide_rock:            { stratumId: 'stratum_02', stratumName: 'Estrato II · Cornisa Salina',   depth: 2, depthMeters: 410, lootTier: 2 },
-  sector_sleeping_forge:       { stratumId: 'stratum_03', stratumName: 'Estrato III · Forjas Hundidas', depth: 3, depthMeters: 690, lootTier: 3 },
-  sector_coal_bastion:         { stratumId: 'stratum_03', stratumName: 'Estrato III · Forjas Hundidas', depth: 3, depthMeters: 760, lootTier: 3 },
-}
+export const WORLD_ROUTE_SEGMENTS = [
+  // route_aethel_to_mist — Senda de los Faroles Bajos
+  {
+    id: 'seg_afm_01', routeId: 'route_aethel_to_mist', order: 1,
+    name: 'Faroles hundidos',
+    description: 'Farolillos de hueso enterrados en el suelo, camino de tierra firme.',
+    type: 'approach', danger: 'low', stepMin: 180, stepMax: 300,
+    eventBias: { resource: 0.4, exploration: 0.3, creature: 0.1, threat: 0.05, microevent: 0.15 },
+  },
+  {
+    id: 'seg_afm_02', routeId: 'route_aethel_to_mist', order: 2,
+    name: 'Raíces de paso',
+    description: 'Red de raíces que forma un puente natural sobre la grieta de niebla.',
+    type: 'crossing', danger: 'low', stepMin: 220, stepMax: 360,
+    eventBias: { resource: 0.2, exploration: 0.4, creature: 0.2, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_afm_03', routeId: 'route_aethel_to_mist', order: 3,
+    name: 'Boca de niebla',
+    description: 'Entrada al Sector Raíz de Niebla; la bruma sube hasta la cintura.',
+    type: 'landmark', danger: 'medium', stepMin: 200, stepMax: 340,
+    eventBias: { resource: 0.1, exploration: 0.5, creature: 0.2, threat: 0.1, microevent: 0.1 },
+  },
 
-function withAbyssMeta(sector) {
-  if (sector.stratumId) return sector
-  return { ...sector, ...(STRATUM_FALLBACK[sector.id] ?? { stratumId: 'stratum_01', stratumName: 'Estrato I · Linde de Raíz', depth: 1, depthMeters: 120, lootTier: 1 }) }
-}
+  // route_aethel_to_salt — Bajada a la Cornisa
+  {
+    id: 'seg_ats_01', routeId: 'route_aethel_to_salt', order: 1,
+    name: 'Piedra húmeda',
+    description: 'Escalones tallados en roca negra cubiertos de humedad constante.',
+    type: 'approach', danger: 'low', stepMin: 280, stepMax: 400,
+    eventBias: { resource: 0.3, exploration: 0.3, creature: 0.2, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_ats_02', routeId: 'route_aethel_to_salt', order: 2,
+    name: 'Primer olor a sal',
+    description: 'La roca cambia de color; se detecta el aroma salino de las capas inferiores.',
+    type: 'crossing', danger: 'medium', stepMin: 310, stepMax: 430,
+    eventBias: { resource: 0.25, exploration: 0.35, creature: 0.2, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ats_03', routeId: 'route_aethel_to_salt', order: 3,
+    name: 'Bajada fría',
+    description: 'Pendiente pronunciada donde el viento de profundidad corta el aliento.',
+    type: 'descent', danger: 'medium', stepMin: 310, stepMax: 470,
+    eventBias: { resource: 0.15, exploration: 0.3, creature: 0.3, threat: 0.2, microevent: 0.05 },
+  },
 
-function BiomeIcon({ biomeId }) {
-  if (biomeId === 'coast') return (
-    <svg width="14" height="14" viewBox="0 0 16 16">
-      <path d="M2 7 Q5 4 8 7 Q11 10 14 7" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      <path d="M2 11 Q5 8 8 11 Q11 14 14 11" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.6"/>
-    </svg>
-  )
-  if (biomeId === 'forge') return (
-    <svg width="14" height="14" viewBox="0 0 16 16">
-      <path d="M5 14 V8 L3 5 H13 L11 8 V14 Z" fill="currentColor" opacity="0.55"/>
-      <path d="M8 4 Q7.5 2 8 0.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.75"/>
-    </svg>
-  )
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16">
-      <path d="M8 2 L10.5 8 H9 L11.5 13 H4.5 L7 8 H5.5 Z" fill="currentColor" opacity="0.6"/>
-    </svg>
-  )
-}
+  // route_mist_to_ruins — Senda de las Marcas
+  {
+    id: 'seg_mtr_01', routeId: 'route_mist_to_ruins', order: 1,
+    name: 'Marcas partidas',
+    description: 'Señales de expedición antiguas que alguien ha tratado de borrar.',
+    type: 'approach', danger: 'low', stepMin: 220, stepMax: 340,
+    eventBias: { resource: 0.2, exploration: 0.5, creature: 0.1, threat: 0.1, microevent: 0.1 },
+  },
+  {
+    id: 'seg_mtr_02', routeId: 'route_mist_to_ruins', order: 2,
+    name: 'Arco de raíces',
+    description: 'Dos raíces colosales forman un portal natural; la niebla no lo cruza.',
+    type: 'crossing', danger: 'medium', stepMin: 260, stepMax: 400,
+    eventBias: { resource: 0.1, exploration: 0.45, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_mtr_03', routeId: 'route_mist_to_ruins', order: 3,
+    name: 'Umbral rúnico',
+    description: 'Ruinas del antiguo puesto de guardia; las runas emiten luz violácea.',
+    type: 'landmark', danger: 'medium', stepMin: 220, stepMax: 360,
+    eventBias: { resource: 0.1, exploration: 0.4, creature: 0.3, threat: 0.15, microevent: 0.05 },
+  },
 
-function FogIcon() {
-  return (
-    <svg width="16" height="12" viewBox="0 0 18 14" style={{ opacity: 0.4 }}>
-      <path d="M1 4 Q5 1 9 4 Q13 7 17 4" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
-      <path d="M2 9 Q6 6 9 9 Q12 12 16 9" stroke="currentColor" strokeWidth="0.8" fill="none" strokeLinecap="round"/>
-    </svg>
-  )
-}
+  // route_ruins_to_mushroom — Pasaje secreto (hidden)
+  {
+    id: 'seg_rtm_01', routeId: 'route_ruins_to_mushroom', order: 1,
+    name: 'Raíz sellada',
+    description: 'Una raíz hueca que actúa de túnel; el acceso está bloqueado con savia endurecida.',
+    type: 'secret', danger: 'low', stepMin: 160, stepMax: 250,
+    eventBias: { resource: 0.1, exploration: 0.6, creature: 0.1, threat: 0.05, microevent: 0.15 },
+  },
+  {
+    id: 'seg_rtm_02', routeId: 'route_ruins_to_mushroom', order: 2,
+    name: 'Respiración hueca',
+    description: 'Cavidad resonante donde el suelo emite un pulso regular como un corazón.',
+    type: 'secret', danger: 'low', stepMin: 170, stepMax: 270,
+    eventBias: { resource: 0.05, exploration: 0.6, creature: 0.15, threat: 0.05, microevent: 0.15 },
+  },
+  {
+    id: 'seg_rtm_03', routeId: 'route_ruins_to_mushroom', order: 3,
+    name: 'Luz de setas',
+    description: 'Pasillo iluminado por hongos bioluminiscentes de tono azul. Silencio absoluto.',
+    type: 'secret', danger: 'low', stepMin: 170, stepMax: 280,
+    eventBias: { resource: 0.2, exploration: 0.5, creature: 0.1, threat: 0.0, microevent: 0.2 },
+  },
 
-const BIOME_ICON_COLOR = {
-  forest: 'var(--color-xp)',
-  coast:  'var(--color-mist)',
-  forge:  'var(--color-ember)',
-}
+  // route_mist_to_forge — Senda de la Forja
+  {
+    id: 'seg_mtf_01', routeId: 'route_mist_to_forge', order: 1,
+    name: 'Desvío sin marcas',
+    description: 'Bifurcación sin señal conocida; el calor seco indica la dirección correcta.',
+    type: 'approach', danger: 'medium', stepMin: 380, stepMax: 540,
+    eventBias: { resource: 0.15, exploration: 0.4, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_mtf_02', routeId: 'route_mist_to_forge', order: 2,
+    name: 'Pendiente de hierro',
+    description: 'Corredor de roca con venas de hierro oxidado; el suelo cede bajo el peso.',
+    type: 'descent', danger: 'high', stepMin: 420, stepMax: 580,
+    eventBias: { resource: 0.1, exploration: 0.3, creature: 0.35, threat: 0.2, microevent: 0.05 },
+  },
+  {
+    id: 'seg_mtf_03', routeId: 'route_mist_to_forge', order: 3,
+    name: 'Horno dormido',
+    description: 'Antecámara de la forja: calor intenso, aire cargado de ceniza fina.',
+    type: 'danger', danger: 'high', stepMin: 400, stepMax: 580,
+    eventBias: { resource: 0.05, exploration: 0.25, creature: 0.4, threat: 0.25, microevent: 0.05 },
+  },
 
-export default function MapScreen({ sectors }) {
-  const [selectedId, setSelectedId] = useState(null)
+  // route_salt_to_tide — Senda de la Marea
+  {
+    id: 'seg_stt_01', routeId: 'route_salt_to_tide', order: 1,
+    name: 'Cornisa mojada',
+    description: 'Repisa estrecha sobre un abismo; el suelo está siempre húmedo.',
+    type: 'crossing', danger: 'medium', stepMin: 220, stepMax: 340,
+    eventBias: { resource: 0.2, exploration: 0.35, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_stt_02', routeId: 'route_salt_to_tide', order: 2,
+    name: 'Rocas de sal negra',
+    description: 'Campo de cristales de sal negra cortantes; moverse despacio o sangrar.',
+    type: 'danger', danger: 'high', stepMin: 260, stepMax: 400,
+    eventBias: { resource: 0.15, exploration: 0.2, creature: 0.3, threat: 0.3, microevent: 0.05 },
+  },
+  {
+    id: 'seg_stt_03', routeId: 'route_salt_to_tide', order: 3,
+    name: 'Marea sin luna',
+    description: 'La roca absorbe la humedad en pulsos. No hay ciclo solar ni lunar visible.',
+    type: 'danger', danger: 'high', stepMin: 220, stepMax: 360,
+    eventBias: { resource: 0.1, exploration: 0.25, creature: 0.35, threat: 0.25, microevent: 0.05 },
+  },
 
-  const rawSelected   = sectors.find(s => s.id === selectedId)
-  const selected      = rawSelected ? withAbyssMeta(rawSelected) : null
-  const biome         = selected ? BIOMES[selected.biomeId] : null
-  const poi           = selected ? POIS[selected.poiId]     : null
-  const recentlyFound = sectors.filter(s => s.recentlyDiscovered)
-  const discoveredCount = sectors.filter(s => s.discovered).length
+  // route_tide_to_coal — Descenso al Bastión
+  {
+    id: 'seg_ttc_01', routeId: 'route_tide_to_coal', order: 1,
+    name: 'Senda de humo',
+    description: 'Camino marcado por columnas de humo antiguo solidificado en formas caprichosas.',
+    type: 'approach', danger: 'medium', stepMin: 320, stepMax: 480,
+    eventBias: { resource: 0.2, exploration: 0.3, creature: 0.3, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ttc_02', routeId: 'route_tide_to_coal', order: 2,
+    name: 'Carbón bajo el agua',
+    description: 'Galería parcialmente inundada con agua oscura que oculta el suelo de carbón.',
+    type: 'crossing', danger: 'high', stepMin: 340, stepMax: 510,
+    eventBias: { resource: 0.1, exploration: 0.3, creature: 0.35, threat: 0.2, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ttc_03', routeId: 'route_tide_to_coal', order: 3,
+    name: 'Bajada oscura',
+    description: 'El último tramo no tiene faroles; la oscuridad es total salvo por brasas lejanas.',
+    type: 'descent', danger: 'high', stepMin: 340, stepMax: 510,
+    eventBias: { resource: 0.05, exploration: 0.2, creature: 0.4, threat: 0.3, microevent: 0.05 },
+  },
 
-  // Progreso por estrato para el subtítulo
-  const strataProgress = ABYSS_STRATA.map(st => {
-    const prog = getStratumProgress(sectors, st.id)
-    return `${st.shortName} ${prog.discovered}/${prog.total}`
-  }).join(' · ')
-
-  function handleSelect(id) {
-    setSelectedId(prev => prev === id ? null : id)
-  }
-
-  return (
-    <div className="abyss-map-screen">
-
-      {/* Banners de descubrimiento */}
-      {recentlyFound.map(s => {
-        const meta = withAbyssMeta(s)
-        return (
-          <div key={s.id} className="abyss-discovery-banner">
-            <div className="abyss-discovery-label">Nueva senda cartografiada</div>
-            <div className="abyss-discovery-name">{s.name}</div>
-            <div className="abyss-discovery-meta">{meta.stratumName} · {meta.depthMeters} m</div>
-          </div>
-        )
-      })}
-
-      {/* Cabecera */}
-      <div className="abyss-header">
-        <div className="abyss-title">El Abismo</div>
-        <div className="abyss-subtitle">
-          {discoveredCount} / {sectors.length} zonas · {strataProgress}
-        </div>
-      </div>
-
-      {/* Tablero */}
-      <div className="abyss-board">
-
-        {/* Bandas de estrato */}
-        {STRATA_BANDS.map(st => (
-          <div key={st.id} className={`abyss-stratum-band ${st.cssClass}`} />
-        ))}
-
-        {/* Etiquetas de estrato (derecha) */}
-        {STRATA_BANDS.map(st => (
-          <div key={st.id + '-label'} className="abyss-stratum-label" style={{ top: `${st.yMid}%` }}>
-            <div className="abyss-stratum-label-name">{st.label}</div>
-            <div className="abyss-stratum-label-depth">{st.depth}</div>
-          </div>
-        ))}
-
-        {/* Núcleo central (glow sutil) */}
-        <div className="abyss-core" />
-
-        {/* Línea de profundidad */}
-        <div className="abyss-depth-line" />
-
-        {/* Conexiones SVG */}
-        <svg className="abyss-connections" viewBox="0 0 100 100" preserveAspectRatio="none">
-          {CONNECTIONS.map(([aId, bId]) => {
-            const aPos = ABYSS_NODE_POS[aId]
-            const bPos = ABYSS_NODE_POS[bId]
-            if (!aPos || !bPos) return null
-            const aSec = sectors.find(s => s.id === aId)
-            const bSec = sectors.find(s => s.id === bId)
-            const both = aSec?.discovered && bSec?.discovered
-            return (
-              <line
-                key={`${aId}-${bId}`}
-                x1={aPos.x} y1={aPos.y}
-                x2={bPos.x} y2={bPos.y}
-                stroke={both ? 'rgba(79,143,149,0.42)' : 'rgba(52,58,61,0.22)'}
-                strokeWidth="0.75"
-                strokeDasharray={both ? undefined : '1.8 2.2'}
-              />
-            )
-          })}
-        </svg>
-
-        {/* Nodos */}
-        {sectors.map(s => {
-          const pos = ABYSS_NODE_POS[s.id]
-          if (!pos) return null
-          const meta = withAbyssMeta(s)
-          const isSelected = s.id === selectedId
-          const nodeClass = [
-            'abyss-node',
-            s.discovered         ? 'discovered'          : 'hidden',
-            isSelected           ? 'selected'            : '',
-            s.recentlyDiscovered ? 'recently-discovered' : '',
-            (s.discovered && s.secret) ? 'secret-discovered' : '',
-          ].filter(Boolean).join(' ')
-
-          return (
-            <button
-              key={s.id}
-              className={nodeClass}
-              style={{
-                top:  `calc(${pos.y}% - 22px)`,
-                left: `${pos.x}%`,
-                transform: 'translateX(-50%)',
-              }}
-              onClick={() => handleSelect(s.id)}
-            >
-              {s.recentlyDiscovered && <div className="abyss-new-badge">Nuevo</div>}
-              {s.discovered && s.secret && <div className="abyss-node-secret-badge">Secreto</div>}
-              <div className="abyss-node-circle">
-                {s.discovered ? (
-                  <div className="abyss-node-icon" style={{ color: BIOME_ICON_COLOR[s.biomeId] ?? 'var(--color-parchment)' }}>
-                    <BiomeIcon biomeId={s.biomeId} />
-                  </div>
-                ) : (
-                  <div className="abyss-node-fog"><FogIcon /></div>
-                )}
-              </div>
-              <div className="abyss-node-name">
-                {s.discovered ? s.name : '???'}
-              </div>
-              {s.discovered && (
-                <div className="abyss-node-depth">{meta.depthMeters} m</div>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Panel de detalle */}
-      {selected && (
-        <div className="abyss-selected-panel">
-          {selected.discovered ? (
-            <>
-              <div className="abyss-detail-title">
-                {selected.recentlyDiscovered && (
-                  <span className="abyss-new-badge" style={{ position: 'static', transform: 'none', marginRight: 8, fontSize: '0.48rem' }}>Nuevo</span>
-                )}
-                {selected.name}
-              </div>
-
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Estrato</span>
-                <span>{selected.stratumName ?? '—'}</span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Profundidad</span>
-                <span>{selected.depthMeters ?? '—'} m</span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Loot</span>
-                <span>Tier {selected.lootTier ?? 1}</span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Bioma</span>
-                <span>{biome?.name ?? '—'}</span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Amenaza</span>
-                <span style={{ color: THREAT_COLOR[selected.threat] ?? 'var(--color-stone-light)' }}>
-                  {THREAT_LABEL[selected.threat] ?? '—'}
-                </span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Dominio</span>
-                <span>{MASTERY_LABEL[selected.masteryLevel ?? 0]}</span>
-              </div>
-              <div className="abyss-detail-row">
-                <span className="abyss-detail-key">Visitas</span>
-                <span>{selected.visits}</span>
-              </div>
-              {poi && (
-                <div className="abyss-detail-row">
-                  <span className="abyss-detail-key">Lugar</span>
-                  <span>{poi.name}</span>
-                </div>
-              )}
-              {(selected.resources ?? []).length > 0 && (
-                <div className="abyss-detail-row">
-                  <span className="abyss-detail-key">Recursos</span>
-                  <span style={{ fontSize: '0.62rem' }}>
-                    {(selected.resources ?? []).map(r => RESOURCES[r]?.name).filter(Boolean).join(', ')}
-                  </span>
-                </div>
-              )}
-              {(selected.enemyPool ?? []).length > 0 && (
-                <div className="abyss-detail-row">
-                  <span className="abyss-detail-key">Amenazas</span>
-                  <span style={{ fontSize: '0.62rem', color: 'var(--color-ember)' }}>
-                    {(selected.enemyPool ?? []).map(id => ENEMIES[id]?.name).filter(Boolean).join(', ')}
-                  </span>
-                </div>
-              )}
-              {(selected.connections ?? []).length > 0 && (
-                <div className="abyss-detail-row">
-                  <span className="abyss-detail-key">Sendas</span>
-                  <span style={{ fontSize: '0.62rem' }}>
-                    {(selected.connections ?? []).map(cid => {
-                      const cs = sectors.find(s => s.id === cid)
-                      return cs?.discovered ? cs.name : 'senda en bruma'
-                    }).join(', ')}
-                  </span>
-                </div>
-              )}
-              {selected.secret && (
-                <div className="secret-discovery-note">
-                  Zona secreta · acceso por senda oculta
-                </div>
-              )}
-              {biome?.description && (
-                <div style={{ marginTop: 8, fontSize: '0.6rem', color: 'var(--color-stone-light)', fontStyle: 'italic', lineHeight: 1.45, opacity: 0.75 }}>
-                  {biome.description}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="abyss-fog-text">
-              <FogIcon />
-              <div style={{ marginTop: 8 }}>
-                Senda cubierta por la bruma.<br />
-                Desciende y explora estratos conectados para revelar este lugar.
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-    </div>
-  )
-}
+  // route_forge_to_coal — Galería de Ceniza
+  {
+    id: 'seg_ftc_01', routeId: 'route_forge_to_coal', order: 1,
+    name: 'Galería apagada',
+    description: 'Corredor de la forja ya fría; herramientas abandonadas cuelgan de las paredes.',
+    type: 'approach', danger: 'medium', stepMin: 250, stepMax: 420,
+    eventBias: { resource: 0.35, exploration: 0.3, creature: 0.2, threat: 0.1, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ftc_02', routeId: 'route_forge_to_coal', order: 2,
+    name: 'Columnas de hollín',
+    description: 'Pilares naturales cubiertos de hollín milenario; el aire pesa.',
+    type: 'crossing', danger: 'medium', stepMin: 280, stepMax: 440,
+    eventBias: { resource: 0.2, exploration: 0.35, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+  {
+    id: 'seg_ftc_03', routeId: 'route_forge_to_coal', order: 3,
+    name: 'Bastión de carbón',
+    description: 'Las paredes son puro carbón comprimido; se escuchan voces en la roca.',
+    type: 'landmark', danger: 'medium', stepMin: 270, stepMax: 440,
+    eventBias: { resource: 0.15, exploration: 0.4, creature: 0.25, threat: 0.15, microevent: 0.05 },
+  },
+]
 </file>
 
 <file path="src/screens/DiaryScreen.jsx">
@@ -5370,6 +5669,431 @@ export default function DiaryScreen({ diary }) {
           })}
         </div>
       </div>
+    </div>
+  )
+}
+</file>
+
+<file path="src/screens/MapScreen.jsx">
+import { useState } from 'react'
+import { BIOMES, POIS, RESOURCES, ENEMIES, ABYSS_STRATA, WORLD_ROUTES, ABYSS_ZONES, WORLD_ROUTE_SEGMENTS } from '../data/gameData.js'
+import { getStratumProgress } from '../systems/abyssSystem.js'
+import {
+  getWorldScaleSummary,
+  getRoutesFromSector,
+  getRouteTypeLabel,
+  getRouteDangerLabel,
+  getRouteStepRangeLabel,
+} from '../systems/worldScaleSystem.js'
+import {
+  getSegmentsForRoute,
+  getRouteSegmentsTotalSteps,
+  getRouteSegmentDangerLabel,
+} from '../systems/routeSegmentSystem.js'
+
+const THREAT_LABEL  = { low: 'Baja', medium: 'Media', high: 'Alta' }
+const MASTERY_LABEL = ['Sin rastro', 'Conocido', 'Familiar', 'Dominado', 'Legendario']
+const THREAT_COLOR  = { low: 'var(--color-xp)', medium: 'var(--color-ember)', high: 'var(--color-hp)' }
+
+// Posiciones en espiral descendente (x%, y%)
+const ABYSS_NODE_POS = {
+  sector_aethel_edge:         { x: 50, y: 10 },
+  sector_mist_root:           { x: 26, y: 26 },
+  sector_runic_guard_ruins:   { x: 20, y: 31 },
+  sector_hollow_mushroom_cave:{ x: 44, y: 35 },
+  sector_salt_beacon:         { x: 74, y: 39 },
+  sector_tide_rock:           { x: 28, y: 54 },
+  sector_sleeping_forge:      { x: 72, y: 69 },
+  sector_coal_bastion:        { x: 50, y: 83 },
+}
+
+const CONNECTIONS = [
+  ['sector_aethel_edge',        'sector_mist_root'],
+  ['sector_aethel_edge',        'sector_salt_beacon'],
+  ['sector_mist_root',          'sector_runic_guard_ruins'],
+  ['sector_mist_root',          'sector_sleeping_forge'],
+  ['sector_runic_guard_ruins',  'sector_hollow_mushroom_cave'],
+  ['sector_salt_beacon',        'sector_tide_rock'],
+  ['sector_sleeping_forge',     'sector_coal_bastion'],
+  ['sector_tide_rock',          'sector_coal_bastion'],
+]
+
+// Bandas de estrato: y% de inicio/fin y metadatos
+const STRATA_BANDS = [
+  { id: 'stratum_01', cssClass: 'stratum-1', label: 'Estrato I',   depth: '120 m',  yMid: 18 },
+  { id: 'stratum_02', cssClass: 'stratum-2', label: 'Estrato II',  depth: '340 m',  yMid: 50 },
+  { id: 'stratum_03', cssClass: 'stratum-3', label: 'Estrato III', depth: '690 m',  yMid: 82 },
+]
+
+// Fallback para saves sin campos de Abismo (merge en handleContinue lo resuelve,
+// pero se mantiene por seguridad en renderizado).
+const STRATUM_FALLBACK = {
+  sector_aethel_edge:          { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 120, lootTier: 1 },
+  sector_mist_root:            { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 180, lootTier: 1 },
+  sector_runic_guard_ruins:    { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 210, lootTier: 1 },
+  sector_hollow_mushroom_cave: { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas',    depth: 1, depthMeters: 235, lootTier: 1 },
+  sector_salt_beacon:          { stratumId: 'stratum_02', stratumName: 'II · Cornisa de la Sal Negra',   depth: 2, depthMeters: 340, lootTier: 2 },
+  sector_tide_rock:            { stratumId: 'stratum_02', stratumName: 'II · Cornisa de la Sal Negra',   depth: 2, depthMeters: 410, lootTier: 2 },
+  sector_sleeping_forge:       { stratumId: 'stratum_03', stratumName: 'III · Hornacinas de Ceniza', depth: 3, depthMeters: 690, lootTier: 3 },
+  sector_coal_bastion:         { stratumId: 'stratum_03', stratumName: 'III · Hornacinas de Ceniza', depth: 3, depthMeters: 760, lootTier: 3 },
+}
+
+function withAbyssMeta(sector) {
+  if (sector.stratumId) return sector
+  return { ...sector, ...(STRATUM_FALLBACK[sector.id] ?? { stratumId: 'stratum_01', stratumName: 'I · Linde de las Raíces Ciegas', depth: 1, depthMeters: 120, lootTier: 1 }) }
+}
+
+function BiomeIcon({ biomeId }) {
+  if (biomeId === 'coast') return (
+    <svg width="14" height="14" viewBox="0 0 16 16">
+      <path d="M2 7 Q5 4 8 7 Q11 10 14 7" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+      <path d="M2 11 Q5 8 8 11 Q11 14 14 11" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.6"/>
+    </svg>
+  )
+  if (biomeId === 'forge') return (
+    <svg width="14" height="14" viewBox="0 0 16 16">
+      <path d="M5 14 V8 L3 5 H13 L11 8 V14 Z" fill="currentColor" opacity="0.55"/>
+      <path d="M8 4 Q7.5 2 8 0.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.75"/>
+    </svg>
+  )
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16">
+      <path d="M8 2 L10.5 8 H9 L11.5 13 H4.5 L7 8 H5.5 Z" fill="currentColor" opacity="0.6"/>
+    </svg>
+  )
+}
+
+function FogIcon() {
+  return (
+    <svg width="16" height="12" viewBox="0 0 18 14" style={{ opacity: 0.4 }}>
+      <path d="M1 4 Q5 1 9 4 Q13 7 17 4" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+      <path d="M2 9 Q6 6 9 9 Q12 12 16 9" stroke="currentColor" strokeWidth="0.8" fill="none" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+const BIOME_ICON_COLOR = {
+  forest: 'var(--color-xp)',
+  coast:  'var(--color-mist)',
+  forge:  'var(--color-ember)',
+}
+
+export default function MapScreen({ sectors }) {
+  const [selectedId, setSelectedId] = useState(null)
+  const [expandedRouteId, setExpandedRouteId] = useState(null)
+
+  const rawSelected   = sectors.find(s => s.id === selectedId)
+  const selected      = rawSelected ? withAbyssMeta(rawSelected) : null
+  const biome         = selected ? BIOMES[selected.biomeId] : null
+  const poi           = selected ? POIS[selected.poiId]     : null
+  const recentlyFound = sectors.filter(s => s.recentlyDiscovered)
+  const discoveredCount = sectors.filter(s => s.discovered).length
+
+  // Progreso por estrato para el subtítulo
+  const strataProgress = ABYSS_STRATA.map(st => {
+    const prog = getStratumProgress(sectors, st.id)
+    return `${st.shortName} ${prog.discovered}/${prog.total}`
+  }).join(' · ')
+
+  // Escala del mundo
+  const scaleSummary = getWorldScaleSummary({
+    sectors,
+    routes: WORLD_ROUTES,
+    zones: ABYSS_ZONES,
+    strata: ABYSS_STRATA,
+  })
+
+  // Rutas desde el sector seleccionado
+  const selectedRoutes = selectedId
+    ? getRoutesFromSector({ routes: WORLD_ROUTES, sectorId: selectedId }).filter(
+        r => r.status === 'open' || r.status === 'discovered' || r.type === 'secret'
+      )
+    : []
+
+  function handleSelect(id) {
+    setSelectedId(prev => prev === id ? null : id)
+  }
+
+  return (
+    <div className="abyss-map-screen">
+
+      {/* Banners de descubrimiento */}
+      {recentlyFound.map(s => {
+        const meta = withAbyssMeta(s)
+        return (
+          <div key={s.id} className="abyss-discovery-banner">
+            <div className="abyss-discovery-label">Nueva senda cartografiada</div>
+            <div className="abyss-discovery-name">{s.name}</div>
+            <div className="abyss-discovery-meta">{meta.stratumName} · {meta.depthMeters} m</div>
+          </div>
+        )
+      })}
+
+      {/* Cabecera */}
+      <div className="abyss-header">
+        <div className="abyss-title">El Abismo</div>
+        <div className="abyss-subtitle">
+          {discoveredCount} / {sectors.length} zonas · {strataProgress}
+        </div>
+        <div className="abyss-scale-summary">
+          {scaleSummary.knownStrataCount} capas · {scaleSummary.zoneCount} zonas · {scaleSummary.sectorCount} sectores · {scaleSummary.routeCount} rutas
+          {' · '}{scaleSummary.maxDepthMeters} m máx.
+        </div>
+      </div>
+
+      {/* Tablero */}
+      <div className="abyss-board">
+
+        {/* Bandas de estrato */}
+        {STRATA_BANDS.map(st => (
+          <div key={st.id} className={`abyss-stratum-band ${st.cssClass}`} />
+        ))}
+
+        {/* Etiquetas de estrato (derecha) */}
+        {STRATA_BANDS.map(st => (
+          <div key={st.id + '-label'} className="abyss-stratum-label" style={{ top: `${st.yMid}%` }}>
+            <div className="abyss-stratum-label-name">{st.label}</div>
+            <div className="abyss-stratum-label-depth">{st.depth}</div>
+          </div>
+        ))}
+
+        {/* Núcleo central (glow sutil) */}
+        <div className="abyss-core" />
+
+        {/* Línea de profundidad */}
+        <div className="abyss-depth-line" />
+
+        {/* Conexiones SVG */}
+        <svg className="abyss-connections" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {CONNECTIONS.map(([aId, bId]) => {
+            const aPos = ABYSS_NODE_POS[aId]
+            const bPos = ABYSS_NODE_POS[bId]
+            if (!aPos || !bPos) return null
+            const aSec = sectors.find(s => s.id === aId)
+            const bSec = sectors.find(s => s.id === bId)
+            const both = aSec?.discovered && bSec?.discovered
+            return (
+              <line
+                key={`${aId}-${bId}`}
+                x1={aPos.x} y1={aPos.y}
+                x2={bPos.x} y2={bPos.y}
+                stroke={both ? 'rgba(79,143,149,0.42)' : 'rgba(52,58,61,0.22)'}
+                strokeWidth="0.75"
+                strokeDasharray={both ? undefined : '1.8 2.2'}
+              />
+            )
+          })}
+        </svg>
+
+        {/* Nodos */}
+        {sectors.map(s => {
+          const pos = ABYSS_NODE_POS[s.id]
+          if (!pos) return null
+          const meta = withAbyssMeta(s)
+          const isSelected = s.id === selectedId
+          const nodeClass = [
+            'abyss-node',
+            s.discovered         ? 'discovered'          : 'hidden',
+            isSelected           ? 'selected'            : '',
+            s.recentlyDiscovered ? 'recently-discovered' : '',
+            (s.discovered && s.secret) ? 'secret-discovered' : '',
+          ].filter(Boolean).join(' ')
+
+          return (
+            <button
+              key={s.id}
+              className={nodeClass}
+              style={{
+                top:  `calc(${pos.y}% - 22px)`,
+                left: `${pos.x}%`,
+                transform: 'translateX(-50%)',
+              }}
+              onClick={() => handleSelect(s.id)}
+            >
+              {s.recentlyDiscovered && <div className="abyss-new-badge">Nuevo</div>}
+              {s.discovered && s.secret && <div className="abyss-node-secret-badge">Secreto</div>}
+              <div className="abyss-node-circle">
+                {s.discovered ? (
+                  <div className="abyss-node-icon" style={{ color: BIOME_ICON_COLOR[s.biomeId] ?? 'var(--color-parchment)' }}>
+                    <BiomeIcon biomeId={s.biomeId} />
+                  </div>
+                ) : (
+                  <div className="abyss-node-fog"><FogIcon /></div>
+                )}
+              </div>
+              <div className="abyss-node-name">
+                {s.discovered ? s.name : '???'}
+              </div>
+              {s.discovered && (
+                <div className="abyss-node-depth">{meta.depthMeters} m</div>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Panel de detalle */}
+      {selected && (
+        <div className="abyss-selected-panel">
+          {selected.discovered ? (
+            <>
+              <div className="abyss-detail-title">
+                {selected.recentlyDiscovered && (
+                  <span className="abyss-new-badge" style={{ position: 'static', transform: 'none', marginRight: 8, fontSize: '0.48rem' }}>Nuevo</span>
+                )}
+                {selected.name}
+              </div>
+
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Estrato</span>
+                <span>{selected.stratumName ?? '—'}</span>
+              </div>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Profundidad</span>
+                <span>{selected.depthMeters ?? '—'} m</span>
+              </div>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Loot</span>
+                <span>Tier {selected.lootTier ?? 1}</span>
+              </div>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Bioma</span>
+                <span>{biome?.name ?? '—'}</span>
+              </div>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Amenaza</span>
+                <span style={{ color: THREAT_COLOR[selected.threat] ?? 'var(--color-stone-light)' }}>
+                  {THREAT_LABEL[selected.threat] ?? '—'}
+                </span>
+              </div>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Dominio</span>
+                <span>{MASTERY_LABEL[selected.masteryLevel ?? 0]}</span>
+              </div>
+              <div className="abyss-detail-row">
+                <span className="abyss-detail-key">Visitas</span>
+                <span>{selected.visits}</span>
+              </div>
+              {poi && (
+                <div className="abyss-detail-row">
+                  <span className="abyss-detail-key">Lugar</span>
+                  <span>{poi.name}</span>
+                </div>
+              )}
+              {(selected.resources ?? []).length > 0 && (
+                <div className="abyss-detail-row">
+                  <span className="abyss-detail-key">Recursos</span>
+                  <span style={{ fontSize: '0.62rem' }}>
+                    {(selected.resources ?? []).map(r => RESOURCES[r]?.name).filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              )}
+              {(selected.enemyPool ?? []).length > 0 && (
+                <div className="abyss-detail-row">
+                  <span className="abyss-detail-key">Amenazas</span>
+                  <span style={{ fontSize: '0.62rem', color: 'var(--color-ember)' }}>
+                    {(selected.enemyPool ?? []).map(id => ENEMIES[id]?.name).filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              )}
+              {(selected.connections ?? []).length > 0 && (
+                <div className="abyss-detail-row">
+                  <span className="abyss-detail-key">Sendas</span>
+                  <span style={{ fontSize: '0.62rem' }}>
+                    {(selected.connections ?? []).map(cid => {
+                      const cs = sectors.find(s => s.id === cid)
+                      return cs?.discovered ? cs.name : 'senda en bruma'
+                    }).join(', ')}
+                  </span>
+                </div>
+              )}
+              {/* Rutas desde aquí */}
+              {selectedRoutes.length > 0 && (
+                <div className="world-routes-section">
+                  <div className="world-routes-label">Rutas desde aquí</div>
+                  {selectedRoutes.map(r => {
+                    const isSecretHidden = r.type === 'secret' && r.status === 'hidden'
+                    const routeSegs  = getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: r.id })
+                    const segTotal   = getRouteSegmentsTotalSteps(routeSegs)
+                    const isExpanded = expandedRouteId === r.id
+
+                    return isSecretHidden ? (
+                      <div key={r.id} className="world-route-item world-route-hidden">
+                        <div className="world-route-name">Ruta oculta</div>
+                        <div className="world-route-meta">Condición desconocida</div>
+                        {routeSegs.length > 0 && (
+                          <div className="world-route-segment-count route-segment-hidden">
+                            {routeSegs.length} tramos desconocidos
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div
+                        key={r.id}
+                        className="world-route-item"
+                        style={{ cursor: routeSegs.length > 0 ? 'pointer' : 'default' }}
+                        onClick={() => routeSegs.length > 0 && setExpandedRouteId(prev => prev === r.id ? null : r.id)}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <div className="world-route-name">{r.name}</div>
+                          {routeSegs.length > 0 && (
+                            <span style={{ fontSize: '0.48rem', color: 'var(--color-stone-light)', opacity: 0.7 }}>
+                              {isExpanded ? '▲' : '▼'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="world-route-meta">
+                          {getRouteTypeLabel(r.type)} · {getRouteStepRangeLabel(r)} · {getRouteDangerLabel(r)}
+                        </div>
+                        {routeSegs.length > 0 && (
+                          <div className="world-route-segment-count">
+                            {routeSegs.length} tramos · {segTotal.min}–{segTotal.max} pasos
+                          </div>
+                        )}
+                        {isExpanded && (
+                          <div className="route-segment-list">
+                            {routeSegs.map(seg => (
+                              <div key={seg.id} className={`route-segment-row route-segment-danger-${seg.danger}`}>
+                                <span className="route-segment-index">{seg.order}.</span>
+                                <div>
+                                  <span className="route-segment-name">{seg.name}</span>
+                                  <span className="route-segment-meta">
+                                    {' · '}{seg.stepMin}–{seg.stepMax} pasos · {getRouteSegmentDangerLabel(seg)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {selected.secret && (
+                <div className="secret-discovery-note">
+                  Zona secreta · acceso por senda oculta
+                </div>
+              )}
+              {biome?.description && (
+                <div style={{ marginTop: 8, fontSize: '0.6rem', color: 'var(--color-stone-light)', fontStyle: 'italic', lineHeight: 1.45, opacity: 0.75 }}>
+                  {biome.description}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="abyss-fog-text">
+              <FogIcon />
+              <div style={{ marginTop: 8 }}>
+                Senda cubierta por la bruma.<br />
+                Desciende y explora estratos conectados para revelar este lugar.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   )
 }
@@ -5862,6 +6586,8 @@ No implementar la Torre hasta que el Abismo tenga al menos 5 estratos jugables y
 | Enemigos por estrato (enemyPool) | Implementado en base inicial (9B) |
 | Códice del Abismo | Implementado en primera versión — 6 categorías (10A) |
 | Zonas secretas funcionales | Primera versión implementada: Cueva de Setas Huecas (Estrato I), acceso por Velthar/Exploración o dominio de la Ruina (14A) |
+| World scale | Primera versión de zonas y rutas explícitas añadida (18A). El mapa queda preparado para múltiples rutas y futuros tramos por ruta. WORLD_ROUTES (8 rutas), ABYSS_ZONES (6 zonas), worldScaleSystem.js. |
+| Route segments | Tramos internos añadidos (18B). WORLD_ROUTE_SEGMENTS: 24 tramos (3 por ruta × 8 rutas). routeSegmentSystem.js con getSegmentsForRoute, getRouteSegmentsTotalSteps, getRouteSegmentSummary. MapScreen muestra conteo + pasos totales y lista expandible. CaravanScreen muestra preview compacto "Tramo estimado". Ruta secreta oculta nombres pero muestra conteo. |
 | Contratos básicos | Implementados: encargos por lugar seguro, un contrato activo, resultado variable y diario (13A–13B) |
 | Subordinados y contratos complejos | No implementado |
 | Rangos | Base implementada como cálculo derivado — Rango I/II/III según XP, sectores y contratos (15A) |
@@ -6603,7 +7329,8 @@ export default function App() {
 
 <file path="src/screens/CaravanScreen.jsx">
 import { useState, useEffect, useRef } from 'react'
-import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS } from '../data/gameData.js'
+import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS } from '../data/gameData.js'
+import { getSegmentsForRoute, getRouteSegmentsTotalSteps } from '../systems/routeSegmentSystem.js'
 import { canUsePoiAction, getPoiActionLabel, getPoiFlavorText } from '../systems/poiSystem.js'
 import { getAvailableContracts, canStartContract, isSectorContractCompleted, getContractSuccessChance, getContractRewardText } from '../systems/contractSystem.js'
 import { getPlayerRank, getNextRankRequirement, canUseMercenaryContracts } from '../systems/rankSystem.js'
@@ -7986,6 +8713,28 @@ export default function CaravanScreen({
           Sin sector seleccionado — elige un destino abajo.
         </div>
       )}
+
+      {/* Tramo estimado */}
+      {activeSector && (() => {
+        const nextRoute = (WORLD_ROUTES ?? []).find(
+          r => (r.fromSectorId === activeSector.id || r.toSectorId === activeSector.id) &&
+               (r.status === 'open' || r.status === 'discovered')
+        )
+        if (!nextRoute) return null
+        const segs = getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: nextRoute.id })
+        const { min, max } = getRouteSegmentsTotalSteps(segs)
+        return (
+          <div className="route-segments-preview">
+            <div className="route-preview-name">{nextRoute.name}</div>
+            <div className="route-preview-meta">
+              {segs.length} tramos · {min}–{max} pasos
+            </div>
+            {segs[0] && (
+              <div className="route-preview-first">Primer tramo: {segs[0].name}</div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Strip de modos */}
       <div className="mode-strip">
@@ -11279,6 +12028,122 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
 .collapsible-panel-body {
   padding: 0 14px 12px;
 }
+
+/* ── ESCALA DEL MUNDO — 18A ─────────────────────────────────────────────── */
+.abyss-scale-summary {
+  font-size: 0.54rem;
+  color: var(--color-mist);
+  opacity: 0.72;
+  margin-top: 3px;
+  letter-spacing: 0.01em;
+}
+.world-routes-section {
+  margin-top: 10px;
+  border-top: 1px solid rgba(98,107,111,0.15);
+  padding-top: 8px;
+}
+.world-routes-label {
+  font-size: 0.56rem;
+  color: var(--color-stone-light);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+.world-route-item {
+  margin-bottom: 6px;
+}
+.world-route-name {
+  font-size: 0.66rem;
+  color: var(--color-parchment);
+  font-weight: 500;
+}
+.world-route-meta {
+  font-size: 0.56rem;
+  color: var(--color-stone-light);
+  margin-top: 1px;
+}
+.world-route-hidden .world-route-name {
+  color: var(--color-rune);
+  font-style: italic;
+}
+.world-route-hidden .world-route-meta {
+  color: rgba(109,90,156,0.6);
+}
+
+/* ── TRAMOS DE RUTA — 18B ──────────────────────────────────────────────── */
+.world-route-segment-count {
+  font-size: 0.54rem;
+  color: var(--color-mist);
+  margin-top: 2px;
+  opacity: 0.85;
+}
+.world-route-segment-count.route-segment-hidden {
+  color: var(--color-rune);
+  font-style: italic;
+  opacity: 0.65;
+}
+.route-segment-list {
+  margin-top: 5px;
+  border-top: 1px solid rgba(98,107,111,0.12);
+  padding-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.route-segment-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.route-segment-index {
+  font-size: 0.5rem;
+  color: var(--color-stone-light);
+  min-width: 12px;
+  opacity: 0.7;
+}
+.route-segment-name {
+  font-size: 0.6rem;
+  color: var(--color-parchment);
+  font-weight: 500;
+}
+.route-segment-meta {
+  font-size: 0.54rem;
+  color: var(--color-stone-light);
+}
+.route-segment-danger-high .route-segment-name {
+  color: var(--color-hp);
+}
+.route-segment-danger-medium .route-segment-name {
+  color: var(--color-ember);
+}
+.route-segment-danger-low .route-segment-name {
+  color: var(--color-parchment);
+}
+/* Tramo estimado en CaravanScreen */
+.route-segments-preview {
+  background: rgba(28,32,34,0.55);
+  border: 1px solid rgba(98,107,111,0.18);
+  border-radius: 6px;
+  padding: 7px 10px;
+  margin-bottom: 8px;
+}
+.route-preview-name {
+  font-size: 0.64rem;
+  color: var(--color-parchment);
+  font-weight: 500;
+}
+.route-preview-meta {
+  font-size: 0.56rem;
+  color: var(--color-mist);
+  margin-top: 2px;
+}
+.route-preview-first {
+  font-size: 0.54rem;
+  color: var(--color-stone-light);
+  margin-top: 3px;
+  font-style: italic;
+  opacity: 0.8;
+}
 </file>
 
 <file path="docs/PROJECT_BRIEF.md">
@@ -11963,11 +12828,13 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 15A — Pulido de Caravana, CTA "Iniciar la marcha", base de rangos y bloqueo visual de exploradores contratables
 - ✅ 16A — Marcha fluida: auto-retorno tras combate (1200 ms), paneles plegables, ruta compacta, strip de modos
 - ✅ 17A — Color Bible + Design Tokens: paleta funcional para sistemas, modos, estados, mapa, combate, contratos y UI principal
+- ✅ 18A — Escala del mundo: capas, zonas, rutas explícitas y visión de 20+ capas.
+- ✅ 18B — Tramos internos por ruta: routeSegmentSystem.js, 24 segmentos (8 rutas × 3), visualización en MapScreen y CaravanScreen.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
 - 🔲 15B — Primer estrato completo con contenido funcional diferenciado
-- 🔲 18A — Primer NPC contratable funcional
+- 🔲 19A — Primer NPC contratable funcional
 
 ### Largo Plazo
 - 🔲 Múltiples estratos con biomas propios

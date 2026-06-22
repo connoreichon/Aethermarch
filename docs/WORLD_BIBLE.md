@@ -968,7 +968,7 @@ Los tramos del Estrato I actualmente implementados:
 | Descenso al Bastión | Senda de humo | Carbón bajo el agua | Bajada oscura |
 | Galería de Ceniza | Galería apagada | Columnas de hollín | Bastión de carbón |
 
-La lógica de marcha (`marchSystem.js`) no consume aún `eventBias` — los pesos están preparados para la iteración siguiente.
+La lógica de marcha (`App.jsx`) recorre los tramos uno a uno automáticamente (18C). Al completar todos los tramos, la caravana llega al sector destino. El `eventBias` está preparado pero no consume aún la lógica de eventos — previsto para iteraciones futuras.
 
 ---
 

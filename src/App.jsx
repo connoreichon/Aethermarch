@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ARCHETYPES, BIOMES, ENEMIES, INITIAL_SECTORS } from './data/gameData.js'
+import { ARCHETYPES, BIOMES, ENEMIES, INITIAL_SECTORS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS } from './data/gameData.js'
 import { emptyInventory, addResources } from './systems/inventorySystem.js'
 import { generateEvent, calculateRewards, buildDiaryEntry } from './systems/expeditionSystem.js'
 import { createCombatFromThreat, resolveCombatTurn } from './systems/combatSystem.js'
@@ -18,6 +18,11 @@ import {
   createPedometerState, processMotionSample,
 } from './systems/pedometerSystem.js'
 import { canUsePoiAction, resolvePoiAction } from './systems/poiSystem.js'
+import {
+  buildRouteRunState,
+  completeCurrentRouteSegment,
+  getSegmentsForRoute,
+} from './systems/routeSegmentSystem.js'
 import {
   createInitialContractState, sanitizeContractState,
   canStartContract, startContract, resolveContract, getContractSuccessChance,
@@ -254,20 +259,73 @@ export default function App() {
   }
 
   // ── Handlers de caravana ─────────────────────────────────────────────────────
-  function handleAlzar() {
+  function handleAlzar(selectedRouteId) {
     completionDone.current  = false
     combatTriggered.current = new Set()
     setCombat(INITIAL_COMBAT)
     setRecoveredFromInterruption(false)
-    setExpedition(prev => ({
-      ...prev,
-      status:        'marching',
-      currentSteps:  0,
-      progress:      0,
-      events:        [],
-      rewards:       {},
-      combatResults: [],
-    }))
+
+    const currentSectorId = expedition.sectorId
+    const currentSector   = sectors.find(s => s.id === currentSectorId)
+
+    const selectedRoute =
+      WORLD_ROUTES.find(r => r.id === selectedRouteId) ??
+      WORLD_ROUTES.find(
+        r => (r.fromSectorId === currentSectorId || r.toSectorId === currentSectorId) &&
+             (r.status === 'open' || r.status === 'discovered') &&
+             r.type !== 'secret'
+      )
+
+    const routeSegs     = selectedRoute
+      ? getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: selectedRoute.id })
+      : []
+    const hasValidRoute = selectedRoute && routeSegs.length > 0
+
+    if (hasValidRoute) {
+      const routeRun     = buildRouteRunState({
+        route:           selectedRoute,
+        segments:        WORLD_ROUTE_SEGMENTS,
+        currentSectorId: currentSector?.id ?? currentSectorId,
+      })
+      const firstSegment = WORLD_ROUTE_SEGMENTS.find(s => s.id === routeRun.currentSegmentId)
+
+      setExpedition(prev => ({
+        ...prev,
+        status:                   'marching',
+        currentSteps:             0,
+        progress:                 0,
+        events:                   [],
+        rewards:                  {},
+        combatResults:            [],
+        routeId:                  selectedRoute.id,
+        routeName:                selectedRoute.name,
+        routeRun,
+        routeSegmentId:           firstSegment?.id    ?? null,
+        routeSegmentName:         firstSegment?.name  ?? null,
+        routeSegmentOrder:        firstSegment?.order ?? 1,
+        routeSegmentCount:        routeRun.totalSegments,
+        routeDestinationSectorId: routeRun.toSectorId,
+        targetSteps:              firstSegment?.stepMax ?? prev.targetSteps,
+      }))
+    } else {
+      setExpedition(prev => ({
+        ...prev,
+        status:        'marching',
+        currentSteps:  0,
+        progress:      0,
+        events:        [],
+        rewards:       {},
+        combatResults: [],
+        routeId:       null,
+        routeName:     null,
+        routeRun:      null,
+        routeSegmentId:    null,
+        routeSegmentName:  null,
+        routeSegmentOrder: null,
+        routeSegmentCount: null,
+        routeDestinationSectorId: null,
+      }))
+    }
   }
 
   function handleSelectMode(modeId) {
@@ -544,6 +602,49 @@ export default function App() {
 
         if (newSteps >= prev.targetSteps) {
           const rewards = calculateRewards(newEvents)
+
+          if (prev.routeRun && !prev.routeRun.completed) {
+            const route       = WORLD_ROUTES.find(r => r.id === prev.routeRun.routeId)
+            const nextRouteRun = completeCurrentRouteSegment({
+              routeRun: prev.routeRun,
+              route,
+              segments: WORLD_ROUTE_SEGMENTS,
+            })
+
+            if (!nextRouteRun.completed) {
+              const nextSeg = WORLD_ROUTE_SEGMENTS.find(s => s.id === nextRouteRun.currentSegmentId)
+              return {
+                ...prev,
+                currentSteps:       0,
+                progress:           0,
+                events:             [],
+                rewards:            {},
+                combatResults:      [],
+                routeRun:           nextRouteRun,
+                routeSegmentId:     nextRouteRun.currentSegmentId,
+                routeSegmentName:   nextSeg?.name  ?? null,
+                routeSegmentOrder:  nextRouteRun.currentSegmentOrder,
+                targetSteps:        nextSeg?.stepMax ?? prev.targetSteps,
+                status:             'marching',
+              }
+            }
+
+            // All segments done — land at destination
+            const destId     = nextRouteRun.toSectorId ?? prev.routeDestinationSectorId
+            const destSector = INITIAL_SECTORS.find(s => s.id === destId)
+            return {
+              ...prev,
+              currentSteps: newSteps,
+              progress:     100,
+              events:       newEvents,
+              status:       'completed',
+              rewards,
+              routeRun:     nextRouteRun,
+              sectorId:     destId  ?? prev.sectorId,
+              biomeId:      destSector?.biomeId ?? prev.biomeId,
+            }
+          }
+
           return { ...prev, currentSteps: newSteps, progress: 100, events: newEvents, status: 'completed', rewards }
         }
 
@@ -593,14 +694,36 @@ export default function App() {
     })
 
     // Apply mastery/visits update on top of any discovery update
-    const finalSectors = sectorsWithDiscovery.map(s => {
+    const masteryUpdated = sectorsWithDiscovery.map(s => {
       if (s.id !== expedition.sectorId) return s
       const newMastery = s.mastery + masteryGain
       return { ...s, visits: s.visits + 1, mastery: newMastery, masteryLevel: masteryLevelFromValue(newMastery) }
     })
+
+    // When completing a route, mark the destination sector as discovered
+    let finalSectors = masteryUpdated
+    if (expedition.routeRun?.completed) {
+      const destId = expedition.sectorId
+      const wasDiscovered = sectors.find(s => s.id === destId)?.discovered ?? false
+      if (!wasDiscovered) {
+        finalSectors = masteryUpdated.map(s =>
+          s.id === destId ? { ...s, discovered: true, recentlyDiscovered: true } : s
+        )
+      }
+    }
     setSectors(finalSectors)
 
-    const entry = buildDiaryEntry(expedition, sectorName, discovery, completedSector)
+    const rawEntry = buildDiaryEntry(expedition, sectorName, discovery, completedSector)
+    const fromSector = expedition.routeRun?.fromSectorId
+      ? sectors.find(s => s.id === expedition.routeRun.fromSectorId)
+      : null
+    const entry = expedition.routeRun?.completed
+      ? {
+          ...rawEntry,
+          title:       `Ruta completada · ${expedition.routeName ?? expedition.routeId ?? sectorName}`,
+          summaryText: `La caravana recorrió ${expedition.routeRun.totalSegments} tramos internos entre ${fromSector?.name ?? '—'} y ${sectorName ?? '—'}. ${rawEntry.summaryText}`,
+        }
+      : rawEntry
     setDiary(prev => [...prev, entry])
 
     if (expedition.rewards?.resources) {
@@ -612,7 +735,15 @@ export default function App() {
       setPlayer(prev => ({ ...prev, xp: Math.min(prev.xp + xpGain, prev.xpToNext) }))
     }
 
-    if (discovery) setLastDiscovery(discovery)
+    if (discovery) {
+      setLastDiscovery(discovery)
+    } else if (expedition.routeRun?.completed) {
+      const destId = expedition.sectorId
+      const destSector = sectors.find(s => s.id === destId)
+      if (destSector && !destSector.discovered) {
+        setLastDiscovery({ sectorId: destId, sectorName: destSector.name, biomeId: destSector.biomeId, reason: 'Ruta completada' })
+      }
+    }
   }, [expedition, player])
 
   // ── Autoguardado ─────────────────────────────────────────────────────────────

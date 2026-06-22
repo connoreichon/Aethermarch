@@ -681,6 +681,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 17A — Color Bible + Design Tokens: paleta funcional para sistemas, modos, estados, mapa, combate, contratos y UI principal
 - ✅ 18A — Escala del mundo: capas, zonas, rutas explícitas y visión de 20+ capas.
 - ✅ 18B — Tramos internos por ruta: routeSegmentSystem.js, 24 segmentos (8 rutas × 3), visualización en MapScreen y CaravanScreen.
+- ✅ 18C — Avance real por tramos internos: las rutas se recorren segmento a segmento y terminan en un sector destino.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas

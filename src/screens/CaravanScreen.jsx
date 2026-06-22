@@ -956,6 +956,8 @@ export default function CaravanScreen({
   lastPoiResult, onUsePoiAction,
   contractState, lastContractResult, onStartContract, onResolveActiveContract,
 }) {
+  const [selectedRouteId, setSelectedRouteId] = useState(null)
+
   const archetype = ARCHETYPES.find(a => a.id === player?.archetypeId)
   const creature  = CREATURES.find(c => c.id === player?.creatureId)
   const sector    = sectors?.find(s => s.id === expedition?.sectorId)
@@ -1002,8 +1004,21 @@ export default function CaravanScreen({
           </div>
           <div className="march-header-overlay">
             <span style={{ color:'var(--color-gold)' }}>Tramo {expedition.currentTramo}</span>
-            <span style={{ color:'var(--color-parchment)' }}>{MODE_LABELS[expedition.modeId]}</span>
-            <span style={{ color:'var(--color-stone-light)' }}>{sector?.name}</span>
+            {expedition.routeName ? (
+              <span style={{ color:'var(--color-parchment)', fontSize:'0.6rem' }}>
+                {expedition.routeName}
+              </span>
+            ) : (
+              <span style={{ color:'var(--color-parchment)' }}>{MODE_LABELS[expedition.modeId]}</span>
+            )}
+            {expedition.routeSegmentName ? (
+              <span style={{ color:'var(--color-mist)', fontSize:'0.58rem' }}>
+                Tramo {expedition.routeSegmentOrder}/{expedition.routeSegmentCount}
+                {' · '}{expedition.routeSegmentName}
+              </span>
+            ) : (
+              <span style={{ color:'var(--color-stone-light)' }}>{sector?.name}</span>
+            )}
             <span style={{ color:'var(--color-stone-light)' }}>
               {expedition.currentSteps}&thinsp;/&thinsp;{expedition.targetSteps}
             </span>
@@ -1283,6 +1298,19 @@ export default function CaravanScreen({
   const activeBiome       = BIOMES[activeSector?.biomeId ?? expedition?.biomeId ?? 'forest']
   const canAlzar          = !!activeSector
 
+  // Visible routes from current sector (not secret/hidden)
+  const visibleRoutes = activeSector
+    ? (WORLD_ROUTES ?? []).filter(
+        r => (r.fromSectorId === activeSector.id || r.toSectorId === activeSector.id) &&
+             (r.status === 'open' || r.status === 'discovered')
+      )
+    : []
+  const effectiveRoute   = (WORLD_ROUTES ?? []).find(r => r.id === selectedRouteId) ?? visibleRoutes[0] ?? null
+  const effectiveRouteId = effectiveRoute?.id ?? null
+  const effectiveSegs    = effectiveRoute
+    ? getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: effectiveRoute.id })
+    : []
+
   const prep     = getExpeditionPreparation({
     modeId:    expedition?.modeId ?? 'free_march',
     sector:    activeSector,
@@ -1384,27 +1412,46 @@ export default function CaravanScreen({
         </div>
       )}
 
-      {/* Tramo estimado */}
-      {activeSector && (() => {
-        const nextRoute = (WORLD_ROUTES ?? []).find(
-          r => (r.fromSectorId === activeSector.id || r.toSectorId === activeSector.id) &&
-               (r.status === 'open' || r.status === 'discovered')
-        )
-        if (!nextRoute) return null
-        const segs = getSegmentsForRoute({ segments: WORLD_ROUTE_SEGMENTS, routeId: nextRoute.id })
-        const { min, max } = getRouteSegmentsTotalSteps(segs)
-        return (
-          <div className="route-segments-preview">
-            <div className="route-preview-name">{nextRoute.name}</div>
-            <div className="route-preview-meta">
-              {segs.length} tramos · {min}–{max} pasos
-            </div>
-            {segs[0] && (
-              <div className="route-preview-first">Primer tramo: {segs[0].name}</div>
+      {/* Tramo estimado — ruta seleccionada */}
+      {effectiveRoute && (
+        <div className="route-segments-preview">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div className="route-preview-name">{effectiveRoute.name}</div>
+            {visibleRoutes.length > 1 && (
+              <div style={{ display:'flex', gap:4 }}>
+                {visibleRoutes.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => setSelectedRouteId(r.id)}
+                    style={{
+                      fontSize:'0.48rem',
+                      padding:'2px 5px',
+                      borderRadius:3,
+                      border:`1px solid ${r.id === effectiveRouteId ? 'var(--color-teal)' : 'rgba(98,107,111,0.3)'}`,
+                      background: r.id === effectiveRouteId ? 'rgba(79,143,149,0.15)' : 'transparent',
+                      color: r.id === effectiveRouteId ? 'var(--color-teal)' : 'var(--color-stone-light)',
+                      cursor:'pointer',
+                    }}
+                  >
+                    {r.name.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-        )
-      })()}
+          {(() => {
+            const { min, max } = getRouteSegmentsTotalSteps(effectiveSegs)
+            return (
+              <div className="route-preview-meta">
+                {effectiveSegs.length} tramos · {min}–{max} pasos
+              </div>
+            )
+          })()}
+          {effectiveSegs[0] && (
+            <div className="route-preview-first">Primer tramo: {effectiveSegs[0].name}</div>
+          )}
+        </div>
+      )}
 
       {/* Strip de modos */}
       <div className="mode-strip">
@@ -1426,7 +1473,7 @@ export default function CaravanScreen({
       <div className="alzar-caravana-panel">
         <button
           className="march-primary-button"
-          onClick={canAlzar ? onAlzar : undefined}
+          onClick={canAlzar ? () => onAlzar(effectiveRouteId) : undefined}
           disabled={!canAlzar}
         >
           {canAlzar ? 'Iniciar la marcha' : 'Elige un destino'}
