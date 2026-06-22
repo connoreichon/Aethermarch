@@ -442,25 +442,6 @@ Color de texto: `--color-hp`, sin fondo, solo texto.
 }
 </file>
 
-<file path="src/components/AppShell.jsx">
-import BottomNav from './BottomNav.jsx'
-
-export default function AppShell({ currentTab, onChangeTab, children }) {
-  return (
-    <div className="app-root">
-      <header className="app-header">
-        <h1>Aethermarch</h1>
-        <p>El camino te espera</p>
-      </header>
-      <main className="app-content">
-        {children}
-      </main>
-      <BottomNav currentTab={currentTab} onChangeTab={onChangeTab} />
-    </div>
-  )
-}
-</file>
-
 <file path="src/components/ChoiceCard.jsx">
 export default function ChoiceCard({ selected, onClick, tokenSlot, name, role, passiveName, passiveDescription, description }) {
   return (
@@ -503,195 +484,6 @@ export default function CollapsiblePanel({ title, defaultOpen = false, children,
           {children}
         </div>
       )}
-    </div>
-  )
-}
-</file>
-
-<file path="src/components/CombatAlertModal.jsx">
-import { useState, useEffect, useRef } from 'react'
-import { ENEMIES } from '../data/gameData.js'
-import { getAvailableStances } from '../systems/combatSystem.js'
-import EnemyToken from './tokens/EnemyToken.jsx'
-
-export default function CombatAlertModal({
-  combat,
-  player,
-  onChooseStance,
-  onGoToCaravan,
-}) {
-  const decisionSeconds = combat?.decisionSeconds ?? 6
-  const [remainingSeconds, setRemainingSeconds] = useState(decisionSeconds)
-  const autoResolvedRef = useRef(false)
-
-  useEffect(() => {
-    if (!combat || combat.status !== 'awaiting_choice') return
-    autoResolvedRef.current = false
-    setRemainingSeconds(decisionSeconds)
-    const id = setInterval(() => {
-      setRemainingSeconds(prev => Math.max(0, prev - 1))
-    }, 1000)
-    return () => clearInterval(id)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [combat?.status])
-
-  useEffect(() => {
-    if (!combat || combat.status !== 'awaiting_choice') return
-    if (remainingSeconds > 0) return
-    if (autoResolvedRef.current) return
-    autoResolvedRef.current = true
-    onChooseStance('equilibrada', { auto: true })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds, combat?.status])
-
-  if (!combat || combat.status !== 'awaiting_choice') return null
-
-  const enemy   = ENEMIES[combat.enemyId]
-  const stances = getAvailableStances()
-  const resolved = combat.status === 'resolved'
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9000,
-      background: 'rgba(0,0,0,0.82)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '0 16px',
-    }}>
-      <div style={{
-        width: '100%', maxWidth: 340,
-        background: '#0D0A07',
-        border: '1px solid rgba(180,40,40,0.55)',
-        borderRadius: 8,
-        boxShadow: '0 0 32px rgba(180,40,40,0.22)',
-        overflow: 'hidden',
-      }}>
-        {/* Cabecera */}
-        <div style={{
-          background: 'rgba(180,40,40,0.18)',
-          borderBottom: '1px solid rgba(180,40,40,0.3)',
-          padding: '10px 14px',
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <svg width="18" height="18" viewBox="0 0 18 18" style={{ flexShrink: 0 }}>
-            <path d="M9 2 L16 15 H2 Z" fill="none" stroke="rgba(214,80,60,0.9)" strokeWidth="1.5"/>
-            <rect x="8.2" y="7" width="1.6" height="5" fill="rgba(214,80,60,0.9)" rx="0.5"/>
-            <circle cx="9" cy="13.5" r="0.9" fill="rgba(214,80,60,0.9)"/>
-          </svg>
-          <div style={{ flex: 1 }}>
-            <div style={{
-              fontSize: '0.72rem', color: 'var(--color-hp)',
-              textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600,
-            }}>
-              Combate en la ruta
-            </div>
-            <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', marginTop: 1 }}>
-              Estás fuera de la Caravana
-            </div>
-          </div>
-        </div>
-
-        {/* Enemigo */}
-        <div style={{
-          padding: '12px 14px 8px',
-          display: 'flex', gap: 12, alignItems: 'center',
-        }}>
-          <EnemyToken enemyId={combat.enemyId} size={44} />
-          <div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--color-parchment)', fontWeight: 500 }}>
-              {enemy?.name ?? combat.enemyId}
-            </div>
-            <div style={{ fontSize: '0.6rem', color: 'var(--color-ember)', marginTop: 2 }}>
-              {combat.attack?.name ?? '—'}
-            </div>
-            {player && (
-              <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', marginTop: 3 }}>
-                HP: <span style={{ color: player.hp < player.maxHp * 0.3 ? 'var(--color-hp)' : 'var(--color-parchment)' }}>
-                  {player.hp} / {player.maxHp}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Cuenta atrás */}
-        <div style={{ padding: '4px 14px 8px' }}>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            fontSize: '0.58rem', color: 'var(--color-stone-light)',
-            marginBottom: 5,
-          }}>
-            <span>Reacción automática en {remainingSeconds} s</span>
-            <span style={{
-              fontSize: '0.72rem', fontWeight: 700,
-              color: remainingSeconds <= 2 ? 'var(--color-hp)' : 'var(--color-ember)',
-            }}>
-              {remainingSeconds}
-            </span>
-          </div>
-          <div style={{
-            height: 3, background: 'rgba(98,107,111,0.25)', borderRadius: 2,
-          }}>
-            <div style={{
-              height: '100%', borderRadius: 2,
-              background: remainingSeconds <= 2 ? 'var(--color-hp)' : 'var(--color-ember)',
-              width: `${(remainingSeconds / decisionSeconds) * 100}%`,
-              transition: 'width 1s linear',
-            }} />
-          </div>
-        </div>
-
-        {/* Posturas */}
-        <div style={{ padding: '4px 14px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{
-            fontSize: '0.54rem', color: 'var(--color-stone-light)',
-            textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2,
-          }}>
-            Elige postura:
-          </div>
-          {stances.map(stance => (
-            <button
-              key={stance.id}
-              onClick={() => onChooseStance(stance.id)}
-              style={{
-                background: 'rgba(98,107,111,0.12)',
-                border: '1px solid rgba(98,107,111,0.28)',
-                borderRadius: 5,
-                padding: '7px 10px',
-                textAlign: 'left',
-                cursor: 'pointer',
-                color: 'var(--color-parchment)',
-              }}
-            >
-              <div style={{ fontSize: '0.7rem', fontWeight: 500 }}>{stance.name}</div>
-              <div style={{ fontSize: '0.57rem', color: 'var(--color-stone-light)', marginTop: 1 }}>
-                {stance.description}
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* Ir a Caravana */}
-        <div style={{
-          borderTop: '1px solid rgba(98,107,111,0.18)',
-          padding: '8px 14px',
-          textAlign: 'center',
-        }}>
-          <button
-            onClick={onGoToCaravan}
-            style={{
-              background: 'none',
-              border: '1px solid rgba(98,107,111,0.28)',
-              borderRadius: 4,
-              padding: '5px 14px',
-              fontSize: '0.6rem',
-              color: 'var(--color-mist)',
-              cursor: 'pointer',
-            }}
-          >
-            Ver en Caravana
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -2466,6 +2258,25 @@ export function formatDate(date) {
 }
 </file>
 
+<file path="src/components/AppShell.jsx">
+import BottomNav from './BottomNav.jsx'
+
+export default function AppShell({ currentTab, onChangeTab, children, flowClass }) {
+  return (
+    <div className={['app-root', flowClass].filter(Boolean).join(' ')}>
+      <header className="app-header">
+        <h1>Aethermarch</h1>
+        <p>El camino te espera</p>
+      </header>
+      <main className="app-content">
+        {children}
+      </main>
+      <BottomNav currentTab={currentTab} onChangeTab={onChangeTab} />
+    </div>
+  )
+}
+</file>
+
 <file path="src/components/BottomNav.jsx">
 function CodexIcon() {
   return (
@@ -2506,917 +2317,154 @@ export default function BottomNav({ currentTab, onChangeTab }) {
 }
 </file>
 
-<file path="src/components/VisualMapCanvas.jsx">
-import { useState, useRef, useEffect } from 'react'
-import { ABYSS_STRATA } from '../data/gameData.js'
-import { getSegmentsForRoute } from '../systems/routeSegmentSystem.js'
+<file path="src/components/CombatAlertModal.jsx">
+import { useState, useEffect, useRef } from 'react'
+import { ENEMIES } from '../data/gameData.js'
+import { getAvailableStances } from '../systems/combatSystem.js'
+import EnemyToken from './tokens/EnemyToken.jsx'
 
-// ── 20 capas visuales del Abismo ─────────────────────────────────────────────
-
-const ABYSS_VISUAL_LAYERS = [
-  { id: 'stratum_01', number: 1,  name: 'Linde de las Raíces Ciegas',      shortName: 'Raíces Ciegas',    depthLabel: '0–250 m',       real: true  },
-  { id: 'stratum_02', number: 2,  name: 'Cornisa de la Sal Negra',          shortName: 'Sal Negra',        depthLabel: '250–500 m',     real: true  },
-  { id: 'stratum_03', number: 3,  name: 'Hornacinas de Ceniza',             shortName: 'Hornacinas',       depthLabel: '500–800 m',     real: true  },
-  { id: 'stratum_04', number: 4,  name: 'Cámara de la Colmena Roja',        shortName: 'Colmena Roja',     depthLabel: '800–1100 m',    real: false },
-  { id: 'stratum_05', number: 5,  name: 'Galerías de Espora Muerta',        shortName: 'Galerías',         depthLabel: '1100–1450 m',   real: false },
-  { id: 'stratum_06', number: 6,  name: 'Acueductos Hundidos',              shortName: 'Acueductos',       depthLabel: '1450–1800 m',   real: false },
-  { id: 'stratum_07', number: 7,  name: 'Jardines sin Sol',                 shortName: 'Jardines',         depthLabel: '1800–2200 m',   real: false },
-  { id: 'stratum_08', number: 8,  name: 'Foso de Resina Negra',             shortName: 'Resina Negra',     depthLabel: '2200–2700 m',   real: false },
-  { id: 'stratum_09', number: 9,  name: 'Bastiones del Hueso Antiguo',      shortName: 'Hueso Antiguo',    depthLabel: '2700–3300 m',   real: false },
-  { id: 'stratum_10', number: 10, name: 'Desierto de Hielo Bajo',           shortName: 'Hielo Bajo',       depthLabel: '3300–4000 m',   real: false },
-  { id: 'stratum_11', number: 11, name: 'Claustros de Vidrio',              shortName: 'Vidrio',           depthLabel: '4000–4800 m',   real: false },
-  { id: 'stratum_12', number: 12, name: 'Umbral de las Campanas Rotas',     shortName: 'Campanas Rotas',   depthLabel: '4800–5700 m',   real: false },
-  { id: 'stratum_13', number: 13, name: 'Forjas del Hierro Vivo',           shortName: 'Hierro Vivo',      depthLabel: '5700–6700 m',   real: false },
-  { id: 'stratum_14', number: 14, name: 'Caverna de los Titanes Dormidos',  shortName: 'Titanes',          depthLabel: '6700–7900 m',   real: false },
-  { id: 'stratum_15', number: 15, name: 'Mar Interior de Piedra',           shortName: 'Mar de Piedra',    depthLabel: '7900–9200 m',   real: false },
-  { id: 'stratum_16', number: 16, name: 'Campo del Cristal Vivo',           shortName: 'Cristal Vivo',     depthLabel: '9200–10800 m',  real: false },
-  { id: 'stratum_17', number: 17, name: 'Catedral de Raíz Fósil',           shortName: 'Raíz Fósil',       depthLabel: '10800–12600 m', real: false },
-  { id: 'stratum_18', number: 18, name: 'Cámara de los Nombres Perdidos',   shortName: 'Nombres Perdidos', depthLabel: '12600–14600 m', real: false },
-  { id: 'stratum_19', number: 19, name: 'Garganta del Primer Farol',        shortName: 'Primer Farol',     depthLabel: '14600–17000 m', real: false },
-  { id: 'stratum_20', number: 20, name: 'Fondo sin Cielo',                  shortName: 'Fondo sin Cielo',  depthLabel: '∞',             real: false },
-]
-
-// Geometría de la espiral
-const SPIRAL = { leftX: 128, rightX: 352, startY: 30, nodeStartY: 118, spacing: 76 }
-
-// Pan limits para la vista Abismo (coordenadas SVG)
-const ABYSS_PAN = { minY: -1210, maxY: 48 }
-
-// ── Colores de seguridad ──────────────────────────────────────────────────────
-
-const SAFETY_COLOR = {
-  safe:      'var(--color-xp)',
-  guarded:   'var(--color-gold)',
-  unstable:  'var(--color-mist)',
-  dangerous: 'var(--color-ember)',
-  hostile:   'var(--color-hp)',
-  mythic:    'var(--color-magic)',
-}
-
-// ── Posiciones de asentamientos en LAYER view (estilo cornisa de cueva) ──────
-
-const SETTLEMENT_POS = {
-  settlement_aethel_linde:           { x: 82,  y: 285 },
-  settlement_root_lantern_market:    { x: 196, y: 148 },
-  settlement_fogbreak_fort:          { x: 400, y: 116 },
-  settlement_blind_lake_dock:        { x: 392, y: 330 },
-  settlement_dust_gate_caravanserai: { x: 228, y: 388 },
-}
-
-const SECTOR_POS = {
-  stratum_02: {
-    sector_salt_beacon: { x: 148, y: 210 },
-    sector_tide_rock:   { x: 332, y: 270 },
-  },
-  stratum_03: {
-    sector_sleeping_forge: { x: 155, y: 220 },
-    sector_coal_bastion:   { x: 325, y: 220 },
-  },
-}
-
-const STRATUM_CONNECTIONS = {
-  stratum_01: [
-    { from: 'settlement_aethel_linde',           to: 'settlement_root_lantern_market',   routeId: 'route_aethel_to_mist',  bend:  0.22, danger: 'low' },
-    { from: 'settlement_root_lantern_market',    to: 'settlement_fogbreak_fort',          routeId: 'route_mist_to_ruins',   bend: -0.18, danger: 'medium' },
-    { from: 'settlement_aethel_linde',           to: 'settlement_blind_lake_dock',        routeId: 'route_aethel_to_salt',  bend: -0.2,  danger: 'medium' },
-    { from: 'settlement_aethel_linde',           to: 'settlement_dust_gate_caravanserai', routeId: null,                    bend:  0.15, danger: 'low' },
-    { from: 'settlement_dust_gate_caravanserai', to: 'settlement_blind_lake_dock',        routeId: null,                    bend:  0.2,  danger: 'low' },
-  ],
-  stratum_02: [
-    { from: 'sector_salt_beacon', to: 'sector_tide_rock', routeId: 'route_salt_to_tide', bend: 0.2, danger: 'medium', nodeType: 'sector' },
-  ],
-  stratum_03: [
-    { from: 'sector_sleeping_forge', to: 'sector_coal_bastion', routeId: 'route_forge_to_coal', bend: -0.18, danger: 'medium', nodeType: 'sector' },
-  ],
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function getLayerNodePos(i) {
-  return {
-    x: i % 2 === 0 ? SPIRAL.leftX : SPIRAL.rightX,
-    y: SPIRAL.nodeStartY + i * SPIRAL.spacing,
-  }
-}
-
-function buildAbyssSpiral() {
-  const { leftX, rightX, startY, nodeStartY, spacing } = SPIRAL
-  const cx = 240
-  let d = `M ${cx} ${startY}`
-  let prevX = cx
-  let prevY = startY
-
-  for (let i = 0; i < ABYSS_VISUAL_LAYERS.length; i++) {
-    const nx = i % 2 === 0 ? leftX : rightX
-    const ny = nodeStartY + i * spacing
-    const goRight = nx > prevX
-    const h = ny - prevY
-    const cp1x = prevX + (goRight ? 50 : -50)
-    const cp1y = prevY + h * 0.36
-    const cp2x = nx  + (goRight ? -50 : 50)
-    const cp2y = ny  - h * 0.25
-    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${nx} ${ny}`
-    prevX = nx; prevY = ny
-  }
-  return d
-}
-
-function createCurvedPath(from, to, bend = 0.25) {
-  const mx = (from.x + to.x) / 2
-  const my = (from.y + to.y) / 2
-  const dx = to.x - from.x
-  const dy = to.y - from.y
-  const len = Math.sqrt(dx * dx + dy * dy) || 1
-  const px = -dy / len
-  const py =  dx / len
-  return `M ${from.x} ${from.y} Q ${mx + px * len * bend} ${my + py * len * bend}, ${to.x} ${to.y}`
-}
-
-function getSegmentPositions(segs) {
-  const n = segs.length
-  if (n === 0) return []
-  if (n === 1) return [{ x: 240, y: 240 }]
-  const pad     = n > 8 ? 48 : 72
-  const spacing = (480 - pad * 2) / (n - 1)
-  return segs.map((_, i) => ({
-    x: pad + i * spacing,
-    y: 235 + Math.sin(i * (n > 8 ? 0.65 : 0.85)) * (n > 8 ? 50 : 42),
-  }))
-}
-
-// ── Icono de asentamiento ─────────────────────────────────────────────────────
-
-function SettlementShape({ type, cx, cy, color, r = 11 }) {
-  if (type === 'village') return (
-    <g>
-      <polygon points={`${cx},${cy - r} ${cx - r * 0.75},${cy - r * 0.1} ${cx + r * 0.75},${cy - r * 0.1}`}
-               fill={color} fillOpacity={0.8}/>
-      <rect x={cx - r * 0.5} y={cy - r * 0.15} width={r} height={r * 0.72}
-            fill={color} fillOpacity={0.65} rx={1}/>
-    </g>
-  )
-  if (type === 'market') return (
-    <g>
-      <path d={`M ${cx - r * 0.85} ${cy - r * 0.2} Q ${cx} ${cy - r} ${cx + r * 0.85} ${cy - r * 0.2}`}
-            fill={color} fillOpacity={0.5} stroke={color} strokeWidth={1.2}/>
-      <rect x={cx - r * 0.85} y={cy - r * 0.2} width={r * 1.7} height={r * 0.65}
-            fill={color} fillOpacity={0.55} rx={1}/>
-    </g>
-  )
-  if (type === 'fort') return (
-    <g>
-      <rect x={cx - r * 0.72} y={cy - r * 0.85} width={r * 1.44} height={r * 1.15}
-            fill={color} fillOpacity={0.55} rx={1}/>
-      <rect x={cx - r * 0.9}  y={cy - r}    width={r * 0.42} height={r * 0.38} fill={color} fillOpacity={0.8}/>
-      <rect x={cx + r * 0.48} y={cy - r}    width={r * 0.42} height={r * 0.38} fill={color} fillOpacity={0.8}/>
-    </g>
-  )
-  if (type === 'harbor') return (
-    <g>
-      <line x1={cx} y1={cy - r * 0.82} x2={cx} y2={cy + r * 0.42}
-            stroke={color} strokeWidth={1.5} strokeLinecap="round"/>
-      <line x1={cx - r * 0.6} y1={cy - r * 0.3} x2={cx + r * 0.6} y2={cy - r * 0.3}
-            stroke={color} strokeWidth={1.2} strokeLinecap="round"/>
-      <path d={`M ${cx - r * 0.82} ${cy + r * 0.1} Q ${cx} ${cy + r} ${cx + r * 0.82} ${cy + r * 0.1}`}
-            stroke={color} strokeWidth={1.2} fill={color} fillOpacity={0.22}/>
-    </g>
-  )
-  if (type === 'caravanserai') return (
-    <g>
-      <circle cx={cx} cy={cy} r={r * 0.72} stroke={color} strokeWidth={1.4} fill={color} fillOpacity={0.18}/>
-      <circle cx={cx} cy={cy} r={r * 0.28} fill={color} fillOpacity={0.72}/>
-    </g>
-  )
-  return <circle cx={cx} cy={cy} r={r * 0.5} fill={color} fillOpacity={0.6}/>
-}
-
-// ── Componente principal ──────────────────────────────────────────────────────
-
-export default function VisualMapCanvas({
-  viewLevel,
-  selectedLayerId,
-  selectedRouteId,
-  sectors,
-  routes,
-  routeSegments,
-  settlements,
-  discoveredSegmentIds,
-  expedition,
-  onSelectLayer,
-  onSelectSettlement,
-  onSelectRoute,
-  centerTrigger,
+export default function CombatAlertModal({
+  combat,
+  player,
+  onChooseStance,
+  onGoToCaravan,
 }) {
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-  const isDownRef    = useRef(false)
-  const didDragRef   = useRef(false)
-  const dragStartRef = useRef(null)
-  const [selectedNodeId,    setSelectedNodeId]    = useState(null)
-  const [detailSettlement,  setDetailSettlement]  = useState(null)
-  const [detailSegment,     setDetailSegment]     = useState(null)
-  const [detailLockedLayer, setDetailLockedLayer] = useState(null)
+  const [minimized,        setMinimized]        = useState(false)
+  const [remainingSeconds, setRemainingSeconds] = useState(0)
+  const autoResolvedRef = useRef(false)
+  const resolvedRef     = useRef(false)
 
-  useEffect(() => { setPan({ x: 0, y: 0 }) }, [centerTrigger])
-
+  // Stable countdown based on absolute decisionEndsAt timestamp
   useEffect(() => {
-    setSelectedNodeId(null)
-    setDetailSettlement(null)
-    setDetailSegment(null)
-    setDetailLockedLayer(null)
-  }, [viewLevel, selectedLayerId, selectedRouteId])
-
-  function onPointerDown(e) {
-    isDownRef.current    = true
-    didDragRef.current   = false
-    dragStartRef.current = { panX: pan.x, panY: pan.y, originX: e.clientX, originY: e.clientY }
-  }
-
-  function onPointerMove(e) {
-    if (!isDownRef.current || !dragStartRef.current) return
-    const dx = e.clientX - dragStartRef.current.originX
-    const dy = e.clientY - dragStartRef.current.originY
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) didDragRef.current = true
-    let newX = dragStartRef.current.panX + dx
-    let newY = dragStartRef.current.panY + dy
-    if (viewLevel === 'abyss') {
-      newX = 0
-      newY = Math.min(ABYSS_PAN.maxY, Math.max(ABYSS_PAN.minY, newY))
+    if (!combat || combat.status !== 'awaiting_choice') {
+      autoResolvedRef.current = false
+      return
     }
-    setPan({ x: newX, y: newY })
-  }
+    autoResolvedRef.current = false
 
-  function onPointerUp() {
-    isDownRef.current    = false
-    dragStartRef.current = null
-  }
-
-  function isSettlementVisible(s) {
-    const sec = sectors.find(sec => sec.id === s.sectorId)
-    return s.unlocked || (sec?.discovered ?? false)
-  }
-
-  function isLayerUnlocked(layer) {
-    if (!layer.real) return false
-    if (layer.id === 'stratum_01') return true
-    if (layer.id === 'stratum_02') {
-      return sectors.some(s => (s.id === 'sector_salt_beacon' || s.id === 'sector_tide_rock') && s.discovered)
-    }
-    if (layer.id === 'stratum_03') {
-      return sectors.some(s => (s.id === 'sector_sleeping_forge' || s.id === 'sector_coal_bastion') && s.discovered)
-    }
-    return false
-  }
-
-  // ── VISTA ABISMO — espiral vertical ─────────────────────────────────────────
-
-  function renderAbyssView() {
-    const spiralPath = buildAbyssSpiral()
-    const totalH     = SPIRAL.nodeStartY + (ABYSS_VISUAL_LAYERS.length - 1) * SPIRAL.spacing + 100
-
-    // Depth markers: placed beside nodes at key depths
-    const depthMarkers = [
-      { y: 118,  label: '0 m',       side: 'left'  },
-      { y: 270,  label: '250 m',     side: 'right' },
-      { y: 422,  label: '500 m',     side: 'left'  },
-      { y: 650,  label: '1100 m',    side: 'right' },
-      { y: 878,  label: '2200 m',    side: 'left'  },
-      { y: 1106, label: '4000 m',    side: 'right' },
-      { y: 1334, label: '7900 m',    side: 'left'  },
-      { y: 1562, label: '∞',         side: 'right' },
-    ]
-
-    return (
-      <>
-        {/* Fondo total del Abismo */}
-        <rect x={-20} y={-60} width={520} height={totalH + 120}
-              fill="rgba(3,5,2,0.99)"/>
-
-        {/* Brillo ambiental tenue desde arriba */}
-        <radialGradient id="abyssTopGlow" cx="0.5" cy="0" r="0.6">
-          <stop offset="0%"   stopColor="rgba(184,148,74,0.07)"/>
-          <stop offset="100%" stopColor="rgba(0,0,0,0)"/>
-        </radialGradient>
-        <ellipse cx={240} cy={-20} rx={260} ry={180}
-                 fill="url(#abyssTopGlow)"/>
-
-        {/* Paredes del Abismo — izquierda */}
-        <path className="abyss-wall-left"
-              d={`M 0 -60
-                  C 14 80, 0 200, 18 320
-                  C 34 440, 12 560, 26 680
-                  C 40 800, 14 920, 28 1040
-                  C 42 1160, 16 1280, 30 1400
-                  C 44 1520, 18 1620, 32 ${totalH}
-                  L 0 ${totalH} Z`}/>
-
-        {/* Paredes del Abismo — derecha */}
-        <path className="abyss-wall-right"
-              d={`M 480 -60
-                  C 466 80, 480 200, 462 320
-                  C 446 440, 468 560, 454 680
-                  C 440 800, 466 920, 452 1040
-                  C 438 1160, 464 1280, 450 1400
-                  C 436 1520, 462 1620, 448 ${totalH}
-                  L 480 ${totalH} Z`}/>
-
-        {/* Sombra central de la sima */}
-        <linearGradient id="shaftFade" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%"   stopColor="rgba(0,0,0,0.55)"/>
-          <stop offset="22%"  stopColor="rgba(0,0,0,0)"/>
-          <stop offset="78%"  stopColor="rgba(0,0,0,0)"/>
-          <stop offset="100%" stopColor="rgba(0,0,0,0.55)"/>
-        </linearGradient>
-        <rect x={0} y={-60} width={480} height={totalH + 120}
-              fill="url(#shaftFade)" style={{ pointerEvents: 'none' }}/>
-
-        {/* Marcas de profundidad */}
-        {depthMarkers.map(m => (
-          <g key={m.y}>
-            <line x1={70} y1={m.y} x2={410} y2={m.y}
-                  stroke="rgba(98,107,111,0.08)" strokeWidth={0.6} strokeDasharray="2 8"/>
-            <text
-              x={m.side === 'left' ? 8 : 472}
-              y={m.y + 4}
-              fontSize={7}
-              textAnchor={m.side === 'left' ? 'start' : 'end'}
-              className="abyss-layer-depth">
-              {m.label}
-            </text>
-          </g>
-        ))}
-
-        {/* Sombra de la espiral */}
-        <path d={spiralPath} className="abyss-spiral-road-shadow"/>
-
-        {/* Espiral principal */}
-        <path d={spiralPath} className="abyss-spiral-road"/>
-
-        {/* Nodos de capa */}
-        {ABYSS_VISUAL_LAYERS.map((layer, i) => {
-          const pos      = getLayerNodePos(i)
-          const unlocked = isLayerUnlocked(layer)
-          const isLeft   = i % 2 === 0
-          const isSel    = selectedNodeId === layer.id
-
-          // Cornisa bajo el nodo
-          const corniceX1 = isLeft ? pos.x - 32 : pos.x - 52
-          const corniceX2 = isLeft ? pos.x + 52 : pos.x + 32
-          const corniceY  = pos.y + 16
-
-          return (
-            <g key={layer.id}
-               className={`abyss-layer-node ${unlocked ? 'unlocked' : 'locked'}`}
-               style={{ cursor: unlocked ? 'pointer' : 'default' }}
-               onClick={() => {
-                 if (didDragRef.current) return
-                 if (unlocked) {
-                   onSelectLayer(layer.id)
-                 } else {
-                   const same = selectedNodeId === layer.id
-                   setSelectedNodeId(same ? null : layer.id)
-                   setDetailLockedLayer(same ? null : layer)
-                   setDetailSettlement(null)
-                   setDetailSegment(null)
-                 }
-               }}>
-
-              {/* Cornisa rocosa */}
-              <path d={`M ${corniceX1} ${corniceY} C ${corniceX1 + 10} ${corniceY - 2}, ${corniceX2 - 10} ${corniceY - 2}, ${corniceX2} ${corniceY}`}
-                    className="abyss-cornice"
-                    stroke={unlocked ? 'rgba(100,80,40,0.45)' : 'rgba(60,55,50,0.25)'}
-                    strokeWidth={2.5} fill="none"/>
-
-              {/* Halo de selección */}
-              {isSel && (
-                <circle cx={pos.x} cy={pos.y} r={26}
-                        fill="none" stroke="rgba(184,148,74,0.22)"
-                        strokeWidth={8} style={{ pointerEvents: 'none' }}/>
-              )}
-
-              {/* Círculo nodo */}
-              <circle cx={pos.x} cy={pos.y} r={18}
-                      fill={unlocked ? 'rgba(14,10,5,0.95)' : 'rgba(7,7,6,0.9)'}
-                      stroke={unlocked ? 'rgba(184,148,74,0.68)' : 'rgba(70,65,58,0.32)'}
-                      strokeWidth={unlocked ? 1.5 : 0.8}/>
-
-              {/* Número romano o ? */}
-              <text x={pos.x} y={pos.y + 5} textAnchor="middle" fontSize={unlocked ? 11 : 9}
-                    fontFamily="Georgia,serif"
-                    fill={unlocked ? 'var(--color-gold)' : 'rgba(90,85,78,0.5)'}>
-                {unlocked ? layer.number : '?'}
-              </text>
-
-              {/* Nombre de capa */}
-              <text
-                x={isLeft ? pos.x - 26 : pos.x + 26}
-                y={pos.y - 6}
-                textAnchor={isLeft ? 'end' : 'start'}
-                fontSize={unlocked ? 8.5 : 7.5}
-                fontFamily="Georgia,serif"
-                className="abyss-layer-label"
-                fill={unlocked ? 'var(--color-parchment)' : 'rgba(80,75,68,0.35)'}>
-                {unlocked ? layer.shortName : (i < 3 ? '— — —' : '')}
-              </text>
-
-              {/* Profundidad */}
-              {unlocked && (
-                <text
-                  x={isLeft ? pos.x - 26 : pos.x + 26}
-                  y={pos.y + 6}
-                  textAnchor={isLeft ? 'end' : 'start'}
-                  fontSize={7}
-                  fontFamily="Georgia,serif"
-                  fill="rgba(140,125,90,0.55)">
-                  {layer.depthLabel}
-                </text>
-              )}
-
-              {/* Flecha "entrar" solo en desbloqueadas */}
-              {unlocked && (
-                <text x={pos.x} y={pos.y - 22} textAnchor="middle" fontSize={7}
-                      fill="rgba(184,148,74,0.5)">▼</text>
-              )}
-
-              {/* Niebla en capas bloqueadas */}
-              {!unlocked && (
-                <rect x={pos.x - 50} y={pos.y - 22} width={100} height={50}
-                      rx={4}
-                      fill="rgba(6,6,5,0.45)"
-                      className="abyss-locked-fog"
-                      style={{ pointerEvents: 'none' }}/>
-              )}
-            </g>
-          )
-        })}
-
-        {/* Texto final */}
-        <text x={240} y={totalH - 10} textAnchor="middle" fontSize={8}
-              fontFamily="Georgia,serif"
-              fill="rgba(80,75,68,0.28)">
-          ∞ profundidades sin cartografiar
-        </text>
-      </>
-    )
-  }
-
-  // ── VISTA CAPA — cornisas de cueva ────────────────────────────────────────
-
-  function renderLayerView() {
-    const connections  = STRATUM_CONNECTIONS[selectedLayerId] ?? []
-    const sectorPosMap = SECTOR_POS[selectedLayerId] ?? {}
-
-    function getPos(nodeId) {
-      if (SETTLEMENT_POS[nodeId]) return SETTLEMENT_POS[nodeId]
-      return sectorPosMap[nodeId] ?? null
-    }
-
-    function routeStyle(conn) {
-      const route    = routes.find(r => r.id === conn.routeId)
-      const isActive = expedition?.routeRun?.routeId === conn.routeId || expedition?.routeId === conn.routeId
-      const isSel    = selectedNodeId === `conn_${conn.routeId}`
-      if (!conn.routeId || !route) {
-        return { stroke: 'rgba(98,107,111,0.18)', dash: '3 6', width: 1.2, clickable: false }
-      }
-      let stroke = conn.danger === 'medium' ? 'rgba(214,104,40,0.42)' : 'rgba(184,148,74,0.42)'
-      if (route.type === 'secret')    stroke = 'rgba(140,80,180,0.45)'
-      if (route.type === 'dangerous') stroke = 'rgba(200,60,40,0.45)'
-      if (isActive) stroke = 'rgba(79,143,149,0.75)'
-      if (isSel)    stroke = 'var(--color-teal)'
-      return {
-        stroke, dash: route.type === 'secret' ? '4 5' : undefined,
-        width: isSel ? 3 : isActive ? 2.5 : 1.8, clickable: true,
+    function tick() {
+      const ms   = combat.decisionEndsAt ? Math.max(0, combat.decisionEndsAt - Date.now()) : 0
+      const secs = Math.ceil(ms / 1000)
+      setRemainingSeconds(secs)
+      if (ms <= 0 && !autoResolvedRef.current) {
+        autoResolvedRef.current = true
+        onChooseStance('equilibrada', { auto: true })
       }
     }
 
-    const layerSettlements = settlements.filter(s => s.stratumId === selectedLayerId)
+    tick()
+    const id = setInterval(tick, 250)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combat?.status, combat?.decisionEndsAt])
 
-    return (
-      <>
-        {/* Fondo oscuro de cueva */}
-        <rect x={0} y={0} width={480} height={480} fill="rgba(5,7,4,0.97)"/>
+  // Reset resolved ref when new combat starts
+  useEffect(() => {
+    if (combat?.status === 'awaiting_choice') resolvedRef.current = false
+  }, [combat?.status])
 
-        {/* Pared izquierda de cueva */}
-        <path d="M 0 0 C 22 60, 8 140, 20 220 C 30 300, 10 380, 18 480 L 0 480 Z"
-              fill="rgba(18,14,8,0.9)"/>
+  if (!combat || (combat.status !== 'awaiting_choice' && combat.status !== 'resolved')) return null
 
-        {/* Pared derecha de cueva */}
-        <path d="M 480 0 C 458 60, 472 140, 460 220 C 448 300, 470 380, 462 480 L 480 480 Z"
-              fill="rgba(18,14,8,0.9)"/>
-
-        {/* Estalactitas superiores */}
-        <path d="M 110 0 L 98 44 L 122 0" fill="rgba(16,13,8,0.8)"/>
-        <path d="M 270 0 L 258 62 L 282 0" fill="rgba(16,13,8,0.75)"/>
-        <path d="M 360 0 L 350 34 L 370 0" fill="rgba(16,13,8,0.8)"/>
-        <path d="M 180 0 L 170 28 L 190 0" fill="rgba(16,13,8,0.65)"/>
-
-        {/* Zona de agua oscura (fondo derecho, para el puerto) */}
-        <ellipse cx={394} cy={362} rx={70} ry={22}
-                 fill="rgba(12,22,35,0.65)"/>
-        <ellipse cx={394} cy={362} rx={68} ry={4}
-                 fill="rgba(20,40,62,0.5)"/>
-
-        {/* Brillo cálido desde Aethel Linde (izquierda, asentamiento inicial) */}
-        <radialGradient id="aethelGlow" cx="0.17" cy="0.59" r="0.45">
-          <stop offset="0%"   stopColor="rgba(184,148,74,0.1)"/>
-          <stop offset="100%" stopColor="rgba(0,0,0,0)"/>
-        </radialGradient>
-        <rect x={0} y={0} width={480} height={480} fill="url(#aethelGlow)"
-              style={{ pointerEvents: 'none' }}/>
-
-        {/* Rutas */}
-        {connections.map((conn, i) => {
-          const fromPos = getPos(conn.from)
-          const toPos   = getPos(conn.to)
-          if (!fromPos || !toPos) return null
-          const st = routeStyle(conn)
-          return (
-            <path key={i}
-                  d={createCurvedPath(fromPos, toPos, conn.bend ?? 0.22)}
-                  stroke={st.stroke} strokeWidth={st.width}
-                  strokeDasharray={st.dash} fill="none" strokeLinecap="round"
-                  className={`abyss-route-curve${st.clickable ? '' : ' locked'}${selectedNodeId === `conn_${conn.routeId}` ? ' selected' : ''}`}
-                  style={{ cursor: st.clickable ? 'pointer' : 'default' }}
-                  onClick={() => {
-                    if (didDragRef.current || !st.clickable) return
-                    setSelectedNodeId(`conn_${conn.routeId}`)
-                    setDetailSegment(null); setDetailSettlement(null)
-                    onSelectRoute(conn.routeId)
-                  }}/>
-          )
-        })}
-
-        {/* Sectores (estrato 2 y 3) */}
-        {Object.entries(sectorPosMap).map(([secId, pos]) => {
-          const sec        = sectors.find(s => s.id === secId)
-          const discovered = sec?.discovered ?? false
-          return (
-            <g key={secId}>
-              <circle cx={pos.x} cy={pos.y} r={18}
-                      fill="rgba(12,10,7,0.88)"
-                      stroke={discovered ? 'rgba(184,148,74,0.55)' : 'rgba(98,107,111,0.3)'}
-                      strokeWidth={1.2}/>
-              <text x={pos.x} y={pos.y + 4} textAnchor="middle" fontSize={9}
-                    fill={discovered ? 'var(--color-gold)' : 'rgba(98,107,111,0.45)'}>
-                {discovered ? '⬡' : '?'}
-              </text>
-              <text x={pos.x} y={pos.y + 30} textAnchor="middle" fontSize={7.5}
-                    fontFamily="Georgia,serif"
-                    fill={discovered ? 'var(--color-parchment)' : 'rgba(98,107,111,0.4)'}>
-                {discovered ? (sec?.name ?? secId) : '—'}
-              </text>
-            </g>
-          )
-        })}
-
-        {/* Asentamientos sobre cornisas */}
-        {layerSettlements.map(s => {
-          const pos       = SETTLEMENT_POS[s.id]
-          if (!pos) return null
-          const visible   = isSettlementVisible(s)
-          const isSel     = selectedNodeId === s.id
-          const safeColor = SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)'
-          const nodeColor = visible ? safeColor : 'rgba(98,107,111,0.28)'
-
-          return (
-            <g key={s.id} style={{ cursor: 'pointer' }}
-               onClick={() => {
-                 if (didDragRef.current) return
-                 const next = selectedNodeId === s.id ? null : s.id
-                 setSelectedNodeId(next)
-                 setDetailSettlement(next ? s : null)
-                 setDetailSegment(null)
-                 onSelectSettlement(s.id)
-               }}>
-              {/* Cornisa / ledge bajo el asentamiento */}
-              <path d={`M ${pos.x - 28} ${pos.y + 18} C ${pos.x - 10} ${pos.y + 15}, ${pos.x + 10} ${pos.y + 15}, ${pos.x + 28} ${pos.y + 18}`}
-                    stroke={visible ? 'rgba(80,60,30,0.5)' : 'rgba(60,55,50,0.2)'}
-                    strokeWidth={3} fill="none"/>
-
-              {/* Halo de selección */}
-              {isSel && (
-                <circle cx={pos.x} cy={pos.y} r={27}
-                        fill="none" stroke={safeColor} strokeWidth={1.2}
-                        strokeOpacity={0.4} strokeDasharray="3 4"/>
-              )}
-
-              {/* Nodo */}
-              <circle cx={pos.x} cy={pos.y} r={19}
-                      fill={visible ? 'rgba(12,9,4,0.93)' : 'rgba(8,7,5,0.82)'}
-                      stroke={nodeColor} strokeWidth={visible ? 1.6 : 0.7}
-                      strokeOpacity={visible ? 1 : 0.35}/>
-
-              {/* Icono */}
-              <g opacity={visible ? 1 : 0.22}>
-                <SettlementShape type={s.type} cx={pos.x} cy={pos.y} color={nodeColor} r={11}/>
-              </g>
-              {!visible && (
-                <text x={pos.x} y={pos.y + 4} textAnchor="middle" fontSize={12}
-                      fill="rgba(98,107,111,0.38)">?</text>
-              )}
-
-              {/* Etiqueta */}
-              <text x={pos.x} y={pos.y + 34} textAnchor="middle" fontSize={7.5}
-                    fontFamily="Georgia,serif"
-                    fill={visible ? 'var(--color-parchment)' : 'rgba(98,107,111,0.35)'}>
-                {visible ? s.name : '—'}
-              </text>
-            </g>
-          )
-        })}
-
-        {layerSettlements.length === 0 && Object.keys(sectorPosMap).length === 0 && (
-          <text x={240} y={240} textAnchor="middle" fontSize={11}
-                fontStyle="italic" fontFamily="Georgia,serif"
-                fill="var(--color-stone-light)">
-            Esta capa no tiene datos visuales aún
-          </text>
-        )}
-      </>
-    )
-  }
-
-  // ── VISTA RUTA — muchos puntos sobre camino ───────────────────────────────
-
-  function renderRouteView() {
-    const route = routes.find(r => r.id === selectedRouteId)
-    if (!route) return (
-      <text x={240} y={240} textAnchor="middle" fontSize={11}
-            fill="var(--color-stone-light)">Ruta no encontrada</text>
-    )
-
-    const segs         = getSegmentsForRoute({ segments: routeSegments, routeId: selectedRouteId })
-                           .sort((a, b) => a.order - b.order)
-    const positions    = getSegmentPositions(segs)
-    const n            = segs.length
-    const many         = n > 8
-    const nodeR        = many ? 7 : 12
-    const currentId    = expedition?.routeSegmentId
-    const completedIds = expedition?.routeRun?.completedSegmentIds ?? []
-    const fromSec      = sectors.find(s => s.id === route.fromSectorId)
-    const toSec        = sectors.find(s => s.id === route.toSectorId)
-
-    // Base path
-    let basePath = ''
-    if (positions.length >= 2) {
-      basePath = `M ${positions[0].x} ${positions[0].y}`
-      for (let i = 1; i < positions.length; i++) {
-        const p = positions[i - 1], c = positions[i]
-        basePath += ` Q ${(p.x + c.x) / 2} ${p.y}, ${c.x} ${c.y}`
-      }
-    }
-
-    const lastDoneIdx = segs.reduce((best, seg, idx) =>
-      (completedIds.includes(seg.id) || discoveredSegmentIds.includes(seg.id)) ? idx : best, -1)
-
-    return (
-      <>
-        {/* Nombre de ruta */}
-        <text x={240} y={50} textAnchor="middle" fontSize={11}
-              fontFamily="Georgia,serif" fontWeight={600}
-              fill="var(--color-gold)">{route.name}</text>
-        <text x={240} y={66} textAnchor="middle" fontSize={8}
-              fontFamily="Georgia,serif"
-              fill="rgba(140,130,100,0.6)">
-          {fromSec?.name ?? '—'} → {toSec?.name ?? '—'}
-        </text>
-        {many && (
-          <text x={240} y={80} textAnchor="middle" fontSize={7.5}
-                fill="rgba(140,130,100,0.45)">
-            {n} tramos
-          </text>
-        )}
-
-        {/* Camino base */}
-        {basePath && (
-          <path d={basePath} stroke="rgba(98,107,111,0.18)" strokeWidth={many ? 3 : 4}
-                fill="none" strokeLinecap="round"/>
-        )}
-
-        {/* Nodos de tramo */}
-        {segs.map((seg, idx) => {
-          const pos        = positions[idx]
-          if (!pos) return null
-          const isDone     = completedIds.includes(seg.id) || discoveredSegmentIds.includes(seg.id)
-          const isCurrent  = seg.id === currentId
-          const firstHiddenIdx = segs.findIndex(s =>
-            !completedIds.includes(s.id) && !discoveredSegmentIds.includes(s.id) && s.id !== currentId)
-          const isNext     = !isDone && !isCurrent && idx === firstHiddenIdx
-          const isHidden   = !isDone && !isCurrent && !isNext
-          const isSel      = selectedNodeId === seg.id
-
-          // Solo mostrar etiqueta en tramos relevantes
-          const showLabel  = isCurrent || isSel || (isDone && idx === lastDoneIdx) || (isNext && !many) || (!many && !isHidden)
-
-          let nodeStroke = 'rgba(70,65,58,0.3)'
-          let labelFill  = 'rgba(98,107,111,0.45)'
-          if (isDone)    { nodeStroke = 'rgba(184,148,74,0.8)'; labelFill = 'var(--color-gold)' }
-          if (isCurrent) { nodeStroke = 'var(--color-teal)';    labelFill = 'var(--color-parchment)' }
-          if (isNext)    { nodeStroke = 'rgba(79,143,149,0.4)'; labelFill = 'var(--color-mist)' }
-          if (isSel)       nodeStroke = 'var(--color-gold)'
-
-          const displayText = isHidden ? '?' : isCurrent ? seg.name : isNext ? 'Siguiente' : seg.name
-          const maxLen      = many ? 10 : 13
-          const shortText   = displayText.length > maxLen ? displayText.slice(0, maxLen - 1) + '…' : displayText
-
-          return (
-            <g key={seg.id} className={`abyss-segment-dot${isDone ? ' completed' : isCurrent ? ' current' : isHidden ? ' hidden' : ''}`}
-               style={{ cursor: 'pointer' }}
-               onClick={() => {
-                 if (didDragRef.current) return
-                 const next = selectedNodeId === seg.id ? null : seg.id
-                 setSelectedNodeId(next)
-                 setDetailSegment(next ? { seg, isDone, isCurrent, isHidden } : null)
-                 setDetailSettlement(null)
-               }}>
-
-              {/* Línea al anterior */}
-              {idx > 0 && positions[idx - 1] && (
-                <line x1={positions[idx - 1].x} y1={positions[idx - 1].y}
-                      x2={pos.x} y2={pos.y}
-                      stroke={isDone ? 'rgba(184,148,74,0.3)' : 'rgba(98,107,111,0.15)'}
-                      strokeWidth={many ? 2 : 2.5}
-                      strokeDasharray={isDone ? undefined : '3 5'}/>
-              )}
-
-              {/* Pulso actual */}
-              {isCurrent && (
-                <circle cx={pos.x} cy={pos.y} r={nodeR + 7}
-                        fill="none" stroke="rgba(79,143,149,0.18)" strokeWidth={3}/>
-              )}
-
-              {/* Nodo */}
-              <circle cx={pos.x} cy={pos.y} r={nodeR}
-                      fill="rgba(9,7,4,0.93)"
-                      stroke={nodeStroke}
-                      strokeWidth={isDone || isCurrent ? (many ? 1.5 : 1.8) : (many ? 0.9 : 1)}/>
-
-              {/* Interior */}
-              {isDone    && <circle cx={pos.x} cy={pos.y} r={many ? 3 : 4.5} fill="rgba(184,148,74,0.65)"/>}
-              {isCurrent && <rect x={pos.x - (many ? 2.5 : 3.5)} y={pos.y - (many ? 2.5 : 3.5)}
-                                  width={many ? 5 : 7} height={many ? 5 : 7}
-                                  rx={1} fill="var(--color-teal)"/>}
-              {isHidden && !many && (
-                <text x={pos.x} y={pos.y + 4.5} textAnchor="middle" fontSize={10}
-                      fill="rgba(98,107,111,0.4)">?</text>
-              )}
-
-              {/* Etiqueta */}
-              {showLabel && (
-                <text x={pos.x} y={pos.y + nodeR + (many ? 12 : 15)} textAnchor="middle"
-                      fontSize={many ? 7 : 8} fontFamily="Georgia,serif"
-                      fill={labelFill}>
-                  {shortText}
-                </text>
-              )}
-
-              {/* Marcador "actual" */}
-              {isCurrent && (
-                <text x={pos.x} y={pos.y - nodeR - 6} textAnchor="middle" fontSize={7}
-                      fill="var(--color-teal)">← actual</text>
-              )}
-            </g>
-          )
-        })}
-
-        {segs.length === 0 && (
-          <text x={240} y={240} textAnchor="middle" fontSize={10}
-                fontStyle="italic" fontFamily="Georgia,serif"
-                fill="var(--color-stone-light)">Sin tramos conocidos</text>
-        )}
-      </>
-    )
-  }
-
-  // ── Panel de detalle ─────────────────────────────────────────────────────────
-
-  function renderDetail() {
-    if (detailLockedLayer) {
-      return (
-        <div className="visual-map-detail-panel">
-          <div style={{ fontSize: '0.68rem', color: 'rgba(90,83,70,0.65)', fontWeight: 600, marginBottom: 3, fontFamily: 'Georgia,serif' }}>
-            {detailLockedLayer.name}
-          </div>
-          <div style={{ fontSize: '0.58rem', color: 'rgba(90,83,70,0.4)', fontStyle: 'italic', lineHeight: 1.45 }}>
-            Profundidad no cartografiada — nadie que haya bajado hasta aquí ha vuelto con mapas completos.
-          </div>
-        </div>
-      )
-    }
-
-    if (detailSettlement) {
-      const s       = detailSettlement
-      const visible = isSettlementVisible(s)
-      if (!visible) return (
-        <div className="visual-map-detail-panel">
-          <span style={{ fontSize: '0.62rem', color: 'var(--color-stone-light)', fontStyle: 'italic' }}>
-            Lugar en niebla — explora el sector para revelar este asentamiento.
-          </span>
-        </div>
-      )
-      return (
-        <div className="visual-map-detail-panel">
-          <div style={{ fontSize: '0.72rem', color: 'var(--color-gold)', fontWeight: 600, marginBottom: 2 }}>
-            {s.name}
-          </div>
-          <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', textTransform: 'capitalize', marginBottom: 2 }}>
-            {s.type.replace(/_/g, ' ')} · {s.layerName}
-          </div>
-          <div style={{ fontSize: '0.6rem', color: SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)', marginBottom: 3, textTransform: 'capitalize' }}>
-            Seguridad: {s.safetyLevel}
-          </div>
-          {s.description && (
-            <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', fontStyle: 'italic', lineHeight: 1.45 }}>
-              {s.description}
-            </div>
-          )}
-          {s.services?.length > 0 && (
-            <div style={{ fontSize: '0.55rem', color: 'var(--color-mist)', marginTop: 4 }}>
-              {s.services.map(sv => sv.replace(/_/g, ' ')).join(' · ')}
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    if (detailSegment) {
-      const { seg, isDone, isCurrent, isHidden } = detailSegment
-      if (isHidden) return (
-        <div className="visual-map-detail-panel">
-          <span style={{ fontSize: '0.62rem', color: 'var(--color-stone-light)', fontStyle: 'italic' }}>
-            Tramo desconocido — completa los anteriores para revelar este camino.
-          </span>
-        </div>
-      )
-      return (
-        <div className="visual-map-detail-panel">
-          <div style={{ fontSize: '0.72rem', color: isCurrent ? 'var(--color-teal)' : 'var(--color-gold)', fontWeight: 600, marginBottom: 2 }}>
-            {seg.name}
-          </div>
-          <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', marginBottom: 3 }}>
-            {seg.stepMin}–{seg.stepMax} pasos · {seg.type}
-          </div>
-          {seg.description && (
-            <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', fontStyle: 'italic', lineHeight: 1.4 }}>
-              {seg.description}
-            </div>
-          )}
-          {isCurrent  && <div style={{ fontSize: '0.6rem', color: 'var(--color-teal)',   marginTop: 3 }}>Tramo en curso</div>}
-          {isDone && !isCurrent && <div style={{ fontSize: '0.6rem', color: 'var(--color-xp)', marginTop: 3 }}>Tramo completado</div>}
-        </div>
-      )
-    }
-
-    return (
-      <div className="visual-map-empty-detail">
-        {viewLevel === 'abyss' && 'Toca una capa para explorar el Abismo'}
-        {viewLevel === 'layer' && 'Toca un asentamiento o una ruta'}
-        {viewLevel === 'route' && 'Toca un tramo para ver su detalle'}
-      </div>
-    )
-  }
-
-  // ── Render ──────────────────────────────────────────────────────────────────
+  const isResolved = combat.status === 'resolved'
+  const enemy      = ENEMIES[combat.enemyId]
+  const stances    = getAvailableStances()
+  const decSecs    = combat.decisionSeconds ?? 6
+  const progress   = isResolved ? 0 : Math.max(0, (remainingSeconds / decSecs) * 100)
 
   return (
-    <div className="visual-map-shell">
-      <svg
-        className="visual-map-svg"
-        viewBox="0 0 480 480"
-        overflow="hidden"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerUp}
-        onPointerCancel={onPointerUp}
-        style={{ touchAction: 'none', cursor: isDownRef.current ? 'grabbing' : 'grab' }}
-      >
-        <g transform={`translate(${pan.x}, ${pan.y})`}>
-          {viewLevel === 'abyss' && renderAbyssView()}
-          {viewLevel === 'layer' && renderLayerView()}
-          {viewLevel === 'route' && renderRouteView()}
-        </g>
+    <div className="combat-alert-layer">
+      <div className={`combat-alert-dock${minimized ? ' minimized' : ''}`}>
 
-        {/* Gradiente inferior fijo — indica que hay más contenido debajo */}
-        {viewLevel === 'abyss' && pan.y > ABYSS_PAN.minY + 60 && (
-          <>
-            <defs>
-              <linearGradient id="scrollFade" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor="rgba(3,5,2,0)" stopOpacity="0"/>
-                <stop offset="100%" stopColor="rgba(3,5,2,0.75)" stopOpacity="0.75"/>
-              </linearGradient>
-            </defs>
-            <rect x={0} y={390} width={480} height={90}
-                  fill="url(#scrollFade)" style={{ pointerEvents: 'none' }}/>
-            <text x={240} y={472} textAnchor="middle" fontSize={7.5}
-                  className="abyss-scroll-hint"
-                  style={{ pointerEvents: 'none' }}>
-              ↕ desliza para explorar el Abismo
-            </text>
-          </>
+        {/* Header — always visible */}
+        <div className="combat-dock-header">
+          <svg width="14" height="14" viewBox="0 0 18 18" style={{ flexShrink: 0 }}>
+            <path d="M9 2 L16 15 H2 Z" fill="none" stroke="rgba(214,80,60,0.9)" strokeWidth="1.5"/>
+            <rect x="8.2" y="7" width="1.6" height="5" fill="rgba(214,80,60,0.9)" rx="0.5"/>
+            <circle cx="9" cy="13.5" r="0.9" fill="rgba(214,80,60,0.9)"/>
+          </svg>
+          <span style={{ fontSize: '0.66rem', color: 'var(--color-hp)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            {isResolved ? 'Combate resuelto' : `⚔ ${enemy?.name ?? '—'}`}
+          </span>
+          {!isResolved && (
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: remainingSeconds <= 2 ? 'var(--color-hp)' : 'var(--color-ember)', marginLeft: 4 }}>
+              {remainingSeconds}s
+            </span>
+          )}
+          <button className="combat-dock-min-btn" onClick={() => setMinimized(m => !m)}>
+            {minimized ? '▲' : '▼'}
+          </button>
+        </div>
+
+        {/* Countdown bar — only when awaiting choice */}
+        {!isResolved && !minimized && (
+          <div style={{ height: 2, background: 'rgba(98,107,111,0.2)' }}>
+            <div style={{
+              height: '100%',
+              background: remainingSeconds <= 2 ? 'var(--color-hp)' : 'var(--color-ember)',
+              width: `${progress}%`,
+              transition: 'width 0.25s linear',
+            }} />
+          </div>
         )}
-      </svg>
 
-      {renderDetail()}
+        {/* Expanded body */}
+        {!minimized && !isResolved && (
+          <div className="combat-dock-body">
+            {/* Enemy + attack */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+              <EnemyToken enemyId={combat.enemyId} size={40} />
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-parchment)', fontWeight: 500 }}>
+                  {enemy?.name ?? combat.enemyId}
+                </div>
+                <div style={{ fontSize: '0.58rem', color: 'var(--color-ember)', marginTop: 2 }}>
+                  {combat.attack?.name ?? '—'}
+                </div>
+                {player && (
+                  <div style={{ fontSize: '0.56rem', color: 'var(--color-stone-light)', marginTop: 2 }}>
+                    HP: <span style={{ color: player.hp < player.maxHp * 0.3 ? 'var(--color-hp)' : 'var(--color-parchment)' }}>
+                      {player.hp}/{player.maxHp}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Stance buttons */}
+            <div style={{ fontSize: '0.52rem', color: 'var(--color-stone-light)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>
+              Elige postura:
+            </div>
+            <div className="combat-dock-stances">
+              {stances.map(stance => (
+                <button
+                  key={stance.id}
+                  className="combat-dock-stance-btn"
+                  onClick={() => onChooseStance(stance.id)}
+                >
+                  {stance.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Result when resolved */}
+        {!minimized && isResolved && combat.result && (
+          <div className="combat-dock-result">
+            {combat.result.text ?? 'El combate queda atrás.'}
+          </div>
+        )}
+
+        {/* Footer — go to caravana */}
+        {!minimized && !isResolved && (
+          <div className="combat-dock-footer">
+            <button className="combat-dock-goto-btn" onClick={onGoToCaravan}>
+              Ver en Caravana
+            </button>
+          </div>
+        )}
+
+      </div>
     </div>
   )
 }
@@ -4311,6 +3359,938 @@ export function completeCurrentRouteSegment({ routeRun, route, segments }) {
     currentSegmentOrder: next?.order ?? routeRun.currentSegmentOrder,
     completed:           !next,
   }
+}
+</file>
+
+<file path="src/components/VisualMapCanvas.jsx">
+import { useState, useRef, useEffect } from 'react'
+import { ABYSS_STRATA } from '../data/gameData.js'
+import { getSegmentsForRoute } from '../systems/routeSegmentSystem.js'
+
+// ── 20 capas visuales del Abismo ─────────────────────────────────────────────
+
+const ABYSS_VISUAL_LAYERS = [
+  { id: 'stratum_01', number: 1,  name: 'Linde de las Raíces Ciegas',      shortName: 'Raíces Ciegas',    depthLabel: '0–250 m',       real: true  },
+  { id: 'stratum_02', number: 2,  name: 'Cornisa de la Sal Negra',          shortName: 'Sal Negra',        depthLabel: '250–500 m',     real: true  },
+  { id: 'stratum_03', number: 3,  name: 'Hornacinas de Ceniza',             shortName: 'Hornacinas',       depthLabel: '500–800 m',     real: true  },
+  { id: 'stratum_04', number: 4,  name: 'Cámara de la Colmena Roja',        shortName: 'Colmena Roja',     depthLabel: '800–1100 m',    real: false },
+  { id: 'stratum_05', number: 5,  name: 'Galerías de Espora Muerta',        shortName: 'Galerías',         depthLabel: '1100–1450 m',   real: false },
+  { id: 'stratum_06', number: 6,  name: 'Acueductos Hundidos',              shortName: 'Acueductos',       depthLabel: '1450–1800 m',   real: false },
+  { id: 'stratum_07', number: 7,  name: 'Jardines sin Sol',                 shortName: 'Jardines',         depthLabel: '1800–2200 m',   real: false },
+  { id: 'stratum_08', number: 8,  name: 'Foso de Resina Negra',             shortName: 'Resina Negra',     depthLabel: '2200–2700 m',   real: false },
+  { id: 'stratum_09', number: 9,  name: 'Bastiones del Hueso Antiguo',      shortName: 'Hueso Antiguo',    depthLabel: '2700–3300 m',   real: false },
+  { id: 'stratum_10', number: 10, name: 'Desierto de Hielo Bajo',           shortName: 'Hielo Bajo',       depthLabel: '3300–4000 m',   real: false },
+  { id: 'stratum_11', number: 11, name: 'Claustros de Vidrio',              shortName: 'Vidrio',           depthLabel: '4000–4800 m',   real: false },
+  { id: 'stratum_12', number: 12, name: 'Umbral de las Campanas Rotas',     shortName: 'Campanas Rotas',   depthLabel: '4800–5700 m',   real: false },
+  { id: 'stratum_13', number: 13, name: 'Forjas del Hierro Vivo',           shortName: 'Hierro Vivo',      depthLabel: '5700–6700 m',   real: false },
+  { id: 'stratum_14', number: 14, name: 'Caverna de los Titanes Dormidos',  shortName: 'Titanes',          depthLabel: '6700–7900 m',   real: false },
+  { id: 'stratum_15', number: 15, name: 'Mar Interior de Piedra',           shortName: 'Mar de Piedra',    depthLabel: '7900–9200 m',   real: false },
+  { id: 'stratum_16', number: 16, name: 'Campo del Cristal Vivo',           shortName: 'Cristal Vivo',     depthLabel: '9200–10800 m',  real: false },
+  { id: 'stratum_17', number: 17, name: 'Catedral de Raíz Fósil',           shortName: 'Raíz Fósil',       depthLabel: '10800–12600 m', real: false },
+  { id: 'stratum_18', number: 18, name: 'Cámara de los Nombres Perdidos',   shortName: 'Nombres Perdidos', depthLabel: '12600–14600 m', real: false },
+  { id: 'stratum_19', number: 19, name: 'Garganta del Primer Farol',        shortName: 'Primer Farol',     depthLabel: '14600–17000 m', real: false },
+  { id: 'stratum_20', number: 20, name: 'Fondo sin Cielo',                  shortName: 'Fondo sin Cielo',  depthLabel: '∞',             real: false },
+]
+
+// Geometría de la espiral
+const SPIRAL = { leftX: 128, rightX: 352, startY: 30, nodeStartY: 118, spacing: 76 }
+
+// Pan limits para la vista Abismo (coordenadas SVG)
+const ABYSS_PAN = { minY: -1210, maxY: 48 }
+
+// ── Colores de seguridad ──────────────────────────────────────────────────────
+
+const SAFETY_COLOR = {
+  safe:      'var(--color-xp)',
+  guarded:   'var(--color-gold)',
+  unstable:  'var(--color-mist)',
+  dangerous: 'var(--color-ember)',
+  hostile:   'var(--color-hp)',
+  mythic:    'var(--color-magic)',
+}
+
+// ── Posiciones de asentamientos en LAYER view (estilo cornisa de cueva) ──────
+
+const SETTLEMENT_POS = {
+  settlement_aethel_linde:           { x: 82,  y: 285 },
+  settlement_root_lantern_market:    { x: 196, y: 148 },
+  settlement_fogbreak_fort:          { x: 400, y: 116 },
+  settlement_blind_lake_dock:        { x: 392, y: 330 },
+  settlement_dust_gate_caravanserai: { x: 228, y: 388 },
+}
+
+const SECTOR_POS = {
+  stratum_02: {
+    sector_salt_beacon: { x: 148, y: 210 },
+    sector_tide_rock:   { x: 332, y: 270 },
+  },
+  stratum_03: {
+    sector_sleeping_forge: { x: 155, y: 220 },
+    sector_coal_bastion:   { x: 325, y: 220 },
+  },
+}
+
+const STRATUM_CONNECTIONS = {
+  stratum_01: [
+    { from: 'settlement_aethel_linde',           to: 'settlement_root_lantern_market',   routeId: 'route_aethel_to_mist',  bend:  0.22, danger: 'low' },
+    { from: 'settlement_root_lantern_market',    to: 'settlement_fogbreak_fort',          routeId: 'route_mist_to_ruins',   bend: -0.18, danger: 'medium' },
+    { from: 'settlement_aethel_linde',           to: 'settlement_blind_lake_dock',        routeId: 'route_aethel_to_salt',  bend: -0.2,  danger: 'medium' },
+    { from: 'settlement_aethel_linde',           to: 'settlement_dust_gate_caravanserai', routeId: null,                    bend:  0.15, danger: 'low' },
+    { from: 'settlement_dust_gate_caravanserai', to: 'settlement_blind_lake_dock',        routeId: null,                    bend:  0.2,  danger: 'low' },
+  ],
+  stratum_02: [
+    { from: 'sector_salt_beacon', to: 'sector_tide_rock', routeId: 'route_salt_to_tide', bend: 0.2, danger: 'medium', nodeType: 'sector' },
+  ],
+  stratum_03: [
+    { from: 'sector_sleeping_forge', to: 'sector_coal_bastion', routeId: 'route_forge_to_coal', bend: -0.18, danger: 'medium', nodeType: 'sector' },
+  ],
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function getLayerNodePos(i) {
+  return {
+    x: i % 2 === 0 ? SPIRAL.leftX : SPIRAL.rightX,
+    y: SPIRAL.nodeStartY + i * SPIRAL.spacing,
+  }
+}
+
+function buildAbyssSpiral() {
+  const { leftX, rightX, startY, nodeStartY, spacing } = SPIRAL
+  const cx = 240
+  let d = `M ${cx} ${startY}`
+  let prevX = cx
+  let prevY = startY
+
+  for (let i = 0; i < ABYSS_VISUAL_LAYERS.length; i++) {
+    const nx = i % 2 === 0 ? leftX : rightX
+    const ny = nodeStartY + i * spacing
+    const goRight = nx > prevX
+    const h = ny - prevY
+    const cp1x = prevX + (goRight ? 50 : -50)
+    const cp1y = prevY + h * 0.36
+    const cp2x = nx  + (goRight ? -50 : 50)
+    const cp2y = ny  - h * 0.25
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${nx} ${ny}`
+    prevX = nx; prevY = ny
+  }
+  return d
+}
+
+function createCurvedPath(from, to, bend = 0.25) {
+  const mx = (from.x + to.x) / 2
+  const my = (from.y + to.y) / 2
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const len = Math.sqrt(dx * dx + dy * dy) || 1
+  const px = -dy / len
+  const py =  dx / len
+  return `M ${from.x} ${from.y} Q ${mx + px * len * bend} ${my + py * len * bend}, ${to.x} ${to.y}`
+}
+
+function getSegmentPositions(segs) {
+  const n = segs.length
+  if (n === 0) return []
+  if (n === 1) return [{ x: 240, y: 240 }]
+  const pad     = n > 8 ? 48 : 72
+  const spacing = (480 - pad * 2) / (n - 1)
+  return segs.map((_, i) => ({
+    x: pad + i * spacing,
+    y: 235 + Math.sin(i * (n > 8 ? 0.65 : 0.85)) * (n > 8 ? 50 : 42),
+  }))
+}
+
+// ── Icono de asentamiento ─────────────────────────────────────────────────────
+
+function SettlementShape({ type, cx, cy, color, r = 11 }) {
+  if (type === 'village') return (
+    <g>
+      <polygon points={`${cx},${cy - r} ${cx - r * 0.75},${cy - r * 0.1} ${cx + r * 0.75},${cy - r * 0.1}`}
+               fill={color} fillOpacity={0.8}/>
+      <rect x={cx - r * 0.5} y={cy - r * 0.15} width={r} height={r * 0.72}
+            fill={color} fillOpacity={0.65} rx={1}/>
+    </g>
+  )
+  if (type === 'market') return (
+    <g>
+      <path d={`M ${cx - r * 0.85} ${cy - r * 0.2} Q ${cx} ${cy - r} ${cx + r * 0.85} ${cy - r * 0.2}`}
+            fill={color} fillOpacity={0.5} stroke={color} strokeWidth={1.2}/>
+      <rect x={cx - r * 0.85} y={cy - r * 0.2} width={r * 1.7} height={r * 0.65}
+            fill={color} fillOpacity={0.55} rx={1}/>
+    </g>
+  )
+  if (type === 'fort') return (
+    <g>
+      <rect x={cx - r * 0.72} y={cy - r * 0.85} width={r * 1.44} height={r * 1.15}
+            fill={color} fillOpacity={0.55} rx={1}/>
+      <rect x={cx - r * 0.9}  y={cy - r}    width={r * 0.42} height={r * 0.38} fill={color} fillOpacity={0.8}/>
+      <rect x={cx + r * 0.48} y={cy - r}    width={r * 0.42} height={r * 0.38} fill={color} fillOpacity={0.8}/>
+    </g>
+  )
+  if (type === 'harbor') return (
+    <g>
+      <line x1={cx} y1={cy - r * 0.82} x2={cx} y2={cy + r * 0.42}
+            stroke={color} strokeWidth={1.5} strokeLinecap="round"/>
+      <line x1={cx - r * 0.6} y1={cy - r * 0.3} x2={cx + r * 0.6} y2={cy - r * 0.3}
+            stroke={color} strokeWidth={1.2} strokeLinecap="round"/>
+      <path d={`M ${cx - r * 0.82} ${cy + r * 0.1} Q ${cx} ${cy + r} ${cx + r * 0.82} ${cy + r * 0.1}`}
+            stroke={color} strokeWidth={1.2} fill={color} fillOpacity={0.22}/>
+    </g>
+  )
+  if (type === 'caravanserai') return (
+    <g>
+      <circle cx={cx} cy={cy} r={r * 0.72} stroke={color} strokeWidth={1.4} fill={color} fillOpacity={0.18}/>
+      <circle cx={cx} cy={cy} r={r * 0.28} fill={color} fillOpacity={0.72}/>
+    </g>
+  )
+  return <circle cx={cx} cy={cy} r={r * 0.5} fill={color} fillOpacity={0.6}/>
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
+
+export default function VisualMapCanvas({
+  viewLevel,
+  selectedLayerId,
+  selectedRouteId,
+  sectors,
+  routes,
+  routeSegments,
+  settlements,
+  discoveredSegmentIds,
+  expedition,
+  onSelectLayer,
+  onSelectSettlement,
+  onSelectRoute,
+  centerTrigger,
+  panByView,
+  onPanChange,
+}) {
+  const [pan, setPan] = useState(() => panByView?.[viewLevel] ?? { x: 0, y: 0 })
+  const isDownRef    = useRef(false)
+  const didDragRef   = useRef(false)
+  const dragStartRef = useRef(null)
+  const panRef       = useRef(pan)
+  const [selectedNodeId,    setSelectedNodeId]    = useState(null)
+  const [detailSettlement,  setDetailSettlement]  = useState(null)
+  const [detailSegment,     setDetailSegment]     = useState(null)
+  const [detailLockedLayer, setDetailLockedLayer] = useState(null)
+
+  useEffect(() => {
+    const zeroPan = { x: 0, y: 0 }
+    panRef.current = zeroPan
+    setPan(zeroPan)
+    if (onPanChange) onPanChange(viewLevel, zeroPan)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerTrigger])
+
+  useEffect(() => {
+    const restored = panByView?.[viewLevel] ?? { x: 0, y: 0 }
+    panRef.current = restored
+    setPan(restored)
+    setSelectedNodeId(null)
+    setDetailSettlement(null)
+    setDetailSegment(null)
+    setDetailLockedLayer(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewLevel, selectedLayerId, selectedRouteId])
+
+  function onPointerDown(e) {
+    isDownRef.current    = true
+    didDragRef.current   = false
+    dragStartRef.current = { panX: pan.x, panY: pan.y, originX: e.clientX, originY: e.clientY }
+  }
+
+  function onPointerMove(e) {
+    if (!isDownRef.current || !dragStartRef.current) return
+    const dx = e.clientX - dragStartRef.current.originX
+    const dy = e.clientY - dragStartRef.current.originY
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) didDragRef.current = true
+    let newX = dragStartRef.current.panX + dx
+    let newY = dragStartRef.current.panY + dy
+    if (viewLevel === 'abyss') {
+      newX = 0
+      newY = Math.min(ABYSS_PAN.maxY, Math.max(ABYSS_PAN.minY, newY))
+    }
+    const newPan = { x: newX, y: newY }
+    panRef.current = newPan
+    setPan(newPan)
+  }
+
+  function onPointerUp() {
+    isDownRef.current    = false
+    dragStartRef.current = null
+    if (onPanChange) onPanChange(viewLevel, panRef.current)
+  }
+
+  function isSettlementVisible(s) {
+    const sec = sectors.find(sec => sec.id === s.sectorId)
+    return s.unlocked || (sec?.discovered ?? false)
+  }
+
+  function isLayerUnlocked(layer) {
+    if (!layer.real) return false
+    if (layer.id === 'stratum_01') return true
+    if (layer.id === 'stratum_02') {
+      return sectors.some(s => (s.id === 'sector_salt_beacon' || s.id === 'sector_tide_rock') && s.discovered)
+    }
+    if (layer.id === 'stratum_03') {
+      return sectors.some(s => (s.id === 'sector_sleeping_forge' || s.id === 'sector_coal_bastion') && s.discovered)
+    }
+    return false
+  }
+
+  // ── VISTA ABISMO — espiral vertical ─────────────────────────────────────────
+
+  function renderAbyssView() {
+    const spiralPath = buildAbyssSpiral()
+    const totalH     = SPIRAL.nodeStartY + (ABYSS_VISUAL_LAYERS.length - 1) * SPIRAL.spacing + 100
+
+    // Depth markers: placed beside nodes at key depths
+    const depthMarkers = [
+      { y: 118,  label: '0 m',       side: 'left'  },
+      { y: 270,  label: '250 m',     side: 'right' },
+      { y: 422,  label: '500 m',     side: 'left'  },
+      { y: 650,  label: '1100 m',    side: 'right' },
+      { y: 878,  label: '2200 m',    side: 'left'  },
+      { y: 1106, label: '4000 m',    side: 'right' },
+      { y: 1334, label: '7900 m',    side: 'left'  },
+      { y: 1562, label: '∞',         side: 'right' },
+    ]
+
+    return (
+      <>
+        {/* Fondo total del Abismo */}
+        <rect x={-20} y={-60} width={520} height={totalH + 120}
+              fill="rgba(3,5,2,0.99)"/>
+
+        {/* Brillo ambiental tenue desde arriba */}
+        <radialGradient id="abyssTopGlow" cx="0.5" cy="0" r="0.6">
+          <stop offset="0%"   stopColor="rgba(184,148,74,0.07)"/>
+          <stop offset="100%" stopColor="rgba(0,0,0,0)"/>
+        </radialGradient>
+        <ellipse cx={240} cy={-20} rx={260} ry={180}
+                 fill="url(#abyssTopGlow)"/>
+
+        {/* Paredes del Abismo — izquierda */}
+        <path className="abyss-wall-left"
+              d={`M 0 -60
+                  C 14 80, 0 200, 18 320
+                  C 34 440, 12 560, 26 680
+                  C 40 800, 14 920, 28 1040
+                  C 42 1160, 16 1280, 30 1400
+                  C 44 1520, 18 1620, 32 ${totalH}
+                  L 0 ${totalH} Z`}/>
+
+        {/* Paredes del Abismo — derecha */}
+        <path className="abyss-wall-right"
+              d={`M 480 -60
+                  C 466 80, 480 200, 462 320
+                  C 446 440, 468 560, 454 680
+                  C 440 800, 466 920, 452 1040
+                  C 438 1160, 464 1280, 450 1400
+                  C 436 1520, 462 1620, 448 ${totalH}
+                  L 480 ${totalH} Z`}/>
+
+        {/* Sombra central de la sima */}
+        <linearGradient id="shaftFade" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stopColor="rgba(0,0,0,0.55)"/>
+          <stop offset="22%"  stopColor="rgba(0,0,0,0)"/>
+          <stop offset="78%"  stopColor="rgba(0,0,0,0)"/>
+          <stop offset="100%" stopColor="rgba(0,0,0,0.55)"/>
+        </linearGradient>
+        <rect x={0} y={-60} width={480} height={totalH + 120}
+              fill="url(#shaftFade)" style={{ pointerEvents: 'none' }}/>
+
+        {/* Marcas de profundidad */}
+        {depthMarkers.map(m => (
+          <g key={m.y}>
+            <line x1={70} y1={m.y} x2={410} y2={m.y}
+                  stroke="rgba(98,107,111,0.08)" strokeWidth={0.6} strokeDasharray="2 8"/>
+            <text
+              x={m.side === 'left' ? 8 : 472}
+              y={m.y + 4}
+              fontSize={7}
+              textAnchor={m.side === 'left' ? 'start' : 'end'}
+              className="abyss-layer-depth">
+              {m.label}
+            </text>
+          </g>
+        ))}
+
+        {/* Sombra de la espiral */}
+        <path d={spiralPath} className="abyss-spiral-road-shadow"/>
+
+        {/* Espiral principal */}
+        <path d={spiralPath} className="abyss-spiral-road"/>
+
+        {/* Nodos de capa */}
+        {ABYSS_VISUAL_LAYERS.map((layer, i) => {
+          const pos      = getLayerNodePos(i)
+          const unlocked = isLayerUnlocked(layer)
+          const isLeft   = i % 2 === 0
+          const isSel    = selectedNodeId === layer.id
+
+          // Cornisa bajo el nodo
+          const corniceX1 = isLeft ? pos.x - 32 : pos.x - 52
+          const corniceX2 = isLeft ? pos.x + 52 : pos.x + 32
+          const corniceY  = pos.y + 16
+
+          return (
+            <g key={layer.id}
+               className={`abyss-layer-node ${unlocked ? 'unlocked' : 'locked'}`}
+               style={{ cursor: unlocked ? 'pointer' : 'default' }}
+               onClick={() => {
+                 if (didDragRef.current) return
+                 if (unlocked) {
+                   onSelectLayer(layer.id)
+                 } else {
+                   const same = selectedNodeId === layer.id
+                   setSelectedNodeId(same ? null : layer.id)
+                   setDetailLockedLayer(same ? null : layer)
+                   setDetailSettlement(null)
+                   setDetailSegment(null)
+                 }
+               }}>
+
+              {/* Cornisa rocosa */}
+              <path d={`M ${corniceX1} ${corniceY} C ${corniceX1 + 10} ${corniceY - 2}, ${corniceX2 - 10} ${corniceY - 2}, ${corniceX2} ${corniceY}`}
+                    className="abyss-cornice"
+                    stroke={unlocked ? 'rgba(100,80,40,0.45)' : 'rgba(60,55,50,0.25)'}
+                    strokeWidth={2.5} fill="none"/>
+
+              {/* Halo de selección */}
+              {isSel && (
+                <circle cx={pos.x} cy={pos.y} r={26}
+                        fill="none" stroke="rgba(184,148,74,0.22)"
+                        strokeWidth={8} style={{ pointerEvents: 'none' }}/>
+              )}
+
+              {/* Círculo nodo */}
+              <circle cx={pos.x} cy={pos.y} r={18}
+                      fill={unlocked ? 'rgba(14,10,5,0.95)' : 'rgba(7,7,6,0.9)'}
+                      stroke={unlocked ? 'rgba(184,148,74,0.68)' : 'rgba(70,65,58,0.32)'}
+                      strokeWidth={unlocked ? 1.5 : 0.8}/>
+
+              {/* Número romano o ? */}
+              <text x={pos.x} y={pos.y + 5} textAnchor="middle" fontSize={unlocked ? 11 : 9}
+                    fontFamily="Georgia,serif"
+                    fill={unlocked ? 'var(--color-gold)' : 'rgba(90,85,78,0.5)'}>
+                {unlocked ? layer.number : '?'}
+              </text>
+
+              {/* Nombre de capa */}
+              <text
+                x={isLeft ? pos.x - 26 : pos.x + 26}
+                y={pos.y - 6}
+                textAnchor={isLeft ? 'end' : 'start'}
+                fontSize={unlocked ? 8.5 : 7.5}
+                fontFamily="Georgia,serif"
+                className="abyss-layer-label"
+                fill={unlocked ? 'var(--color-parchment)' : 'rgba(80,75,68,0.35)'}>
+                {unlocked ? layer.shortName : (i < 3 ? '— — —' : '')}
+              </text>
+
+              {/* Profundidad */}
+              {unlocked && (
+                <text
+                  x={isLeft ? pos.x - 26 : pos.x + 26}
+                  y={pos.y + 6}
+                  textAnchor={isLeft ? 'end' : 'start'}
+                  fontSize={7}
+                  fontFamily="Georgia,serif"
+                  fill="rgba(140,125,90,0.55)">
+                  {layer.depthLabel}
+                </text>
+              )}
+
+              {/* Flecha "entrar" solo en desbloqueadas */}
+              {unlocked && (
+                <text x={pos.x} y={pos.y - 22} textAnchor="middle" fontSize={7}
+                      fill="rgba(184,148,74,0.5)">▼</text>
+              )}
+
+              {/* Niebla en capas bloqueadas */}
+              {!unlocked && (
+                <rect x={pos.x - 50} y={pos.y - 22} width={100} height={50}
+                      rx={4}
+                      fill="rgba(6,6,5,0.45)"
+                      className="abyss-locked-fog"
+                      style={{ pointerEvents: 'none' }}/>
+              )}
+            </g>
+          )
+        })}
+
+        {/* Texto final */}
+        <text x={240} y={totalH - 10} textAnchor="middle" fontSize={8}
+              fontFamily="Georgia,serif"
+              fill="rgba(80,75,68,0.28)">
+          ∞ profundidades sin cartografiar
+        </text>
+      </>
+    )
+  }
+
+  // ── VISTA CAPA — cornisas de cueva ────────────────────────────────────────
+
+  function renderLayerView() {
+    const connections  = STRATUM_CONNECTIONS[selectedLayerId] ?? []
+    const sectorPosMap = SECTOR_POS[selectedLayerId] ?? {}
+
+    function getPos(nodeId) {
+      if (SETTLEMENT_POS[nodeId]) return SETTLEMENT_POS[nodeId]
+      return sectorPosMap[nodeId] ?? null
+    }
+
+    function routeStyle(conn) {
+      const route    = routes.find(r => r.id === conn.routeId)
+      const isActive = expedition?.routeRun?.routeId === conn.routeId || expedition?.routeId === conn.routeId
+      const isSel    = selectedNodeId === `conn_${conn.routeId}`
+      if (!conn.routeId || !route) {
+        return { stroke: 'rgba(98,107,111,0.18)', dash: '3 6', width: 1.2, clickable: false }
+      }
+      let stroke = conn.danger === 'medium' ? 'rgba(214,104,40,0.42)' : 'rgba(184,148,74,0.42)'
+      if (route.type === 'secret')    stroke = 'rgba(140,80,180,0.45)'
+      if (route.type === 'dangerous') stroke = 'rgba(200,60,40,0.45)'
+      if (isActive) stroke = 'rgba(79,143,149,0.75)'
+      if (isSel)    stroke = 'var(--color-teal)'
+      return {
+        stroke, dash: route.type === 'secret' ? '4 5' : undefined,
+        width: isSel ? 3 : isActive ? 2.5 : 1.8, clickable: true,
+      }
+    }
+
+    const layerSettlements = settlements.filter(s => s.stratumId === selectedLayerId)
+
+    return (
+      <>
+        {/* Fondo oscuro de cueva */}
+        <rect x={0} y={0} width={480} height={480} fill="rgba(5,7,4,0.97)"/>
+
+        {/* Pared izquierda de cueva */}
+        <path d="M 0 0 C 22 60, 8 140, 20 220 C 30 300, 10 380, 18 480 L 0 480 Z"
+              fill="rgba(18,14,8,0.9)"/>
+
+        {/* Pared derecha de cueva */}
+        <path d="M 480 0 C 458 60, 472 140, 460 220 C 448 300, 470 380, 462 480 L 480 480 Z"
+              fill="rgba(18,14,8,0.9)"/>
+
+        {/* Estalactitas superiores */}
+        <path d="M 110 0 L 98 44 L 122 0" fill="rgba(16,13,8,0.8)"/>
+        <path d="M 270 0 L 258 62 L 282 0" fill="rgba(16,13,8,0.75)"/>
+        <path d="M 360 0 L 350 34 L 370 0" fill="rgba(16,13,8,0.8)"/>
+        <path d="M 180 0 L 170 28 L 190 0" fill="rgba(16,13,8,0.65)"/>
+
+        {/* Zona de agua oscura (fondo derecho, para el puerto) */}
+        <ellipse cx={394} cy={362} rx={70} ry={22}
+                 fill="rgba(12,22,35,0.65)"/>
+        <ellipse cx={394} cy={362} rx={68} ry={4}
+                 fill="rgba(20,40,62,0.5)"/>
+
+        {/* Brillo cálido desde Aethel Linde (izquierda, asentamiento inicial) */}
+        <radialGradient id="aethelGlow" cx="0.17" cy="0.59" r="0.45">
+          <stop offset="0%"   stopColor="rgba(184,148,74,0.1)"/>
+          <stop offset="100%" stopColor="rgba(0,0,0,0)"/>
+        </radialGradient>
+        <rect x={0} y={0} width={480} height={480} fill="url(#aethelGlow)"
+              style={{ pointerEvents: 'none' }}/>
+
+        {/* Rutas */}
+        {connections.map((conn, i) => {
+          const fromPos = getPos(conn.from)
+          const toPos   = getPos(conn.to)
+          if (!fromPos || !toPos) return null
+          const st = routeStyle(conn)
+          return (
+            <path key={i}
+                  d={createCurvedPath(fromPos, toPos, conn.bend ?? 0.22)}
+                  stroke={st.stroke} strokeWidth={st.width}
+                  strokeDasharray={st.dash} fill="none" strokeLinecap="round"
+                  className={`abyss-route-curve${st.clickable ? '' : ' locked'}${selectedNodeId === `conn_${conn.routeId}` ? ' selected' : ''}`}
+                  style={{ cursor: st.clickable ? 'pointer' : 'default' }}
+                  onClick={() => {
+                    if (didDragRef.current || !st.clickable) return
+                    setSelectedNodeId(`conn_${conn.routeId}`)
+                    setDetailSegment(null); setDetailSettlement(null)
+                    onSelectRoute(conn.routeId)
+                  }}/>
+          )
+        })}
+
+        {/* Sectores (estrato 2 y 3) */}
+        {Object.entries(sectorPosMap).map(([secId, pos]) => {
+          const sec        = sectors.find(s => s.id === secId)
+          const discovered = sec?.discovered ?? false
+          return (
+            <g key={secId}>
+              <circle cx={pos.x} cy={pos.y} r={18}
+                      fill="rgba(12,10,7,0.88)"
+                      stroke={discovered ? 'rgba(184,148,74,0.55)' : 'rgba(98,107,111,0.3)'}
+                      strokeWidth={1.2}/>
+              <text x={pos.x} y={pos.y + 4} textAnchor="middle" fontSize={9}
+                    fill={discovered ? 'var(--color-gold)' : 'rgba(98,107,111,0.45)'}>
+                {discovered ? '⬡' : '?'}
+              </text>
+              <text x={pos.x} y={pos.y + 30} textAnchor="middle" fontSize={7.5}
+                    fontFamily="Georgia,serif"
+                    fill={discovered ? 'var(--color-parchment)' : 'rgba(98,107,111,0.4)'}>
+                {discovered ? (sec?.name ?? secId) : '—'}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* Asentamientos sobre cornisas */}
+        {layerSettlements.map(s => {
+          const pos       = SETTLEMENT_POS[s.id]
+          if (!pos) return null
+          const visible   = isSettlementVisible(s)
+          const isSel     = selectedNodeId === s.id
+          const safeColor = SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)'
+          const nodeColor = visible ? safeColor : 'rgba(98,107,111,0.28)'
+
+          return (
+            <g key={s.id} style={{ cursor: 'pointer' }}
+               onClick={() => {
+                 if (didDragRef.current) return
+                 const next = selectedNodeId === s.id ? null : s.id
+                 setSelectedNodeId(next)
+                 setDetailSettlement(next ? s : null)
+                 setDetailSegment(null)
+                 onSelectSettlement(s.id)
+               }}>
+              {/* Cornisa / ledge bajo el asentamiento */}
+              <path d={`M ${pos.x - 28} ${pos.y + 18} C ${pos.x - 10} ${pos.y + 15}, ${pos.x + 10} ${pos.y + 15}, ${pos.x + 28} ${pos.y + 18}`}
+                    stroke={visible ? 'rgba(80,60,30,0.5)' : 'rgba(60,55,50,0.2)'}
+                    strokeWidth={3} fill="none"/>
+
+              {/* Halo de selección */}
+              {isSel && (
+                <circle cx={pos.x} cy={pos.y} r={27}
+                        fill="none" stroke={safeColor} strokeWidth={1.2}
+                        strokeOpacity={0.4} strokeDasharray="3 4"/>
+              )}
+
+              {/* Nodo */}
+              <circle cx={pos.x} cy={pos.y} r={19}
+                      fill={visible ? 'rgba(12,9,4,0.93)' : 'rgba(8,7,5,0.82)'}
+                      stroke={nodeColor} strokeWidth={visible ? 1.6 : 0.7}
+                      strokeOpacity={visible ? 1 : 0.35}/>
+
+              {/* Icono */}
+              <g opacity={visible ? 1 : 0.22}>
+                <SettlementShape type={s.type} cx={pos.x} cy={pos.y} color={nodeColor} r={11}/>
+              </g>
+              {!visible && (
+                <text x={pos.x} y={pos.y + 4} textAnchor="middle" fontSize={12}
+                      fill="rgba(98,107,111,0.38)">?</text>
+              )}
+
+              {/* Etiqueta */}
+              <text x={pos.x} y={pos.y + 34} textAnchor="middle" fontSize={7.5}
+                    fontFamily="Georgia,serif"
+                    fill={visible ? 'var(--color-parchment)' : 'rgba(98,107,111,0.35)'}>
+                {visible ? s.name : '—'}
+              </text>
+            </g>
+          )
+        })}
+
+        {layerSettlements.length === 0 && Object.keys(sectorPosMap).length === 0 && (
+          <text x={240} y={240} textAnchor="middle" fontSize={11}
+                fontStyle="italic" fontFamily="Georgia,serif"
+                fill="var(--color-stone-light)">
+            Esta capa no tiene datos visuales aún
+          </text>
+        )}
+      </>
+    )
+  }
+
+  // ── VISTA RUTA — muchos puntos sobre camino ───────────────────────────────
+
+  function renderRouteView() {
+    const route = routes.find(r => r.id === selectedRouteId)
+    if (!route) return (
+      <text x={240} y={240} textAnchor="middle" fontSize={11}
+            fill="var(--color-stone-light)">Ruta no encontrada</text>
+    )
+
+    const segs         = getSegmentsForRoute({ segments: routeSegments, routeId: selectedRouteId })
+                           .sort((a, b) => a.order - b.order)
+    const positions    = getSegmentPositions(segs)
+    const n            = segs.length
+    const many         = n > 8
+    const nodeR        = many ? 7 : 12
+    const currentId    = expedition?.routeSegmentId
+    const completedIds = expedition?.routeRun?.completedSegmentIds ?? []
+    const fromSec      = sectors.find(s => s.id === route.fromSectorId)
+    const toSec        = sectors.find(s => s.id === route.toSectorId)
+
+    // Base path
+    let basePath = ''
+    if (positions.length >= 2) {
+      basePath = `M ${positions[0].x} ${positions[0].y}`
+      for (let i = 1; i < positions.length; i++) {
+        const p = positions[i - 1], c = positions[i]
+        basePath += ` Q ${(p.x + c.x) / 2} ${p.y}, ${c.x} ${c.y}`
+      }
+    }
+
+    const lastDoneIdx = segs.reduce((best, seg, idx) =>
+      (completedIds.includes(seg.id) || discoveredSegmentIds.includes(seg.id)) ? idx : best, -1)
+
+    return (
+      <>
+        {/* Nombre de ruta */}
+        <text x={240} y={50} textAnchor="middle" fontSize={11}
+              fontFamily="Georgia,serif" fontWeight={600}
+              fill="var(--color-gold)">{route.name}</text>
+        <text x={240} y={66} textAnchor="middle" fontSize={8}
+              fontFamily="Georgia,serif"
+              fill="rgba(140,130,100,0.6)">
+          {fromSec?.name ?? '—'} → {toSec?.name ?? '—'}
+        </text>
+        {many && (
+          <text x={240} y={80} textAnchor="middle" fontSize={7.5}
+                fill="rgba(140,130,100,0.45)">
+            {n} tramos
+          </text>
+        )}
+
+        {/* Camino base */}
+        {basePath && (
+          <path d={basePath} stroke="rgba(98,107,111,0.18)" strokeWidth={many ? 3 : 4}
+                fill="none" strokeLinecap="round"/>
+        )}
+
+        {/* Nodos de tramo */}
+        {segs.map((seg, idx) => {
+          const pos        = positions[idx]
+          if (!pos) return null
+          const isDone     = completedIds.includes(seg.id) || discoveredSegmentIds.includes(seg.id)
+          const isCurrent  = seg.id === currentId
+          const firstHiddenIdx = segs.findIndex(s =>
+            !completedIds.includes(s.id) && !discoveredSegmentIds.includes(s.id) && s.id !== currentId)
+          const isNext     = !isDone && !isCurrent && idx === firstHiddenIdx
+          const isHidden   = !isDone && !isCurrent && !isNext
+          const isSel      = selectedNodeId === seg.id
+
+          // Solo mostrar etiqueta en tramos relevantes
+          const showLabel  = isCurrent || isSel || (isDone && idx === lastDoneIdx) || (isNext && !many) || (!many && !isHidden)
+
+          let nodeStroke = 'rgba(70,65,58,0.3)'
+          let labelFill  = 'rgba(98,107,111,0.45)'
+          if (isDone)    { nodeStroke = 'rgba(184,148,74,0.8)'; labelFill = 'var(--color-gold)' }
+          if (isCurrent) { nodeStroke = 'var(--color-teal)';    labelFill = 'var(--color-parchment)' }
+          if (isNext)    { nodeStroke = 'rgba(79,143,149,0.4)'; labelFill = 'var(--color-mist)' }
+          if (isSel)       nodeStroke = 'var(--color-gold)'
+
+          const displayText = isHidden ? '?' : isCurrent ? seg.name : isNext ? 'Siguiente' : seg.name
+          const maxLen      = many ? 10 : 13
+          const shortText   = displayText.length > maxLen ? displayText.slice(0, maxLen - 1) + '…' : displayText
+
+          return (
+            <g key={seg.id} className={`abyss-segment-dot${isDone ? ' completed' : isCurrent ? ' current' : isHidden ? ' hidden' : ''}`}
+               style={{ cursor: 'pointer' }}
+               onClick={() => {
+                 if (didDragRef.current) return
+                 const next = selectedNodeId === seg.id ? null : seg.id
+                 setSelectedNodeId(next)
+                 setDetailSegment(next ? { seg, isDone, isCurrent, isHidden } : null)
+                 setDetailSettlement(null)
+               }}>
+
+              {/* Línea al anterior */}
+              {idx > 0 && positions[idx - 1] && (
+                <line x1={positions[idx - 1].x} y1={positions[idx - 1].y}
+                      x2={pos.x} y2={pos.y}
+                      stroke={isDone ? 'rgba(184,148,74,0.3)' : 'rgba(98,107,111,0.15)'}
+                      strokeWidth={many ? 2 : 2.5}
+                      strokeDasharray={isDone ? undefined : '3 5'}/>
+              )}
+
+              {/* Pulso actual */}
+              {isCurrent && (
+                <circle cx={pos.x} cy={pos.y} r={nodeR + 7}
+                        fill="none" stroke="rgba(79,143,149,0.18)" strokeWidth={3}/>
+              )}
+
+              {/* Nodo */}
+              <circle cx={pos.x} cy={pos.y} r={nodeR}
+                      fill="rgba(9,7,4,0.93)"
+                      stroke={nodeStroke}
+                      strokeWidth={isDone || isCurrent ? (many ? 1.5 : 1.8) : (many ? 0.9 : 1)}/>
+
+              {/* Interior */}
+              {isDone    && <circle cx={pos.x} cy={pos.y} r={many ? 3 : 4.5} fill="rgba(184,148,74,0.65)"/>}
+              {isCurrent && <rect x={pos.x - (many ? 2.5 : 3.5)} y={pos.y - (many ? 2.5 : 3.5)}
+                                  width={many ? 5 : 7} height={many ? 5 : 7}
+                                  rx={1} fill="var(--color-teal)"/>}
+              {isHidden && !many && (
+                <text x={pos.x} y={pos.y + 4.5} textAnchor="middle" fontSize={10}
+                      fill="rgba(98,107,111,0.4)">?</text>
+              )}
+
+              {/* Etiqueta */}
+              {showLabel && (
+                <text x={pos.x} y={pos.y + nodeR + (many ? 12 : 15)} textAnchor="middle"
+                      fontSize={many ? 7 : 8} fontFamily="Georgia,serif"
+                      fill={labelFill}>
+                  {shortText}
+                </text>
+              )}
+
+              {/* Marcador "actual" */}
+              {isCurrent && (
+                <text x={pos.x} y={pos.y - nodeR - 6} textAnchor="middle" fontSize={7}
+                      fill="var(--color-teal)">← actual</text>
+              )}
+            </g>
+          )
+        })}
+
+        {segs.length === 0 && (
+          <text x={240} y={240} textAnchor="middle" fontSize={10}
+                fontStyle="italic" fontFamily="Georgia,serif"
+                fill="var(--color-stone-light)">Sin tramos conocidos</text>
+        )}
+      </>
+    )
+  }
+
+  // ── Panel de detalle ─────────────────────────────────────────────────────────
+
+  function renderDetail() {
+    if (detailLockedLayer) {
+      return (
+        <div className="visual-map-detail-panel">
+          <div style={{ fontSize: '0.68rem', color: 'rgba(90,83,70,0.65)', fontWeight: 600, marginBottom: 3, fontFamily: 'Georgia,serif' }}>
+            {detailLockedLayer.name}
+          </div>
+          <div style={{ fontSize: '0.58rem', color: 'rgba(90,83,70,0.4)', fontStyle: 'italic', lineHeight: 1.45 }}>
+            Profundidad no cartografiada — nadie que haya bajado hasta aquí ha vuelto con mapas completos.
+          </div>
+        </div>
+      )
+    }
+
+    if (detailSettlement) {
+      const s       = detailSettlement
+      const visible = isSettlementVisible(s)
+      if (!visible) return (
+        <div className="visual-map-detail-panel">
+          <span style={{ fontSize: '0.62rem', color: 'var(--color-stone-light)', fontStyle: 'italic' }}>
+            Lugar en niebla — explora el sector para revelar este asentamiento.
+          </span>
+        </div>
+      )
+      return (
+        <div className="visual-map-detail-panel">
+          <div style={{ fontSize: '0.72rem', color: 'var(--color-gold)', fontWeight: 600, marginBottom: 2 }}>
+            {s.name}
+          </div>
+          <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', textTransform: 'capitalize', marginBottom: 2 }}>
+            {s.type.replace(/_/g, ' ')} · {s.layerName}
+          </div>
+          <div style={{ fontSize: '0.6rem', color: SAFETY_COLOR[s.safetyLevel] ?? 'var(--color-stone-light)', marginBottom: 3, textTransform: 'capitalize' }}>
+            Seguridad: {s.safetyLevel}
+          </div>
+          {s.description && (
+            <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', fontStyle: 'italic', lineHeight: 1.45 }}>
+              {s.description}
+            </div>
+          )}
+          {s.services?.length > 0 && (
+            <div style={{ fontSize: '0.55rem', color: 'var(--color-mist)', marginTop: 4 }}>
+              {s.services.map(sv => sv.replace(/_/g, ' ')).join(' · ')}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    if (detailSegment) {
+      const { seg, isDone, isCurrent, isHidden } = detailSegment
+      if (isHidden) return (
+        <div className="visual-map-detail-panel">
+          <span style={{ fontSize: '0.62rem', color: 'var(--color-stone-light)', fontStyle: 'italic' }}>
+            Tramo desconocido — completa los anteriores para revelar este camino.
+          </span>
+        </div>
+      )
+      return (
+        <div className="visual-map-detail-panel">
+          <div style={{ fontSize: '0.72rem', color: isCurrent ? 'var(--color-teal)' : 'var(--color-gold)', fontWeight: 600, marginBottom: 2 }}>
+            {seg.name}
+          </div>
+          <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', marginBottom: 3 }}>
+            {seg.stepMin}–{seg.stepMax} pasos · {seg.type}
+          </div>
+          {seg.description && (
+            <div style={{ fontSize: '0.58rem', color: 'var(--color-stone-light)', fontStyle: 'italic', lineHeight: 1.4 }}>
+              {seg.description}
+            </div>
+          )}
+          {isCurrent  && <div style={{ fontSize: '0.6rem', color: 'var(--color-teal)',   marginTop: 3 }}>Tramo en curso</div>}
+          {isDone && !isCurrent && <div style={{ fontSize: '0.6rem', color: 'var(--color-xp)', marginTop: 3 }}>Tramo completado</div>}
+        </div>
+      )
+    }
+
+    return (
+      <div className="visual-map-empty-detail">
+        {viewLevel === 'abyss' && 'Toca una capa para explorar el Abismo'}
+        {viewLevel === 'layer' && 'Toca un asentamiento o una ruta'}
+        {viewLevel === 'route' && 'Toca un tramo para ver su detalle'}
+      </div>
+    )
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="visual-map-shell">
+      <svg
+        className="visual-map-svg"
+        viewBox="0 0 480 480"
+        overflow="hidden"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+        onPointerCancel={onPointerUp}
+        style={{ touchAction: 'none', cursor: isDownRef.current ? 'grabbing' : 'grab' }}
+      >
+        <g transform={`translate(${pan.x}, ${pan.y})`}>
+          {viewLevel === 'abyss' && renderAbyssView()}
+          {viewLevel === 'layer' && renderLayerView()}
+          {viewLevel === 'route' && renderRouteView()}
+        </g>
+
+        {/* Gradiente inferior fijo — indica que hay más contenido debajo */}
+        {viewLevel === 'abyss' && pan.y > ABYSS_PAN.minY + 60 && (
+          <>
+            <defs>
+              <linearGradient id="scrollFade" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stopColor="rgba(3,5,2,0)" stopOpacity="0"/>
+                <stop offset="100%" stopColor="rgba(3,5,2,0.75)" stopOpacity="0.75"/>
+              </linearGradient>
+            </defs>
+            <rect x={0} y={390} width={480} height={90}
+                  fill="url(#scrollFade)" style={{ pointerEvents: 'none' }}/>
+            <text x={240} y={472} textAnchor="middle" fontSize={7.5}
+                  className="abyss-scroll-hint"
+                  style={{ pointerEvents: 'none' }}>
+              ↕ desliza para explorar el Abismo
+            </text>
+          </>
+        )}
+      </svg>
+
+      {renderDetail()}
+    </div>
+  )
 }
 </file>
 
@@ -7114,6 +7094,13 @@ import { useState } from 'react'
 import { ABYSS_STRATA, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS, ABYSS_SETTLEMENTS } from '../data/gameData.js'
 import VisualMapCanvas from '../components/VisualMapCanvas.jsx'
 
+const CENTER_LABEL = { abyss: 'Volver al inicio', layer: 'Centrar capa', route: 'Centrar ruta' }
+const MAP_HINT     = {
+  abyss: 'Desliza para descender · Toca una capa para acercarte',
+  layer: 'Toca una ciudad o una ruta',
+  route: 'Toca un tramo para ver detalle',
+}
+
 function getBreadcrumb(viewLevel, layerId, routeId) {
   const stratum = layerId ? ABYSS_STRATA.find(s => s.id === layerId) : null
   const route   = routeId ? WORLD_ROUTES.find(r => r.id === routeId) : null
@@ -7126,35 +7113,62 @@ function getBreadcrumb(viewLevel, layerId, routeId) {
   return 'El Abismo'
 }
 
-export default function MapScreen({ sectors, expedition, discoveredSegmentIds = [] }) {
-  const [viewLevel,       setViewLevel]       = useState('abyss')
-  const [selectedLayerId, setSelectedLayerId] = useState(null)
-  const [selectedRouteId, setSelectedRouteId] = useState(null)
-  const [centerTrigger,   setCenterTrigger]   = useState(0)
+export default function MapScreen({
+  sectors,
+  expedition,
+  discoveredSegmentIds = [],
+  cameraState,
+  onCameraChange,
+}) {
+  // centerTrigger is purely local — only fires on explicit "Centrar" press
+  const [centerTrigger, setCenterTrigger] = useState(0)
+  const [mapViewKey,    setMapViewKey]    = useState(0) // for enter-transition
+
+  const { viewLevel, selectedLayerId, selectedRouteId, panByView } = cameraState
 
   const discoveredCount = sectors.filter(s => s.discovered).length
 
   function handleSelectLayer(id) {
-    setSelectedLayerId(id)
-    setSelectedRouteId(null)
-    setViewLevel('layer')
-    setCenterTrigger(t => t + 1)
+    setMapViewKey(k => k + 1)
+    onCameraChange(prev => ({
+      ...prev,
+      viewLevel:       'layer',
+      selectedLayerId: id,
+      selectedRouteId: null,
+    }))
   }
 
   function handleSelectRoute(id) {
-    setSelectedRouteId(id)
-    setViewLevel('route')
-    setCenterTrigger(t => t + 1)
+    setMapViewKey(k => k + 1)
+    onCameraChange(prev => ({
+      ...prev,
+      viewLevel:       'route',
+      selectedRouteId: id,
+    }))
   }
 
   function handleBack() {
+    setMapViewKey(k => k + 1)
     if (viewLevel === 'route') {
-      setViewLevel('layer')
+      onCameraChange(prev => ({ ...prev, viewLevel: 'layer' }))
     } else if (viewLevel === 'layer') {
-      setViewLevel('abyss')
-      setSelectedLayerId(null)
+      onCameraChange(prev => ({
+        ...prev,
+        viewLevel:       'abyss',
+        selectedLayerId: null,
+      }))
     }
+  }
+
+  function handleCenter() {
     setCenterTrigger(t => t + 1)
+  }
+
+  function handlePanChange(vl, pan) {
+    onCameraChange(prev => ({
+      ...prev,
+      panByView: { ...prev.panByView, [vl]: pan },
+    }))
   }
 
   return (
@@ -7176,13 +7190,13 @@ export default function MapScreen({ sectors, expedition, discoveredSegmentIds = 
         {viewLevel !== 'abyss' && (
           <button className="visual-map-back" onClick={handleBack}>← Volver</button>
         )}
-        <button className="visual-map-center" onClick={() => setCenterTrigger(t => t + 1)}>
-          Centrar
+        <button className="visual-map-center" onClick={handleCenter}>
+          {CENTER_LABEL[viewLevel] ?? 'Centrar'}
         </button>
       </div>
 
       {/* Visual map canvas */}
-      <div className="visual-map-viewport">
+      <div key={mapViewKey} className="visual-map-viewport map-view-entering">
         <VisualMapCanvas
           viewLevel={viewLevel}
           selectedLayerId={selectedLayerId}
@@ -7197,8 +7211,13 @@ export default function MapScreen({ sectors, expedition, discoveredSegmentIds = 
           onSelectSettlement={() => {}}
           onSelectRoute={handleSelectRoute}
           centerTrigger={centerTrigger}
+          panByView={panByView}
+          onPanChange={handlePanChange}
         />
       </div>
+
+      {/* Microhint */}
+      <div className="visual-map-hint">{MAP_HINT[viewLevel]}</div>
     </div>
   )
 }
@@ -7245,6 +7264,37 @@ import CreatureScreen  from './screens/CreatureScreen.jsx'
 import CodexScreen    from './screens/CodexScreen.jsx'
 
 const THRESHOLDS = [20, 40, 60, 80]
+
+const COMBAT_DECISION_SECONDS = 6
+
+const DEFAULT_MAP_CAMERA = {
+  viewLevel:       'abyss',
+  selectedLayerId: null,
+  selectedRouteId: null,
+  panByView: {
+    abyss: { x: 0, y: 0 },
+    layer: { x: 0, y: 0 },
+    route: { x: 0, y: 0 },
+  },
+}
+
+function loadMapCamera() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('aethermarch_map_camera_v1') ?? 'null')
+    if (!raw || typeof raw !== 'object') return DEFAULT_MAP_CAMERA
+    const views = ['abyss', 'layer', 'route']
+    return {
+      viewLevel:       views.includes(raw.viewLevel) ? raw.viewLevel : 'abyss',
+      selectedLayerId: raw.selectedLayerId ?? null,
+      selectedRouteId: raw.selectedRouteId ?? null,
+      panByView: {
+        abyss: { x: Number(raw.panByView?.abyss?.x) || 0, y: Number(raw.panByView?.abyss?.y) || 0 },
+        layer: { x: Number(raw.panByView?.layer?.x) || 0, y: Number(raw.panByView?.layer?.y) || 0 },
+        route: { x: Number(raw.panByView?.route?.x) || 0, y: Number(raw.panByView?.route?.y) || 0 },
+      },
+    }
+  } catch { return DEFAULT_MAP_CAMERA }
+}
 
 const INITIAL_EXPEDITION = {
   status:        'resting',
@@ -7324,11 +7374,13 @@ export default function App() {
   const [contractState,             setContractState]             = useState(createInitialContractState)
   const [lastContractResult,        setLastContractResult]        = useState(null)
   const [discoveredSegmentIds,      setDiscoveredSegmentIds]      = useState([])
+  const [mapCameraState,            setMapCameraState]            = useState(loadMapCamera)
 
-  const completionDone   = useRef(false)
-  const combatTriggered  = useRef(new Set())
-  const pedStateRef      = useRef(createPedometerState())
-  const motionHandlerRef = useRef(null)
+  const completionDone      = useRef(false)
+  const combatTriggered     = useRef(new Set())
+  const combatAutoResumeRef = useRef(false)
+  const pedStateRef         = useRef(createPedometerState())
+  const motionHandlerRef    = useRef(null)
 
   // ── Nueva partida ────────────────────────────────────────────────────────────
   function handleStart({ archetypeId, creatureId }) {
@@ -7382,6 +7434,11 @@ export default function App() {
     setHasStarted(true)
   }
 
+  // ── Persistir cámara del mapa en localStorage ────────────────────────────────
+  useEffect(() => {
+    localStorage.setItem('aethermarch_map_camera_v1', JSON.stringify(mapCameraState))
+  }, [mapCameraState])
+
   // ── Reinicio completo ─────────────────────────────────────────────────────────
   function resetGame() {
     clearSave()
@@ -7403,6 +7460,7 @@ export default function App() {
     setContractState(createInitialContractState())
     setLastContractResult(null)
     setDiscoveredSegmentIds([])
+    setMapCameraState(DEFAULT_MAP_CAMERA)
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
     if (motionHandlerRef.current) {
@@ -7943,6 +8001,9 @@ export default function App() {
     const newCombat = createCombatFromThreat({ event: threat, enemies: ENEMIES })
     if (!newCombat) return
 
+    newCombat.decisionSeconds  = COMBAT_DECISION_SECONDS
+    newCombat.decisionEndsAt   = Date.now() + COMBAT_DECISION_SECONDS * 1000
+    combatAutoResumeRef.current = false
     setCombat(newCombat)
     setExpedition(prev => prev.status === 'marching' ? { ...prev, status: 'combat' } : prev)
   }, [expedition.events, expedition.status, combat.status, expedition.combatResults])
@@ -8108,6 +8169,16 @@ export default function App() {
     contractState,
   ])
 
+  // ── Auto-resume tras combate resuelto (activo en cualquier pestaña) ──────────
+  useEffect(() => {
+    if (combat.status !== 'resolved') { combatAutoResumeRef.current = false; return }
+    if (combatAutoResumeRef.current) return
+    combatAutoResumeRef.current = true
+    const id = setTimeout(handleContinueMarch, 1200)
+    return () => clearTimeout(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combat.status])
+
   // ── Render ───────────────────────────────────────────────────────────────────
   function renderTab() {
     switch (currentTab) {
@@ -8146,7 +8217,15 @@ export default function App() {
             onResolveActiveContract={handleResolveActiveContract}
           />
         )
-      case 'mapa':       return <MapScreen       sectors={sectors} expedition={expedition} discoveredSegmentIds={discoveredSegmentIds} />
+      case 'mapa':       return (
+        <MapScreen
+          sectors={sectors}
+          expedition={expedition}
+          discoveredSegmentIds={discoveredSegmentIds}
+          cameraState={mapCameraState}
+          onCameraChange={setMapCameraState}
+        />
+      )
       case 'diario':     return <DiaryScreen      diary={diary} />
       case 'inventario': return <InventoryScreen  inventory={inventory} />
       case 'criatura':   return <CreatureScreen   player={player} />
@@ -8175,10 +8254,16 @@ export default function App() {
     )
   }
 
+  const appFlowClass = [
+    combat?.status === 'awaiting_choice'   ? 'flow-combat-alert'       : '',
+    expedition?.status === 'segment_transition' ? 'flow-segment-transition' : '',
+    mapCameraState?.viewLevel ? `map-view-${mapCameraState.viewLevel}` : '',
+  ].filter(Boolean).join(' ')
+
   return (
-    <AppShell currentTab={currentTab} onChangeTab={setCurrentTab}>
+    <AppShell currentTab={currentTab} onChangeTab={setCurrentTab} flowClass={appFlowClass}>
       {renderTab()}
-      {combat.status === 'awaiting_choice' && currentTab !== 'caravana' && (
+      {(combat.status === 'awaiting_choice' || combat.status === 'resolved') && currentTab !== 'caravana' && (
         <CombatAlertModal
           combat={combat}
           player={player}
@@ -9173,39 +9258,27 @@ function CombatScene({ combat, player, expedition, sectors, onResolveCombat, onC
     combat.status === 'awaiting_choice' ? decisionSeconds : 0
   )
   const autoResolvedRef = useRef(false)
-  const autoResumeRef   = useRef(false)
 
-  // Countdown tick
+  // Stable countdown based on absolute decisionEndsAt timestamp
   useEffect(() => {
-    if (combat.status !== 'awaiting_choice') return
+    if (combat.status !== 'awaiting_choice') { autoResolvedRef.current = false; return }
     autoResolvedRef.current = false
-    setRemainingSeconds(decisionSeconds)
-    const id = setInterval(() => {
-      setRemainingSeconds(prev => Math.max(0, prev - 1))
-    }, 1000)
+
+    function tick() {
+      const ms   = combat.decisionEndsAt ? Math.max(0, combat.decisionEndsAt - Date.now()) : 0
+      const secs = Math.ceil(ms / 1000)
+      setRemainingSeconds(secs)
+      if (ms <= 0 && !autoResolvedRef.current) {
+        autoResolvedRef.current = true
+        onResolveCombat('equilibrada', { auto: true })
+      }
+    }
+
+    tick()
+    const id = setInterval(tick, 250)
     return () => clearInterval(id)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [combat.status])
-
-  // Auto-resolve when countdown hits 0
-  useEffect(() => {
-    if (combat.status !== 'awaiting_choice') return
-    if (remainingSeconds > 0) return
-    if (autoResolvedRef.current) return
-    autoResolvedRef.current = true
-    onResolveCombat('equilibrada', { auto: true })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds, combat.status])
-
-  // Auto-retomar marcha tras resolución (1200 ms)
-  useEffect(() => {
-    if (!resolved) { autoResumeRef.current = false; return }
-    if (autoResumeRef.current) return
-    autoResumeRef.current = true
-    const id = setTimeout(onContinueMarch, 1200)
-    return () => clearTimeout(id)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolved])
+  }, [combat.status, combat.decisionEndsAt])
 
   const bgTop = biome?.id === 'coast'
     ? 'linear-gradient(to bottom, #060810, #0A0F1A)'
@@ -9337,17 +9410,10 @@ function CombatScene({ combat, player, expedition, sectors, onResolveCombat, onC
         ))}
       </div>
 
-      {/* Auto-retorno */}
+      {/* Auto-retorno — solo texto, sin botón de retomar */}
       {resolved && (
         <div className="combat-continue">
-          <div className="auto-resume-note">La caravana recupera el paso...</div>
-          <button
-            className="btn btn-secondary"
-            style={{ marginTop:4, opacity:0.35, fontSize:'0.58rem' }}
-            onClick={onContinueMarch}
-          >
-            Retomar manualmente
-          </button>
+          <div className="auto-resume-note">La marcha continúa...</div>
         </div>
       )}
     </div>
@@ -13848,6 +13914,159 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   font-family: Georgia, serif;
   letter-spacing: 0.04em;
 }
+
+/* ── Combat alert dock (non-intrusive) ───────────────────────────────────── */
+.combat-alert-layer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 64px;
+  z-index: 5000;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  padding: 0 12px;
+}
+.combat-alert-dock {
+  pointer-events: auto;
+  width: min(420px, 100%);
+  background: #0D0A07;
+  border: 1px solid rgba(180,40,40,0.55);
+  border-radius: 8px;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.55), 0 0 20px rgba(180,40,40,0.12);
+  overflow: hidden;
+  animation: combatDockIn 220ms ease-out both;
+}
+.combat-alert-dock.minimized {
+  border-radius: 6px;
+}
+.combat-dock-header {
+  background: rgba(180,40,40,0.18);
+  border-bottom: 1px solid rgba(180,40,40,0.28);
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.combat-dock-min-btn {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  color: var(--color-stone-light);
+  font-size: 0.65rem;
+  cursor: pointer;
+  margin-left: auto;
+  border-radius: 3px;
+}
+.combat-dock-min-btn:hover { background: rgba(255,255,255,0.06); }
+.combat-dock-body { padding: 10px 12px 8px; }
+.combat-dock-stances { display: flex; gap: 6px; margin: 8px 0 6px; }
+.combat-dock-stance-btn {
+  flex: 1;
+  background: rgba(98,107,111,0.12);
+  border: 1px solid rgba(98,107,111,0.28);
+  border-radius: 5px;
+  padding: 6px 4px;
+  cursor: pointer;
+  color: var(--color-parchment);
+  font-family: inherit;
+  font-size: 0.62rem;
+  font-weight: 500;
+  text-align: center;
+}
+.combat-dock-stance-btn:hover {
+  background: rgba(98,107,111,0.22);
+  border-color: rgba(184,148,74,0.4);
+}
+.combat-dock-result {
+  padding: 8px 12px;
+  font-size: 0.68rem;
+  color: var(--color-parchment);
+  font-style: italic;
+  text-align: center;
+  border-top: 1px solid rgba(98,107,111,0.15);
+}
+.combat-dock-footer {
+  border-top: 1px solid rgba(98,107,111,0.15);
+  padding: 6px 12px;
+  display: flex;
+  justify-content: center;
+}
+.combat-dock-goto-btn {
+  background: none;
+  border: 1px solid rgba(98,107,111,0.28);
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 0.58rem;
+  color: var(--color-mist);
+  cursor: pointer;
+  font-family: inherit;
+}
+.combat-dock-goto-btn:hover { background: rgba(111,159,163,0.08); }
+
+@keyframes combatDockIn {
+  from { transform: translateY(14px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+@keyframes dangerPulse {
+  0%   { box-shadow: inset 0 0 0   rgba(182,58,46,0); }
+  35%  { box-shadow: inset 0 0 34px rgba(182,58,46,0.18); }
+  100% { box-shadow: inset 0 0 0   rgba(182,58,46,0); }
+}
+.flow-combat-alert .app-content {
+  animation: dangerPulse 700ms ease-out;
+}
+
+/* ── Map view transitions ────────────────────────────────────────────────── */
+@keyframes mapSoftShift {
+  from { opacity: 0.7; transform: translateY(6px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
+.map-view-entering {
+  animation: mapSoftShift 180ms ease-out both;
+}
+
+/* ── Segment transition card ─────────────────────────────────────────────── */
+.segment-transition-card {
+  margin: 8px 12px;
+  background: rgba(184,148,74,0.07);
+  border: 1px solid rgba(184,148,74,0.22);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.segment-transition-title {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-gold);
+  margin-bottom: 4px;
+}
+.segment-transition-name {
+  font-size: 0.88rem;
+  color: var(--color-parchment);
+  font-family: Georgia, serif;
+  margin-bottom: 8px;
+}
+.segment-transition-next {
+  font-size: 0.62rem;
+  color: var(--color-stone-light);
+  margin-bottom: 10px;
+}
+.segment-transition-timer {
+  font-size: 0.62rem;
+  color: var(--color-mist);
+  margin-bottom: 10px;
+}
+
+/* ── Map microhint ───────────────────────────────────────────────────────── */
+.visual-map-hint {
+  text-align: center;
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  padding: 4px 0 2px;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}
 </file>
 
 <file path="docs/PROJECT_BRIEF.md">
@@ -14337,18 +14556,18 @@ Todos los eventos deben verse en la escena, no ser solo texto.
 
 ## Combate
 
-No es modal encima de la ruta. Es una escena propia.
+No es un modal bloqueante. Es una escena en Caravana + dock compacto en pestañas externas.
 
-**Flujo:**
+**Flujo (19C):**
 1. Amenaza aparece durante marcha
 2. Marcha se pausa
-3. CombatScene se activa
-4. Enemigo prepara ataque
-5. Jugador elige postura (Prudente / Equilibrada / Audaz)
-6. Si no elige en 5 segundos → Equilibrada automática
-7. Se resuelve daño
-8. Se registra combate
-9. Marcha continúa
+3. En pestaña Caravana: CombatScene inline
+4. En cualquier otra pestaña: CombatAlertDock (pie de pantalla, sin bloquear contenido)
+5. Enemigo prepara ataque
+6. Jugador elige postura (Prudente / Equilibrada / Audaz) o ignora
+7. Si no elige en 6 segundos → Equilibrada automática (timer con timestamp absoluto, estable entre pestañas)
+8. Resultado visible 1200 ms → dock desaparece
+9. Marcha reanuda automáticamente desde cualquier pestaña activa
 
 ### Posturas
 - **Prudente:** Cubrirse y leer el ataque
@@ -14369,9 +14588,11 @@ No es modal encima de la ruta. Es una escena propia.
 ## Mapa — Hacia el Abismo en Espiral
 
 ### Estado actual
-Mapa visual interactivo implementado (19A–19B): navegación por tres niveles (Abismo → Capa → Ruta), asentamientos como nodos SVG con iconos por tipo, rutas como trazados curvos Bézier, niebla de descubrimiento por segmento, pan/arrastre con discriminación tap/drag, y breadcrumb de navegación.
+Mapa visual interactivo implementado (19A–19C): navegación por tres niveles (Abismo → Capa → Ruta), asentamientos como nodos SVG con iconos por tipo, rutas como trazados curvos Bézier, niebla de descubrimiento por segmento, pan/arrastre con discriminación tap/drag, breadcrumb contextual y hint dinámico.
 
 Vista Abismo rediseñada en 19B como sima vertical: espiral S-curve con 20 capas alternando izquierda/derecha, paredes orgánicas de cueva, pan vertical clampeado, nodos de capa en cornisas, fog-band en capas bloqueadas, y detalle narrativo "Profundidad no cartografiada" al tocar una capa futura. La ruta `route_aethel_to_mist` se amplió de 3 a 12 tramos con identificadores compatibles con saves anteriores.
+
+En 19C se añadió cámara persistente: `mapCameraState` en App.jsx (viewLevel, selectedLayerId, selectedRouteId, panByView) se guarda en `localStorage('aethermarch_map_camera_v1')` y se restaura entre sesiones. Cambiar de pestaña y volver no resetea la vista ni el pan.
 
 ### Dirección futura
 El mapa evolucionará conforme se añadan estratos y sectores:
@@ -14540,6 +14761,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 18D — Mapa vivo y asentamientos: zoom conceptual (Capas/Rutas/Tramos), tramos descubiertos progresivamente, pausa de 20 s entre tramos, modo bloqueado durante expedición, botón Salir de expedición, popup global de combate fuera de Caravana y primera capa con 5 asentamientos base.
 - ✅ 19A — Mapa visual interactivo: navegación Abismo → Capa → Ruta con asentamientos SVG, rutas curvas, tramos dibujados, niebla de descubrimiento y pan/arrastre.
 - ✅ 19B — Abismo como sima vertical: espiral S-curve de 20 capas, paredes orgánicas de cueva, pan vertical, capas bloqueadas con detalle "Profundidad no cartografiada", Senda de los Faroles Bajos expandida a 12 tramos.
+- ✅ 19C — Flujo UX: cámara del mapa persistente entre pestañas (localStorage), dock de combate no invasivo (sin modal bloqueante), auto-resolve al agotar timer, marcha reanuda automáticamente tras combate, timer estable entre cambios de pestaña.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
