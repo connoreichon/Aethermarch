@@ -285,6 +285,11 @@ export default function App() {
 
   // ── Asentamientos ────────────────────────────────────────────────────────────
   function handleEnterSettlement(settlementId) {
+    const s = ABYSS_SETTLEMENTS.find(x => x.id === settlementId)
+    if (!s) return
+    const sector  = sectors.find(sec => sec.id === s.sectorId)
+    const visible = s.unlocked || (sector?.discovered ?? false)
+    if (!visible) return
     setActiveSettlementId(settlementId)
   }
 

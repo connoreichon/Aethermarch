@@ -90,7 +90,7 @@ export function sellInventoryItem({ player, inventory, resourceId, qty = 1 }) {
 export function resolveSettlementRest({ player, settlement }) {
   const services = settlement?.services ?? []
   const hasInn   = services.includes('inn') || services.includes('rest')
-  const hasBasic = services.includes('basic_rest') || services.includes('rest_limited')
+  const hasBasic = services.includes('basic_rest') || services.includes('rest_limited') || services.includes('refuge')
 
   if (!hasInn && !hasBasic) return { ok: false, reason: 'No hay servicio de descanso' }
   if (player.hp >= player.maxHp) return { ok: false, reason: 'La caravana ya está en plena forma' }

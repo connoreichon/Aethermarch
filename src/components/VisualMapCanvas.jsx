@@ -817,7 +817,6 @@ export default function VisualMapCanvas({
                  setSelectedNodeId(next)
                  setDetailSettlement(next ? s : null)
                  setDetailSegment(null)
-                 onSelectSettlement(s.id)
                }}>
               <path d={`M ${pos.x - 28} ${pos.y + 18} C ${pos.x - 10} ${pos.y + 15}, ${pos.x + 10} ${pos.y + 15}, ${pos.x + 28} ${pos.y + 18}`}
                     stroke={visible ? 'rgba(80,60,30,0.5)' : 'rgba(60,55,50,0.2)'}
@@ -1199,6 +1198,23 @@ export default function VisualMapCanvas({
               {s.services.map(sv => sv.replace(/_/g, ' ')).join(' · ')}
             </div>
           )}
+          <button
+            style={{
+              marginTop: 8,
+              width: '100%',
+              padding: '5px 8px',
+              fontSize: '0.58rem',
+              background: 'rgba(79,143,149,0.15)',
+              border: '1px solid rgba(79,143,149,0.4)',
+              borderRadius: 4,
+              color: 'var(--color-teal)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+            onClick={e => { e.stopPropagation(); onSelectSettlement(s.id) }}
+          >
+            Entrar en {s.name}
+          </button>
         </div>
       )
     }

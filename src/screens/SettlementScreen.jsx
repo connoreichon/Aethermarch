@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getPlayerCurrency, CURRENCY_SYMBOL, CURRENCY_NAME, resolveSettlementRest } from '../systems/economySystem.js'
+import { getPlayerCurrency, canAfford, CURRENCY_SYMBOL, CURRENCY_NAME, INN_REST_COST, resolveSettlementRest } from '../systems/economySystem.js'
 import { getPlayerRank, canUseMercenaryContracts } from '../systems/rankSystem.js'
 import ShopPanel from '../components/ShopPanel.jsx'
 
@@ -66,7 +66,7 @@ function hasShopServices(services) {
   return services.some(k => ['trader', 'supply', 'supplies'].includes(k))
 }
 function hasRestServices(services) {
-  return services.some(k => ['inn', 'rest', 'basic_rest', 'rest_limited'].includes(k))
+  return services.some(k => ['inn', 'rest', 'basic_rest', 'rest_limited', 'refuge'].includes(k))
 }
 function hasRumorsServices(services) {
   return services.some(k => ['rumors', 'rare_rumors', 'tavern'].includes(k))
@@ -101,7 +101,7 @@ export default function SettlementScreen({
   const hasContracts = hasContractServices(services)
 
   const rank         = getPlayerRank({ player, sectors: sectors ?? [], contractState })
-  const canContracts = canUseMercenaryContracts(rank)
+  const canContracts = canUseMercenaryContracts({ player, sectors: sectors ?? [], contractState })
 
   const rumors = RUMORS[settlement.type] ?? RUMORS.village
 
@@ -120,7 +120,7 @@ export default function SettlementScreen({
       return
     }
     onRest(result)
-    const hpText  = `+${result.hpGain} VP`
+    const hpText  = `+${result.hpGain} HP`
     const costText = result.cost > 0 ? ` · -${result.cost} ${CURRENCY_SYMBOL}` : ''
     setRestResult({ ok: true, msg: `${hpText}${costText}` })
     setTimeout(() => setRestResult(null), 3000)
@@ -137,6 +137,7 @@ export default function SettlementScreen({
   }
 
   const currency  = getPlayerCurrency(player)
+  const hpFull    = (player?.hp ?? 0) >= (player?.maxHp ?? 1)
   const hpPct     = Math.round(((player?.hp ?? 0) / (player?.maxHp ?? 1)) * 100)
   const hasInn    = services.includes('inn') || services.includes('rest')
 
@@ -249,32 +250,44 @@ export default function SettlementScreen({
             ) : (
               <>
                 <div className="rest-hp-bar">
-                  <div className="rest-hp-label">VP {player?.hp ?? 0} / {player?.maxHp ?? 0}</div>
+                  <div className="rest-hp-label">HP {player?.hp ?? 0} / {player?.maxHp ?? 0}</div>
                   <div className="rest-hp-track">
                     <div className="rest-hp-fill" style={{ width: `${hpPct}%` }} />
                   </div>
                 </div>
-                {hasInn ? (
+                {hpFull && (
+                  <div className="settlement-locked-panel" style={{ marginTop: 10 }}>
+                    La caravana ya está en plena forma.
+                  </div>
+                )}
+                {!hpFull && hasInn && (
                   <div style={{ marginTop: 12 }}>
-                    <p className="rest-desc">Descanso completo en posada. Recupera todos los VP.</p>
-                    <p className="rest-cost">Coste: {CURRENCY_SYMBOL} {INN_REST_COST_DISPLAY}</p>
+                    <p className="rest-desc">Descanso completo en posada. Recupera todos los HP.</p>
+                    <p className="rest-cost">Coste: {CURRENCY_SYMBOL} {INN_REST_COST}</p>
                     <button
                       className="btn btn-primary"
                       style={{ marginTop: 8, width: '100%' }}
+                      disabled={!canAfford(player, INN_REST_COST)}
                       onClick={handleRest}
                     >
-                      Descansar en posada (3 ◈)
+                      Descansar en posada ({INN_REST_COST} ◈)
                     </button>
+                    {!canAfford(player, INN_REST_COST) && (
+                      <p style={{ fontSize: '0.58rem', color: 'var(--color-hp)', marginTop: 4, textAlign: 'center' }}>
+                        Fondos insuficientes.
+                      </p>
+                    )}
                   </div>
-                ) : (
+                )}
+                {!hpFull && !hasInn && (
                   <div style={{ marginTop: 12 }}>
-                    <p className="rest-desc">Descanso básico. Recupera 10 VP. Gratuito.</p>
+                    <p className="rest-desc">Descanso básico. Recupera 10 HP. Gratuito.</p>
                     <button
                       className="btn btn-secondary"
                       style={{ marginTop: 8, width: '100%' }}
                       onClick={handleRest}
                     >
-                      Descansar (+10 VP)
+                      Descansar (+10 HP)
                     </button>
                   </div>
                 )}
@@ -328,4 +341,3 @@ export default function SettlementScreen({
   )
 }
 
-const INN_REST_COST_DISPLAY = 3
