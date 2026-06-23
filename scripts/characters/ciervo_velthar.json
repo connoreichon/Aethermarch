@@ -1,0 +1,22 @@
+{
+  "name": "Ciervo Velthar",
+  "approved_version": "v7_3141",
+  "master_seed": 3141,
+  "model": "flux1-krea-dev_fp8_scaled.safetensors",
+  "loras": [
+    { "file": "flat_illustration_flux.safetensors",    "strength": 0.85 },
+    { "file": "2d_flat_illustrations_flux.safetensors","strength": 0.70 }
+  ],
+  "settings": {
+    "steps": 35,
+    "guidance": 3.5,
+    "sampler": "euler",
+    "scheduler": "simple",
+    "width": 512,
+    "height": 640
+  },
+  "clip_l": "white deer anime flat illustration natural bare bone antlers black collar green eyes full body white background",
+  "t5xxl": "Ciervo Velthar, elegant white deer, anime flat 2D illustration, flat color, clean simple lineart, Genshin Impact art style, smooth ivory white fur with faint green inner glow, natural bare bone antlers like a real deer, realistic antler shape with no decorations at all, simple black rope necklace cord with one small green gem pendant hanging, bright vivid emerald green eyes, pure white background, full body 3 quarter view, hooves visible at bottom, antler tips at top, calm noble pose, clean minimal design, game character sprite",
+  "povs_generated": ["3quarter"],
+  "notes": "Seed 3141 es intocable. Siempre mismos cuernos, mismo collar negro con gema verde, mismo brillo verde suave en el cuerpo."
+}

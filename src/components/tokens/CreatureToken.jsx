@@ -3,46 +3,13 @@ export default function CreatureToken({ creatureId, size = 72 }) {
 
   if (creatureId === 'velthar') {
     return (
-      <svg width={s} height={s} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <ellipse cx="36" cy="66" rx="14" ry="3" fill="rgba(0,0,0,0.3)" />
-        {/* mist base */}
-        <ellipse cx="36" cy="60" rx="18" ry="6" fill="#4F8F95" opacity="0.08" />
-        {/* body — elegant, light */}
-        <ellipse cx="36" cy="46" rx="12" ry="9" fill="#D4CCBC" />
-        {/* neck */}
-        <rect x="33" y="34" width="6" height="12" rx="3" fill="#D4CCBC" />
-        {/* head */}
-        <ellipse cx="36" cy="30" rx="8" ry="7" fill="#D4CCBC" />
-        {/* ears */}
-        <path d="M30 26 L27 18 L33 24 Z" fill="#C8B88A" />
-        <path d="M42 26 L45 18 L39 24 Z" fill="#C8B88A" />
-        {/* left antler */}
-        <path d="M30 22 Q24 14 22 8" stroke="#4F8F95" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-        <path d="M26 16 Q21 12 19 8" stroke="#4F8F95" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-        <path d="M24 13 Q20 10 22 6" stroke="#4F8F95" strokeWidth="1" fill="none" strokeLinecap="round" />
-        {/* right antler */}
-        <path d="M42 22 Q48 14 50 8" stroke="#4F8F95" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-        <path d="M46 16 Q51 12 53 8" stroke="#4F8F95" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-        <path d="M48 13 Q52 10 50 6" stroke="#4F8F95" strokeWidth="1" fill="none" strokeLinecap="round" />
-        {/* eye */}
-        <ellipse cx="33" cy="29" rx="1.5" ry="1.5" fill="#4F8F95" />
-        <ellipse cx="39" cy="29" rx="1.5" ry="1.5" fill="#4F8F95" />
-        {/* legs — fine */}
-        <rect x="27" y="52" width="4" height="14" rx="2" fill="#C0B8A8" />
-        <rect x="33" y="52" width="4" height="14" rx="2" fill="#C0B8A8" />
-        <rect x="39" y="52" width="4" height="14" rx="2" fill="#C0B8A8" />
-        <rect x="44" y="52" width="4" height="14" rx="2" fill="#C0B8A8" />
-        {/* hooves */}
-        <ellipse cx="29" cy="66" rx="3" ry="1.5" fill="#4B321F" />
-        <ellipse cx="35" cy="66" rx="3" ry="1.5" fill="#4B321F" />
-        <ellipse cx="41" cy="66" rx="3" ry="1.5" fill="#4B321F" />
-        <ellipse cx="46" cy="66" rx="3" ry="1.5" fill="#4B321F" />
-        {/* runic marks on back */}
-        <text x="30" y="48" fontSize="5" fill="#4F8F95" opacity="0.5" fontFamily="serif">ᚢᚦ</text>
-        {/* mist wisps */}
-        <ellipse cx="22" cy="55" rx="5" ry="2" fill="#6F9FA3" opacity="0.12" />
-        <ellipse cx="50" cy="58" rx="4" ry="1.5" fill="#6F9FA3" opacity="0.1" />
-      </svg>
+      <img
+        src="/assets/generated/ciervo_velthar.png"
+        alt="Velthar"
+        width={s}
+        height={Math.round(s * 1.25)}
+        style={{ objectFit: 'contain', imageRendering: 'auto' }}
+      />
     )
   }
 
