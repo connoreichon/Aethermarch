@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 const NOTICE_PRIORITY = {
   route_complete: 0, route_discovery: 1, segment_complete: 2,
@@ -53,8 +53,25 @@ export default function ExpeditionNoticeDock({
   onGoToMap,
   onGoToCaravan,
   onGoToInventory,
+  onContinueNow,
 }) {
   const active = getTopNotice(notices)
+
+  // Countdown display for segment_complete (uses expiresAt)
+  const [segCountdown, setSegCountdown] = useState(null)
+  useEffect(() => {
+    if (active?.type !== 'segment_complete' || !active?.expiresAt) {
+      setSegCountdown(null)
+      return
+    }
+    function tick() {
+      const s = Math.max(0, Math.round((active.expiresAt - Date.now()) / 1000))
+      setSegCountdown(s)
+    }
+    tick()
+    const id = setInterval(tick, 500)
+    return () => clearInterval(id)
+  }, [active?.id, active?.type, active?.expiresAt])
 
   // Auto-dismiss expired notices
   useEffect(() => {
@@ -152,6 +169,22 @@ export default function ExpeditionNoticeDock({
               <div className="expedition-notice-rewards">{rewardText}</div>
             )}
 
+            {active.type === 'segment_complete' && segCountdown !== null && (
+              <div className="expedition-notice-seg-countdown">
+                <div className="expedition-notice-seg-countdown-bar-wrap">
+                  <div
+                    className="expedition-notice-seg-countdown-bar"
+                    style={{
+                      animationDuration: `${active.expiresAt - active.createdAt}ms`,
+                    }}
+                  />
+                </div>
+                <span className="expedition-notice-seg-countdown-label">
+                  Siguiente tramo en {segCountdown}s
+                </span>
+              </div>
+            )}
+
             <div className="expedition-notice-actions">
               {active.type === 'segment_complete' && (
                 <>
@@ -160,8 +193,8 @@ export default function ExpeditionNoticeDock({
                     Ver ruta
                   </button>
                   <button className="expedition-notice-action primary"
-                          onClick={() => { onGoToCaravan(); onDismiss(active.id) }}>
-                    Ver caravana
+                          onClick={() => { onContinueNow?.(); onDismiss(active.id) }}>
+                    Continuar ahora
                   </button>
                 </>
               )}

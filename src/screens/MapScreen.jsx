@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ABYSS_STRATA, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS, ABYSS_SETTLEMENTS } from '../data/gameData.js'
 import VisualMapCanvas from '../components/VisualMapCanvas.jsx'
 
@@ -33,10 +33,26 @@ export default function MapScreen({
   onGoToCaravan,
   onGoToCaravanForChoice,
   onSelectSettlement,
+  focusIntent,
+  onClearFocusIntent,
 }) {
   // centerTrigger is purely local — only fires on explicit "Centrar" press
   const [centerTrigger, setCenterTrigger] = useState(0)
   const [mapViewKey,    setMapViewKey]    = useState(0) // for enter-transition
+
+  // Respond to contextual focus (e.g. "Ver mapa" from branch choice dock)
+  useEffect(() => {
+    if (!focusIntent?.routeId) return
+    if (focusIntent.type === 'branch') {
+      setMapViewKey(k => k + 1)
+      onCameraChange(prev => ({
+        ...prev,
+        viewLevel:       'route',
+        selectedRouteId: focusIntent.routeId,
+      }))
+    }
+    onClearFocusIntent?.()
+  }, [focusIntent?.createdAt])
 
   const { viewLevel, selectedLayerId, selectedRouteId, panByView } = cameraState
 

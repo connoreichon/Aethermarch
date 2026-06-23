@@ -269,21 +269,38 @@ function getMarchPositionOnNetwork(networks, expedition, routeSegments) {
   }
 }
 
-function MarchPositionMarker({ x, y, paused }) {
+function MarchPositionMarker({ x, y, paused, status }) {
+  const isBranch = status === 'branch_choice'
   return (
     <g transform={`translate(${x}, ${y})`}>
-      <circle cx={0} cy={0} r={14}
-              fill="rgba(79,143,149,0.06)"
-              stroke="rgba(79,143,149,0.2)" strokeWidth={1}
-              className={paused ? '' : 'map-march-marker-ring'}/>
-      <circle cx={0} cy={0} r={8}
-              fill="rgba(12,9,4,0.94)"
-              stroke="var(--color-teal)" strokeWidth={1.8}
-              className={paused ? '' : 'map-march-marker'}/>
-      <rect x={-3} y={-2.5} width={6} height={4} rx={1}
-            fill="rgba(184,148,74,0.88)"/>
-      <circle cx={-2} cy={2}  r={1.3} fill="rgba(79,143,149,0.75)"/>
-      <circle cx={2}  cy={2}  r={1.3} fill="rgba(79,143,149,0.75)"/>
+      {/* Glow ring */}
+      <circle cx={0} cy={0} r={18}
+              fill={isBranch ? 'rgba(184,148,74,0.06)' : 'rgba(79,143,149,0.06)'}
+              stroke={isBranch ? 'rgba(184,148,74,0.28)' : 'rgba(79,143,149,0.2)'}
+              strokeWidth={1}
+              strokeDasharray={isBranch ? '4 3' : undefined}
+              className={paused || isBranch ? '' : 'map-march-marker-ring'}/>
+      {/* Main body */}
+      <circle cx={0} cy={0} r={11}
+              fill="rgba(12,9,4,0.96)"
+              stroke={isBranch ? 'rgba(184,148,74,0.8)' : 'var(--color-teal)'}
+              strokeWidth={isBranch ? 2.2 : 2}
+              className={paused || isBranch ? '' : 'map-march-marker'}/>
+      {isBranch ? (
+        /* Fork symbol inside */
+        <>
+          <line x1={0} y1={4} x2={0} y2={-1} stroke="rgba(184,148,74,0.9)" strokeWidth={1.8} strokeLinecap="round"/>
+          <line x1={0} y1={-1} x2={-4} y2={-5} stroke="rgba(184,148,74,0.9)" strokeWidth={1.8} strokeLinecap="round"/>
+          <line x1={0} y1={-1} x2={4}  y2={-5} stroke="rgba(184,148,74,0.9)" strokeWidth={1.8} strokeLinecap="round"/>
+        </>
+      ) : (
+        /* Lantern symbol */
+        <>
+          <rect x={-3.5} y={-3} width={7} height={5} rx={1} fill="rgba(184,148,74,0.88)"/>
+          <circle cx={-2.5} cy={2.5} r={1.5} fill="rgba(79,143,149,0.75)"/>
+          <circle cx={2.5}  cy={2.5} r={1.5} fill="rgba(79,143,149,0.75)"/>
+        </>
+      )}
     </g>
   )
 }
@@ -852,6 +869,7 @@ export default function VisualMapCanvas({
             x={marchPos.x}
             y={marchPos.y}
             paused={expedition?.status === 'segment_transition'}
+            status={expedition?.status}
           />
         )}
         {/* Token de caravana en reposo */}
@@ -1134,7 +1152,8 @@ export default function VisualMapCanvas({
           return (
             <MarchPositionMarker key="march-route"
               x={mx} y={my}
-              paused={expedition?.status === 'segment_transition'}/>
+              paused={expedition?.status === 'segment_transition'}
+              status={expedition?.status}/>
           )
         })}
 
@@ -1151,7 +1170,7 @@ export default function VisualMapCanvas({
           return (
             <MarchPositionMarker key="march-branch-choice"
               x={(p0.x + p1.x) / 2} y={(p0.y + p1.y) / 2}
-              paused={true}/>
+              paused={true} status="branch_choice"/>
           )
         })()}
       </>

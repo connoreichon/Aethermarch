@@ -174,6 +174,7 @@ export default function App() {
   const [branchKnowledge,           setBranchKnowledge]           = useState(createInitialBranchKnowledge)
   const [activeSettlementId,        setActiveSettlementId]        = useState(null)
   const [activeRouteStopId,         setActiveRouteStopIdState]    = useState(null)
+  const [mapFocusIntent,            setMapFocusIntent]            = useState(null)
 
   const completionDone      = useRef(false)
   const combatTriggered     = useRef(new Set())
@@ -635,6 +636,18 @@ export default function App() {
     combatTriggered.current = new Set()
   }
 
+  function handleGoToMapForBranch() {
+    const bc = expedition.pendingBranchChoice
+    setMapFocusIntent({
+      type:          'branch',
+      routeId:       bc?.routeId ?? expedition.routeRun?.routeId ?? null,
+      segmentId:     bc?.afterSegmentId ?? null,
+      branchId:      bc?.branchId ?? null,
+      createdAt:     Date.now(),
+    })
+    setCurrentTab('mapa')
+  }
+
   function handleChooseRouteBranch(optionId) {
     if (expedition.status !== 'branch_choice' || !expedition.pendingBranchChoice) return
     const choice = expedition.pendingBranchChoice
@@ -968,7 +981,7 @@ export default function App() {
                   nextSegmentName:      nextSeg?.name ?? '—',
                   nextSegmentOrder:     nextRouteRun.currentSegmentOrder,
                   nextTargetSteps:      nextSeg?.stepMax ?? prev.targetSteps,
-                  secondsRemaining:     20,
+                  secondsRemaining:     10,
                   startedAt:            new Date().toISOString(),
                 },
               }
@@ -1343,6 +1356,8 @@ export default function App() {
           onGoToCaravan={() => setCurrentTab('caravana')}
           onGoToCaravanForChoice={() => setCurrentTab('caravana')}
           onSelectSettlement={handleEnterSettlement}
+          focusIntent={mapFocusIntent}
+          onClearFocusIntent={() => setMapFocusIntent(null)}
         />
       )
       case 'diario':     return <DiaryScreen      diary={diary} />
@@ -1394,8 +1409,9 @@ export default function App() {
         <RouteChoiceDock
           pendingBranchChoice={expedition.pendingBranchChoice}
           branchKnowledge={branchKnowledge}
+          player={player}
           onChooseBranch={handleChooseRouteBranch}
-          onGoToMap={() => setCurrentTab('mapa')}
+          onGoToMap={handleGoToMapForBranch}
         />
       )}
       {activeRouteStopId && expedition.status === 'segment_transition' && (
@@ -1421,6 +1437,7 @@ export default function App() {
         onGoToMap={() => setCurrentTab('mapa')}
         onGoToCaravan={() => setCurrentTab('caravana')}
         onGoToInventory={() => setCurrentTab('inventario')}
+        onContinueNow={handleContinueToNextSegment}
       />
     </AppShell>
   )

@@ -342,6 +342,107 @@ function MarchSceneCore({ expedition, player, isTransition }) {
   )
 }
 
+// ── Fork SVG overlay for branch_choice ───────────────────────────────────────
+
+const FORK_RISK_COLOR = {
+  low:    'rgba(74,163,74,0.72)',
+  medium: 'rgba(184,148,74,0.72)',
+  high:   'rgba(180,60,60,0.72)',
+}
+
+function BranchSceneFork({ expedition, player, bc }) {
+  const biomeId   = expedition.biomeId ?? 'forest'
+  const options   = bc?.options ?? []
+  const leftOpt   = options.find(o => o.label === 'Izquierda' || o.side === 'left') ?? options[0] ?? null
+  const rightOpt  = options.find(o => o.label === 'Derecha'   || o.side === 'right') ?? options[1] ?? null
+  const mistColor = biomeId === 'coast'
+    ? 'rgba(10,15,30,0.76)'
+    : biomeId === 'forge'
+    ? 'rgba(20,10,5,0.8)'
+    : 'rgba(10,18,10,0.76)'
+
+  return (
+    <div className="live-march-scene branch-state">
+      <div className="live-march-background">
+        <BiomeMarchBackdrop biomeId={biomeId} />
+      </div>
+      {/* Road hidden via CSS .branch-state .march-road-wrap */}
+      <div className="march-road-wrap">
+        <div className="march-road-surface" />
+        <div className="march-road-marks" />
+      </div>
+      <div className="march-mist" style={{ background:`linear-gradient(to top, ${mistColor}, transparent)` }}/>
+
+      {/* Fork SVG overlay */}
+      <div className="march-fork-overlay">
+        <svg width="100%" height="100%" viewBox="0 0 360 290" preserveAspectRatio="xMidYMid meet"
+             style={{ position:'absolute', inset:0 }}>
+          {/* Main path up to fork */}
+          <path d="M180 290 L180 200 L180 168" stroke="rgba(184,148,74,0.28)" strokeWidth={6}
+                strokeDasharray="12 7" fill="none" strokeLinecap="round"/>
+          {/* Fork point marker */}
+          <circle cx={180} cy={164} r={5} fill="rgba(184,148,74,0.55)"/>
+
+          {/* Left arm */}
+          <path d="M180 164 L96 112" stroke={leftOpt ? FORK_RISK_COLOR[leftOpt.risk] ?? 'rgba(184,148,74,0.5)' : 'rgba(184,148,74,0.35)'}
+                strokeWidth={4} strokeDasharray="10 6" fill="none" strokeLinecap="round"/>
+          {leftOpt && (
+            <>
+              <text x={83} y={103} textAnchor="middle" fontSize={8} fill={FORK_RISK_COLOR[leftOpt.risk] ?? 'rgba(184,148,74,0.7)'}
+                    fontFamily="Georgia,serif" fontStyle="italic">
+                {leftOpt.shortName ?? leftOpt.name}
+              </text>
+              <text x={83} y={113} textAnchor="middle" fontSize={6.5} fill="rgba(184,148,74,0.5)"
+                    fontFamily="Georgia,serif">
+                ←
+              </text>
+            </>
+          )}
+
+          {/* Right arm */}
+          <path d="M180 164 L264 112" stroke={rightOpt ? FORK_RISK_COLOR[rightOpt.risk] ?? 'rgba(184,148,74,0.5)' : 'rgba(184,148,74,0.35)'}
+                strokeWidth={4} strokeDasharray="10 6" fill="none" strokeLinecap="round"/>
+          {rightOpt && (
+            <>
+              <text x={277} y={103} textAnchor="middle" fontSize={8} fill={FORK_RISK_COLOR[rightOpt.risk] ?? 'rgba(184,148,74,0.7)'}
+                    fontFamily="Georgia,serif" fontStyle="italic">
+                {rightOpt.shortName ?? rightOpt.name}
+              </text>
+              <text x={277} y={113} textAnchor="middle" fontSize={6.5} fill="rgba(184,148,74,0.5)"
+                    fontFamily="Georgia,serif">
+                →
+              </text>
+            </>
+          )}
+        </svg>
+      </div>
+
+      {/* Party idle — CSS stops marchBob animation via .branch-state */}
+      <div className="live-march-party">
+        <div className="live-march-creature branch-party-idle">
+          <CreatureToken creatureId={player.creatureId} size={62} />
+        </div>
+        <div className="live-march-lantern"><LanternSVG /></div>
+        <div className="live-march-character branch-party-idle">
+          <ArchetypeToken archetypeId={player.archetypeId} size={70} />
+        </div>
+      </div>
+
+      <div className="march-header-overlay">
+        <span style={{ color:'var(--color-gold)' }}>Tramo {expedition.currentTramo}</span>
+        {expedition.routeName ? (
+          <span style={{ color:'var(--color-parchment)', fontSize:'0.6rem' }}>{expedition.routeName}</span>
+        ) : (
+          <span style={{ color:'var(--color-parchment)' }}>Marcha Libre</span>
+        )}
+        {bc?.name && (
+          <span style={{ color:'var(--color-mist)', fontSize:'0.58rem', fontStyle:'italic' }}>{bc.name}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export default function LiveMarchScene({
@@ -357,26 +458,21 @@ export default function LiveMarchScene({
   const t              = expedition.segmentTransition ?? null
   const latestEvt      = expedition.events?.[expedition.events.length - 1] ?? null
 
-  // ── Branch choice waiting state ───────────────────────────────────────────
+  // ── Branch choice — fork visual ──────────────────────────────────────────
   if (isBranchChoice) {
     const bc = expedition.pendingBranchChoice
     return (
       <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:'var(--color-bg)' }}>
-        <MarchSceneCore expedition={expedition} player={player} isTransition />
+        <BranchSceneFork expedition={expedition} player={player} bc={bc} />
         <div className="live-march-branch-waiting">
           <div className="live-march-segment-label">Bifurcación en el camino</div>
           {bc?.name && (
             <div className="live-march-segment-name">{bc.name}</div>
           )}
           <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'8px 0' }}/>
-          <div style={{ fontSize:'0.68rem', color:'var(--color-stone-light)', marginBottom:14, fontStyle:'italic', lineHeight:1.45 }}>
-            La caravana espera una decisión de camino.
+          <div style={{ fontSize:'0.68rem', color:'var(--color-stone-light)', fontStyle:'italic', lineHeight:1.45 }}>
+            La caravana aguarda tu decisión.
           </div>
-          {onGoToMap && (
-            <button className="btn btn-primary" onClick={onGoToMap}>
-              Ver opciones en el mapa →
-            </button>
-          )}
         </div>
       </div>
     )
@@ -408,7 +504,7 @@ export default function LiveMarchScene({
           <div style={{ height:3, background:'rgba(98,107,111,0.2)', borderRadius:2, margin:'0 0 14px', overflow:'hidden' }}>
             <div style={{
               height:'100%', borderRadius:2, background:'var(--color-teal)',
-              width:`${(t.secondsRemaining / 20) * 100}%`, transition:'width 1s linear',
+              width:`${(t.secondsRemaining / 10) * 100}%`, transition:'width 1s linear',
             }}/>
           </div>
           <button className="btn btn-primary" style={{ marginBottom:8 }} onClick={onContinueToNextSegment}>
