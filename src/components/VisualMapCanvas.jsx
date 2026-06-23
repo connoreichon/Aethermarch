@@ -33,6 +33,22 @@ const SPIRAL = { leftX: 128, rightX: 352, startY: 30, nodeStartY: 118, spacing: 
 // Pan limits para la vista Abismo (coordenadas SVG)
 const ABYSS_PAN = { minY: -1210, maxY: 48 }
 
+// Política de pan por nivel de vista (x: fijo o contenido, y: contenido)
+const MAP_PAN_POLICY = {
+  abyss: { xFixed: true,  xVal:  0,   yMin: ABYSS_PAN.minY, yMax: ABYSS_PAN.maxY },
+  layer: { xFixed: false, xMin: -32,  xMax: 32,  yMin: -24, yMax: 24  },
+  route: { xFixed: false, xMin: -80,  xMax: 80,  yMin: -48, yMax: 48  },
+}
+
+function clampPanForView(vl, nextPan) {
+  const p = MAP_PAN_POLICY[vl]
+  if (!p) return nextPan
+  return {
+    x: p.xFixed ? (p.xVal ?? 0) : Math.min(p.xMax, Math.max(p.xMin, nextPan.x)),
+    y: Math.min(p.yMax, Math.max(p.yMin, nextPan.y)),
+  }
+}
+
 // ── Colores de seguridad ──────────────────────────────────────────────────────
 
 const SAFETY_COLOR = {
@@ -121,6 +137,155 @@ function createCurvedPath(from, to, bend = 0.25) {
   const px = -dy / len
   const py =  dx / len
   return `M ${from.x} ${from.y} Q ${mx + px * len * bend} ${my + py * len * bend}, ${to.x} ${to.y}`
+}
+
+// ── Red densa de rutas visuales por estrato ───────────────────────────────────
+
+const LAYER_ROUTE_NETWORKS = {
+  stratum_01: [
+    {
+      id: 'net_aethel_to_mist',
+      routeId: 'route_aethel_to_mist',
+      fromSettlementId: 'settlement_aethel_linde',
+      toSettlementId:   'settlement_root_lantern_market',
+      points: [
+        { id: 'n1_0', x: 82,  y: 285, kind: 'gate'     },
+        { id: 'n1_1', x: 100, y: 268, kind: 'junction'  },
+        { id: 'n1_2', x: 114, y: 250, kind: 'segment'   },
+        { id: 'n1_3', x: 126, y: 232, kind: 'landmark'  },
+        { id: 'n1_4', x: 140, y: 214, kind: 'rest'      },
+        { id: 'n1_5', x: 155, y: 196, kind: 'segment'   },
+        { id: 'n1_6', x: 168, y: 178, kind: 'junction'  },
+        { id: 'n1_7', x: 181, y: 162, kind: 'segment'   },
+        { id: 'n1_8', x: 196, y: 148, kind: 'gate'      },
+      ],
+    },
+    {
+      id: 'net_mist_to_ruins',
+      routeId: 'route_mist_to_ruins',
+      fromSettlementId: 'settlement_root_lantern_market',
+      toSettlementId:   'settlement_fogbreak_fort',
+      points: [
+        { id: 'n2_0', x: 196, y: 148, kind: 'gate'     },
+        { id: 'n2_1', x: 222, y: 140, kind: 'segment'  },
+        { id: 'n2_2', x: 248, y: 133, kind: 'danger'   },
+        { id: 'n2_3', x: 275, y: 127, kind: 'junction' },
+        { id: 'n2_4', x: 305, y: 122, kind: 'rest'     },
+        { id: 'n2_5', x: 336, y: 118, kind: 'segment'  },
+        { id: 'n2_6', x: 366, y: 114, kind: 'landmark' },
+        { id: 'n2_7', x: 400, y: 116, kind: 'gate'     },
+      ],
+    },
+    {
+      id: 'net_aethel_to_salt',
+      routeId: 'route_aethel_to_salt',
+      fromSettlementId: 'settlement_aethel_linde',
+      toSettlementId:   'settlement_blind_lake_dock',
+      points: [
+        { id: 'n3_0', x: 82,  y: 285, kind: 'gate'     },
+        { id: 'n3_1', x: 118, y: 294, kind: 'junction' },
+        { id: 'n3_2', x: 152, y: 306, kind: 'segment'  },
+        { id: 'n3_3', x: 188, y: 316, kind: 'danger'   },
+        { id: 'n3_4', x: 224, y: 323, kind: 'hidden'   },
+        { id: 'n3_5', x: 260, y: 328, kind: 'rest'     },
+        { id: 'n3_6', x: 296, y: 332, kind: 'segment'  },
+        { id: 'n3_7', x: 332, y: 334, kind: 'landmark' },
+        { id: 'n3_8', x: 362, y: 333, kind: 'junction' },
+        { id: 'n3_9', x: 392, y: 330, kind: 'gate'     },
+      ],
+    },
+    {
+      id: 'net_aethel_to_dustgate',
+      routeId: null,
+      fromSettlementId: 'settlement_aethel_linde',
+      toSettlementId:   'settlement_dust_gate_caravanserai',
+      points: [
+        { id: 'n4_0', x: 82,  y: 285, kind: 'gate'     },
+        { id: 'n4_1', x: 104, y: 310, kind: 'segment'  },
+        { id: 'n4_2', x: 132, y: 333, kind: 'junction' },
+        { id: 'n4_3', x: 160, y: 350, kind: 'rest'     },
+        { id: 'n4_4', x: 192, y: 368, kind: 'segment'  },
+        { id: 'n4_5', x: 212, y: 378, kind: 'landmark' },
+        { id: 'n4_6', x: 228, y: 388, kind: 'gate'     },
+      ],
+    },
+    {
+      id: 'net_dustgate_to_blindlake',
+      routeId: null,
+      fromSettlementId: 'settlement_dust_gate_caravanserai',
+      toSettlementId:   'settlement_blind_lake_dock',
+      points: [
+        { id: 'n5_0', x: 228, y: 388, kind: 'gate'     },
+        { id: 'n5_1', x: 260, y: 376, kind: 'segment'  },
+        { id: 'n5_2', x: 292, y: 364, kind: 'junction' },
+        { id: 'n5_3', x: 322, y: 354, kind: 'danger'   },
+        { id: 'n5_4', x: 352, y: 344, kind: 'rest'     },
+        { id: 'n5_5', x: 374, y: 337, kind: 'segment'  },
+        { id: 'n5_6', x: 392, y: 330, kind: 'gate'     },
+      ],
+    },
+  ],
+}
+
+// Convierte array de puntos en un path SVG de curvas suaves (Q midpoints)
+function buildSmoothPathThroughPoints(pts) {
+  if (!pts || pts.length < 2) return ''
+  if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`
+  let d = `M ${pts[0].x} ${pts[0].y}`
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2
+    const my = (pts[i].y + pts[i + 1].y) / 2
+    d += ` Q ${pts[i].x} ${pts[i].y} ${mx} ${my}`
+  }
+  const last = pts[pts.length - 1]
+  d += ` L ${last.x} ${last.y}`
+  return d
+}
+
+function lerp(a, b, t) { return a + (b - a) * t }
+
+function getMarchPositionOnNetwork(networks, expedition, routeSegments) {
+  if (!expedition?.routeId) return null
+  const network = networks.find(n => n.routeId === expedition.routeId)
+  if (!network || network.points.length < 2) return null
+
+  const segs    = getSegmentsForRoute({ segments: routeSegments, routeId: expedition.routeId })
+                    .sort((a, b) => a.order - b.order)
+  const total   = segs.length
+  if (total === 0) return null
+
+  const completed  = (expedition.routeRun?.completedSegmentIds ?? []).length
+  const progressT  = Math.max(0, Math.min(1, (expedition.progress ?? 0) / 100))
+  const globalT    = Math.min(1, (completed + progressT) / total)
+
+  const pts      = network.points
+  const totalSeg = pts.length - 1
+  const segIdx   = Math.min(Math.floor(globalT * totalSeg), totalSeg - 1)
+  const segT     = globalT * totalSeg - segIdx
+
+  return {
+    x: lerp(pts[segIdx].x, pts[segIdx + 1].x, segT),
+    y: lerp(pts[segIdx].y, pts[segIdx + 1].y, segT),
+  }
+}
+
+function MarchPositionMarker({ x, y, paused }) {
+  return (
+    <g transform={`translate(${x}, ${y})`}>
+      <circle cx={0} cy={0} r={14}
+              fill="rgba(79,143,149,0.06)"
+              stroke="rgba(79,143,149,0.2)" strokeWidth={1}
+              className={paused ? '' : 'map-march-marker-ring'}/>
+      <circle cx={0} cy={0} r={8}
+              fill="rgba(12,9,4,0.94)"
+              stroke="var(--color-teal)" strokeWidth={1.8}
+              className={paused ? '' : 'map-march-marker'}/>
+      <rect x={-3} y={-2.5} width={6} height={4} rx={1}
+            fill="rgba(184,148,74,0.88)"/>
+      <circle cx={-2} cy={2}  r={1.3} fill="rgba(79,143,149,0.75)"/>
+      <circle cx={2}  cy={2}  r={1.3} fill="rgba(79,143,149,0.75)"/>
+    </g>
+  )
 }
 
 function getSegmentPositions(segs) {
@@ -242,11 +407,7 @@ export default function VisualMapCanvas({
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) didDragRef.current = true
     let newX = dragStartRef.current.panX + dx
     let newY = dragStartRef.current.panY + dy
-    if (viewLevel === 'abyss') {
-      newX = 0
-      newY = Math.min(ABYSS_PAN.maxY, Math.max(ABYSS_PAN.minY, newY))
-    }
-    const newPan = { x: newX, y: newY }
+    const newPan = clampPanForView(viewLevel, { x: newX, y: newY })
     panRef.current = newPan
     setPan(newPan)
   }
@@ -469,8 +630,10 @@ export default function VisualMapCanvas({
   // ── VISTA CAPA — cornisas de cueva ────────────────────────────────────────
 
   function renderLayerView() {
-    const connections  = STRATUM_CONNECTIONS[selectedLayerId] ?? []
-    const sectorPosMap = SECTOR_POS[selectedLayerId] ?? {}
+    const connections     = STRATUM_CONNECTIONS[selectedLayerId] ?? []
+    const sectorPosMap    = SECTOR_POS[selectedLayerId] ?? {}
+    const networks        = LAYER_ROUTE_NETWORKS[selectedLayerId] ?? []
+    const networkRouteIds = new Set(networks.map(n => n.routeId).filter(Boolean))
 
     function getPos(nodeId) {
       if (SETTLEMENT_POS[nodeId]) return SETTLEMENT_POS[nodeId]
@@ -495,7 +658,11 @@ export default function VisualMapCanvas({
       }
     }
 
-    const layerSettlements = settlements.filter(s => s.stratumId === selectedLayerId)
+    const layerSettlements   = settlements.filter(s => s.stratumId === selectedLayerId)
+    const isExpeditionActive = expedition?.status === 'marching' || expedition?.status === 'segment_transition'
+    const marchPos           = isExpeditionActive
+      ? getMarchPositionOnNetwork(networks, expedition, routeSegments)
+      : null
 
     return (
       <>
@@ -522,7 +689,7 @@ export default function VisualMapCanvas({
         <ellipse cx={394} cy={362} rx={68} ry={4}
                  fill="rgba(20,40,62,0.5)"/>
 
-        {/* Brillo cálido desde Aethel Linde (izquierda, asentamiento inicial) */}
+        {/* Brillo cálido desde Aethel Linde */}
         <radialGradient id="aethelGlow" cx="0.17" cy="0.59" r="0.45">
           <stop offset="0%"   stopColor="rgba(184,148,74,0.1)"/>
           <stop offset="100%" stopColor="rgba(0,0,0,0)"/>
@@ -530,8 +697,58 @@ export default function VisualMapCanvas({
         <rect x={0} y={0} width={480} height={480} fill="url(#aethelGlow)"
               style={{ pointerEvents: 'none' }}/>
 
-        {/* Rutas */}
-        {connections.map((conn, i) => {
+        {/* ── Red densa de caminos ── */}
+        {networks.map(net => {
+          const pts      = net.points
+          const d        = buildSmoothPathThroughPoints(pts)
+          const isActive = net.routeId === expedition?.routeRun?.routeId || net.routeId === expedition?.routeId
+          const isSel    = selectedNodeId === `conn_${net.routeId}`
+          return (
+            <g key={net.id}>
+              <path d={d} fill="none" strokeLinecap="round"
+                    stroke="rgba(0,0,0,0.45)" strokeWidth={isActive ? 5.5 : 4}
+                    style={{ pointerEvents: 'none' }}/>
+              <path d={d} fill="none" strokeLinecap="round"
+                    className="map-network-path"
+                    stroke={isSel ? 'var(--color-teal)'
+                      : isActive ? 'rgba(79,143,149,0.72)'
+                      : net.routeId ? 'rgba(120,98,54,0.4)' : 'rgba(98,107,111,0.2)'}
+                    strokeWidth={isSel ? 2.8 : isActive ? 2.2 : 1.6}
+                    style={{ cursor: net.routeId ? 'pointer' : 'default' }}
+                    onClick={() => {
+                      if (didDragRef.current || !net.routeId) return
+                      setSelectedNodeId(`conn_${net.routeId}`)
+                      setDetailSegment(null); setDetailSettlement(null)
+                      onSelectRoute(net.routeId)
+                    }}/>
+              {pts.filter(pt => pt.kind !== 'gate').map(pt => {
+                const r = pt.kind === 'landmark' ? 3.5
+                        : pt.kind === 'danger'   ? 3.2
+                        : pt.kind === 'rest'     ? 3.0
+                        : pt.kind === 'junction' ? 2.8
+                        : pt.kind === 'hidden'   ? 2.0 : 2.4
+                const fill = pt.kind === 'danger'   ? 'rgba(200,60,40,0.55)'
+                           : pt.kind === 'landmark' ? 'rgba(184,148,74,0.5)'
+                           : pt.kind === 'rest'     ? 'rgba(79,143,149,0.42)'
+                           : pt.kind === 'hidden'   ? 'rgba(80,60,30,0.22)'
+                           : isActive ? 'rgba(79,143,149,0.28)' : 'rgba(98,107,111,0.22)'
+                const stroke = pt.kind === 'danger'   ? 'rgba(200,60,40,0.75)'
+                             : pt.kind === 'landmark' ? 'rgba(184,148,74,0.65)'
+                             : pt.kind === 'rest'     ? 'rgba(79,143,149,0.55)'
+                             : isActive ? 'rgba(79,143,149,0.45)' : 'rgba(98,107,111,0.35)'
+                return (
+                  <circle key={pt.id} cx={pt.x} cy={pt.y} r={r}
+                          className={`map-network-node map-network-node-${pt.kind}`}
+                          fill={fill} stroke={stroke} strokeWidth={0.8}
+                          style={{ pointerEvents: 'none' }}/>
+                )
+              })}
+            </g>
+          )
+        })}
+
+        {/* Rutas simples (stratum_02 / stratum_03, no cubiertas por redes) */}
+        {connections.filter(c => !networkRouteIds.has(c.routeId)).map((conn, i) => {
           const fromPos = getPos(conn.from)
           const toPos   = getPos(conn.to)
           if (!fromPos || !toPos) return null
@@ -594,25 +811,18 @@ export default function VisualMapCanvas({
                  setDetailSegment(null)
                  onSelectSettlement(s.id)
                }}>
-              {/* Cornisa / ledge bajo el asentamiento */}
               <path d={`M ${pos.x - 28} ${pos.y + 18} C ${pos.x - 10} ${pos.y + 15}, ${pos.x + 10} ${pos.y + 15}, ${pos.x + 28} ${pos.y + 18}`}
                     stroke={visible ? 'rgba(80,60,30,0.5)' : 'rgba(60,55,50,0.2)'}
                     strokeWidth={3} fill="none"/>
-
-              {/* Halo de selección */}
               {isSel && (
                 <circle cx={pos.x} cy={pos.y} r={27}
                         fill="none" stroke={safeColor} strokeWidth={1.2}
                         strokeOpacity={0.4} strokeDasharray="3 4"/>
               )}
-
-              {/* Nodo */}
               <circle cx={pos.x} cy={pos.y} r={19}
                       fill={visible ? 'rgba(12,9,4,0.93)' : 'rgba(8,7,5,0.82)'}
                       stroke={nodeColor} strokeWidth={visible ? 1.6 : 0.7}
                       strokeOpacity={visible ? 1 : 0.35}/>
-
-              {/* Icono */}
               <g opacity={visible ? 1 : 0.22}>
                 <SettlementShape type={s.type} cx={pos.x} cy={pos.y} color={nodeColor} r={11}/>
               </g>
@@ -620,8 +830,6 @@ export default function VisualMapCanvas({
                 <text x={pos.x} y={pos.y + 4} textAnchor="middle" fontSize={12}
                       fill="rgba(98,107,111,0.38)">?</text>
               )}
-
-              {/* Etiqueta */}
               <text x={pos.x} y={pos.y + 34} textAnchor="middle" fontSize={7.5}
                     fontFamily="Georgia,serif"
                     fill={visible ? 'var(--color-parchment)' : 'rgba(98,107,111,0.35)'}>
@@ -630,6 +838,15 @@ export default function VisualMapCanvas({
             </g>
           )
         })}
+
+        {/* Token de caravana activa */}
+        {marchPos && (
+          <MarchPositionMarker
+            x={marchPos.x}
+            y={marchPos.y}
+            paused={expedition?.status === 'segment_transition'}
+          />
+        )}
 
         {layerSettlements.length === 0 && Object.keys(sectorPosMap).length === 0 && (
           <text x={240} y={240} textAnchor="middle" fontSize={11}
@@ -790,6 +1007,24 @@ export default function VisualMapCanvas({
                 fontStyle="italic" fontFamily="Georgia,serif"
                 fill="var(--color-stone-light)">Sin tramos conocidos</text>
         )}
+
+        {/* Token de caravana en ruta */}
+        {segs.map((seg, idx) => {
+          if (seg.id !== currentId) return null
+          const cPos = positions[idx]
+          if (!cPos) return null
+          const nPos = positions[idx + 1]
+          const t    = expedition?.status === 'marching'
+            ? Math.max(0, Math.min(1, (expedition.progress ?? 0) / 100))
+            : 0.5
+          const mx = nPos ? lerp(cPos.x, nPos.x, t) : cPos.x
+          const my = nPos ? lerp(cPos.y, nPos.y, t) : cPos.y
+          return (
+            <MarchPositionMarker key="march-route"
+              x={mx} y={my}
+              paused={expedition?.status === 'segment_transition'}/>
+          )
+        })}
       </>
     )
   }

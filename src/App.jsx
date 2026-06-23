@@ -999,6 +999,7 @@ export default function App() {
           discoveredSegmentIds={discoveredSegmentIds}
           cameraState={mapCameraState}
           onCameraChange={setMapCameraState}
+          onGoToCaravan={() => setCurrentTab('caravana')}
         />
       )
       case 'diario':     return <DiaryScreen      diary={diary} />

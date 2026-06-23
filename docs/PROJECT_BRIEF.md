@@ -691,6 +691,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 19B — Abismo como sima vertical: espiral S-curve de 20 capas, paredes orgánicas de cueva, pan vertical, capas bloqueadas con detalle "Profundidad no cartografiada", Senda de los Faroles Bajos expandida a 12 tramos.
 - ✅ 19C — Flujo UX: cámara del mapa persistente entre pestañas (localStorage), dock de combate no invasivo (sin modal bloqueante), auto-resolve al agotar timer, marcha reanuda automáticamente tras combate, timer estable entre cambios de pestaña.
 - ✅ 20A — Marcha Viva visual: escena de expedición con caravana, bioma, progreso de tramo, eventos visuales, transición de tramo y resumen de ruta.
+- ✅ 21A — Mapa vivo: pan clamped por vista, red densa de caminos (5 redes / 7-10 puntos) en stratum_01, token de caravana animado sobre la red y sobre la ruta, botón "Seguir caravana" en mapa.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas

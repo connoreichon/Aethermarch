@@ -27,6 +27,7 @@ export default function MapScreen({
   discoveredSegmentIds = [],
   cameraState,
   onCameraChange,
+  onGoToCaravan,
 }) {
   // centerTrigger is purely local — only fires on explicit "Centrar" press
   const [centerTrigger, setCenterTrigger] = useState(0)
@@ -123,6 +124,15 @@ export default function MapScreen({
           onPanChange={handlePanChange}
         />
       </div>
+
+      {/* Seguir caravana — solo si expedición activa */}
+      {(expedition?.status === 'marching' || expedition?.status === 'segment_transition') && onGoToCaravan && (
+        <div style={{ padding: '6px 14px 0' }}>
+          <button className="btn btn-primary map-follow-caravan-btn" onClick={onGoToCaravan}>
+            Seguir caravana →
+          </button>
+        </div>
+      )}
 
       {/* Microhint */}
       <div className="visual-map-hint">{MAP_HINT[viewLevel]}</div>

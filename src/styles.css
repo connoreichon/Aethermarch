@@ -3703,3 +3703,48 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   0%, 100% { filter: drop-shadow(0 0 6px rgba(184,148,74,0.3)); }
   50%       { filter: drop-shadow(0 0 16px rgba(184,148,74,0.55)); }
 }
+
+/* ── Mapa vivo 21A: red de caminos, token de caravana ────────────────────── */
+
+.map-network-path {
+  transition: stroke 0.25s, stroke-width 0.2s;
+}
+
+.map-network-node {
+  transition: fill 0.25s, r 0.2s;
+}
+
+.map-network-node-danger {
+  filter: drop-shadow(0 0 2px rgba(200,60,40,0.45));
+}
+
+.map-network-node-landmark {
+  filter: drop-shadow(0 0 2px rgba(184,148,74,0.4));
+}
+
+@keyframes mapMarchBob {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-2px); }
+}
+
+@keyframes mapMarchPulse {
+  0%, 100% { opacity: 0.18; r: 14; }
+  50%       { opacity: 0.35; r: 17; }
+}
+
+.map-march-marker {
+  animation: mapMarchBob 1.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.map-march-marker-ring {
+  animation: mapMarchPulse 2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.map-follow-caravan-btn {
+  width: 100%;
+  font-size: 0.8rem;
+  padding: 8px 14px;
+  letter-spacing: 0.03em;
+}
