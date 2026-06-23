@@ -81,6 +81,7 @@ src/systems/contractSystem.js
 src/systems/echoSystem.js
 src/systems/expeditionSystem.js
 src/systems/inventorySystem.js
+src/systems/locationSystem.js
 src/systems/mapSystem.js
 src/systems/pedometerSystem.js
 src/systems/poiSystem.js
@@ -2369,6 +2370,75 @@ export function addResources(inventory, gained) {
 
 export function emptyInventory() {
   return {}
+}
+</file>
+
+<file path="src/systems/locationSystem.js">
+// Mapeo sector → asentamiento principal (usado para posicionar el marcador en el mapa)
+const SECTOR_SETTLEMENT_MAP = {
+  'sector_aethel_edge':       'settlement_aethel_linde',
+  'sector_mist_root':         'settlement_root_lantern_market',
+  'sector_runic_guard_ruins': 'settlement_fogbreak_fort',
+  'sector_salt_beacon':       'settlement_blind_lake_dock',
+}
+
+export function createInitialLocation() {
+  return {
+    type:         'sector',
+    sectorId:     'sector_aethel_edge',
+    settlementId: 'settlement_aethel_linde',
+    routeId:      null,
+    segmentId:    null,
+    label:        'Linde de Aethel',
+    updatedAt:    new Date().toISOString(),
+  }
+}
+
+export function getLocationLabel(location) {
+  if (!location) return 'Ubicación desconocida'
+  return location.label ?? 'Ubicación desconocida'
+}
+
+export function buildLocationFromSector(sector) {
+  if (!sector) return createInitialLocation()
+  return {
+    type:         'sector',
+    sectorId:     sector.id,
+    settlementId: SECTOR_SETTLEMENT_MAP[sector.id] ?? null,
+    routeId:      null,
+    segmentId:    null,
+    label:        sector.name,
+    updatedAt:    new Date().toISOString(),
+  }
+}
+
+export function buildLocationFromRouteDestination({ routeRun, sectors }) {
+  if (!routeRun?.toSectorId) return createInitialLocation()
+  const sector = sectors?.find(s => s.id === routeRun.toSectorId)
+  return {
+    type:         'sector',
+    sectorId:     routeRun.toSectorId,
+    settlementId: SECTOR_SETTLEMENT_MAP[routeRun.toSectorId] ?? null,
+    routeId:      null,
+    segmentId:    null,
+    label:        sector?.name ?? routeRun.toSectorId,
+    updatedAt:    new Date().toISOString(),
+  }
+}
+
+export function sanitizeLocation(raw, sectors) {
+  if (!raw || typeof raw !== 'object') return null
+  if (!raw.sectorId) return null
+  const sector = sectors?.find(s => s.id === raw.sectorId)
+  return {
+    type:         raw.type ?? 'sector',
+    sectorId:     raw.sectorId,
+    settlementId: raw.settlementId ?? SECTOR_SETTLEMENT_MAP[raw.sectorId] ?? null,
+    routeId:      raw.routeId ?? null,
+    segmentId:    raw.segmentId ?? null,
+    label:        raw.label ?? sector?.name ?? raw.sectorId,
+    updatedAt:    raw.updatedAt ?? new Date().toISOString(),
+  }
 }
 </file>
 
@@ -4717,6 +4787,7 @@ export default function VisualMapCanvas({
   settlements,
   discoveredSegmentIds,
   expedition,
+  currentLocation,
   onSelectLayer,
   onSelectSettlement,
   onSelectRoute,
@@ -5022,6 +5093,9 @@ export default function VisualMapCanvas({
     const marchPos           = isExpeditionActive
       ? getMarchPositionOnNetwork(networks, expedition, routeSegments)
       : null
+    const restPos = !isExpeditionActive && currentLocation?.settlementId && SETTLEMENT_POS[currentLocation.settlementId]
+      ? SETTLEMENT_POS[currentLocation.settlementId]
+      : null
 
     return (
       <>
@@ -5205,6 +5279,10 @@ export default function VisualMapCanvas({
             y={marchPos.y}
             paused={expedition?.status === 'segment_transition'}
           />
+        )}
+        {/* Token de caravana en reposo */}
+        {restPos && (
+          <MarchPositionMarker x={restPos.x} y={restPos.y} paused={true}/>
         )}
 
         {layerSettlements.length === 0 && Object.keys(sectorPosMap).length === 0 && (
@@ -5775,6 +5853,7 @@ export function createSaveSnapshot({
   stepSource,
   contractState,
   discoveredSegmentIds,
+  currentLocation,
 }) {
   // Track whether the save was created while a run was active
   const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
@@ -5803,6 +5882,7 @@ export function createSaveSnapshot({
     stepSource:            stepSource ?? null,
     contractState:         contractState ?? null,
     discoveredSegmentIds:  Array.isArray(discoveredSegmentIds) ? discoveredSegmentIds : [],
+    currentLocation:       currentLocation ?? null,
     meta: {
       recoveredFromInterruptedRun: wasActive,
     },
@@ -6941,6 +7021,7 @@ export default function MapScreen({
   sectors,
   expedition,
   discoveredSegmentIds = [],
+  currentLocation,
   cameraState,
   onCameraChange,
   onGoToCaravan,
@@ -7032,6 +7113,7 @@ export default function MapScreen({
           settlements={ABYSS_SETTLEMENTS}
           discoveredSegmentIds={discoveredSegmentIds}
           expedition={expedition}
+          currentLocation={currentLocation}
           onSelectLayer={handleSelectLayer}
           onSelectSettlement={() => {}}
           onSelectRoute={handleSelectRoute}
@@ -8137,6 +8219,10 @@ La ruta Senda de los Faroles Bajos tiene ahora 12 tramos dibujados como puntos e
 
 La expedición se percibe como viaje continuo. Cada tramo tiene atmósfera visual, pequeños sucesos y señales del bioma, aunque todavía no haya assets finales. El jugador ve la caravana moverse, el camino extenderse y los eventos aparecer como señales del entorno, no como listas de texto. El mapa de capa muestra la red completa de caminos del estrato con un token de caravana animado que sigue el progreso real de la expedición; el botón "Seguir caravana" permite volver a la pantalla de marcha sin perder el estado del mapa.
 
+## Presencia física de la caravana
+
+La caravana existe en un lugar concreto del mundo en todo momento. Al comenzar el juego, la caravana está en Linde de Aethel. Al completar una ruta, la caravana pasa a estar en el asentamiento de destino; esa ubicación persiste entre sesiones, se muestra en la pantalla de caravana ("La caravana descansa en X") y aparece como marcador estático en el mapa de capa. El sistema `locationSystem.js` mantiene esta fuente de verdad separada del estado interno de la expedición, evitando ambigüedades cuando `expedition.sectorId` puede referirse tanto al sector actual como al destino en tránsito.
+
 ## Identidad de los tramos
 
 Los tramos no son simples segmentos técnicos. Cada tramo puede tener nombre, atmósfera, terreno, riesgo, microeventos, hitos, recursos probables y texto propio de finalización. El jugador debe sentir que atraviesa lugares concretos del Abismo, no números en una lista. Los campos `visual` (mood, terrain, landmark, colorHint), `gameplay` (likelyEvents, resourceHints, threatHints, discoveryChance, restChance) y `completion` (title, text) están definidos para todos los tramos de `route_aethel_to_mist` y sirven de patrón para futuras rutas.
@@ -8173,6 +8259,10 @@ import {
   completeCurrentRouteSegment,
   getSegmentsForRoute,
 } from './systems/routeSegmentSystem.js'
+import {
+  createInitialLocation, sanitizeLocation,
+  buildLocationFromSector, buildLocationFromRouteDestination,
+} from './systems/locationSystem.js'
 import {
   createInitialContractState, sanitizeContractState,
   canStartContract, startContract, resolveContract, getContractSuccessChance,
@@ -8300,6 +8390,7 @@ export default function App() {
   const [discoveredSegmentIds,      setDiscoveredSegmentIds]      = useState([])
   const [mapCameraState,            setMapCameraState]            = useState(loadMapCamera)
   const [expeditionNotices,         setExpeditionNotices]         = useState([])
+  const [currentLocation,           setCurrentLocation]           = useState(createInitialLocation)
 
   const completionDone      = useRef(false)
   const combatTriggered     = useRef(new Set())
@@ -8352,6 +8443,10 @@ export default function App() {
     setStepSource(sanitizeStepSource(save.stepSource))
     setContractState(sanitizeContractState(save.contractState ?? null))
     setDiscoveredSegmentIds(save.discoveredSegmentIds ?? [])
+    setCurrentLocation(
+      sanitizeLocation(save.currentLocation, mergedSectors) ??
+      buildLocationFromSector(mergedSectors.find(s => s.id === (save.expedition?.sectorId ?? 'sector_aethel_edge')))
+    )
     setPedometer(createPedometerState())  // pedometer always starts idle after reload
 
     completionDone.current  = false
@@ -8386,6 +8481,7 @@ export default function App() {
     setContractState(createInitialContractState())
     setLastContractResult(null)
     setDiscoveredSegmentIds([])
+    setCurrentLocation(createInitialLocation())
     setMapCameraState(DEFAULT_MAP_CAMERA)
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
@@ -8460,7 +8556,7 @@ export default function App() {
     setCombat(INITIAL_COMBAT)
     setRecoveredFromInterruption(false)
 
-    const currentSectorId = expedition.sectorId
+    const currentSectorId = currentLocation?.sectorId ?? expedition.sectorId
     const currentSector   = sectors.find(s => s.id === currentSectorId)
 
     const selectedRoute =
@@ -8540,12 +8636,13 @@ export default function App() {
   function handlePrepareNext() {
     combatTriggered.current = new Set()
     setCombat(INITIAL_COMBAT)
+    const locSector = sectors.find(s => s.id === (currentLocation?.sectorId ?? expedition.sectorId))
     setExpedition(prev => ({
       ...INITIAL_EXPEDITION,
       currentTramo: prev.currentTramo + 1,
       modeId:       prev.modeId,
-      sectorId:     prev.sectorId,
-      biomeId:      prev.biomeId,
+      sectorId:     locSector?.id ?? prev.sectorId,
+      biomeId:      locSector?.biomeId ?? prev.biomeId,
     }))
     setLastDiscovery(null)
     setLastContractResult(null)
@@ -9063,6 +9160,14 @@ export default function App() {
     }
     setSectors(finalSectors)
 
+    // Actualizar ubicación real de la caravana al destino de la ruta
+    if (expedition.routeRun?.completed) {
+      setCurrentLocation(buildLocationFromRouteDestination({
+        routeRun: expedition.routeRun,
+        sectors:  finalSectors,
+      }))
+    }
+
     const rawEntry = buildDiaryEntry(expedition, sectorName, discovery, completedSector)
     const fromSector = expedition.routeRun?.fromSectorId
       ? sectors.find(s => s.id === expedition.routeRun.fromSectorId)
@@ -9079,7 +9184,7 @@ export default function App() {
     // Aviso global de ruta completada
     if (expedition.routeRun?.completed) {
       const noticeRoute    = WORLD_ROUTES.find(r => r.id === expedition.routeRun?.routeId)
-      const noticeDest     = INITIAL_SECTORS.find(s => s.id === expedition.sectorId)
+      const noticeDest     = INITIAL_SECTORS.find(s => s.id === (expedition.routeRun?.toSectorId ?? expedition.sectorId))
       const noticeCount    = expedition.routeRun.completedSegmentIds?.length ?? 0
       const noticePlural   = noticeCount !== 1
       setExpeditionNotices(prev => {
@@ -9141,6 +9246,7 @@ export default function App() {
       stepSource,
       contractState,
       discoveredSegmentIds,
+      currentLocation,
     })
     writeSave(snapshot)
     setLastSaved(new Date())
@@ -9179,6 +9285,7 @@ export default function App() {
             expedition={expedition}
             sectors={sectors}
             combat={combat}
+            currentLocation={currentLocation}
             lastSaved={lastSaved}
             recoveredFromInterruption={recoveredFromInterruption}
             onAlzar={handleAlzar}
@@ -9213,6 +9320,7 @@ export default function App() {
           sectors={sectors}
           expedition={expedition}
           discoveredSegmentIds={discoveredSegmentIds}
+          currentLocation={currentLocation}
           cameraState={mapCameraState}
           onCameraChange={setMapCameraState}
           onGoToCaravan={() => setCurrentTab('caravana')}
@@ -10208,6 +10316,7 @@ function ContractsPanel({ sector, player, contractState, expedition, combat, las
 
 export default function CaravanScreen({
   player, expedition, sectors, combat,
+  currentLocation,
   lastSaved, recoveredFromInterruption,
   onAlzar, onSelectMode, onSelectSector,
   onResolveCombat, onContinueMarch, onContinueToNextSegment, onAbandonExpedition, onPrepareNext,
@@ -10571,7 +10680,7 @@ export default function CaravanScreen({
 
   // ── RESTING ───────────────────────────────────────────────────────────────
   const discoveredSectors = (sectors ?? []).filter(s => s.discovered)
-  const activeSector      = sectors?.find(s => s.id === expedition?.sectorId)
+  const activeSector      = sectors?.find(s => s.id === (currentLocation?.sectorId ?? expedition?.sectorId))
   const activeBiome       = BIOMES[activeSector?.biomeId ?? expedition?.biomeId ?? 'forest']
   const canAlzar          = !!activeSector
 
@@ -10635,7 +10744,9 @@ export default function CaravanScreen({
         <div className="camp-mist" />
         <div className="camp-caption">
           <div className="camp-caption-label">Caravana en reposo · Tramo {expedition?.currentTramo}</div>
-          <p className="camp-caption-rest">La caravana descansa junto al farol.</p>
+          <p className="camp-caption-rest">
+            La caravana descansa en {currentLocation?.label ?? activeSector?.name ?? '—'}.
+          </p>
         </div>
       </section>
 
@@ -11482,6 +11593,8 @@ La vista Abismo se rediseñó completamente para transmitir la sensación de una
 **Avisos globales de expedición (21A.1):** La expedición continúa aunque el jugador esté revisando mapa, inventario, códice o diario. Cuando se completa un tramo o una ruta, el juego lo comunica mediante un dock flotante no intrusivo (`ExpeditionNoticeDock`), coherente con la estética medieval. El aviso no bloquea la interfaz y permite saltar a mapa o caravana si el jugador quiere ver el avance. El aviso de tramo se suprime en la pestaña Caravana (LiveMarchScene ya muestra la transición). El aviso de ruta completada tiene prioridad máxima y permanece hasta que el jugador lo cierre. Durante combate, los avisos de tramo se suprimen; los de ruta se muestran por encima del dock de combate. Los tramos de `route_aethel_to_mist` incluyen ahora datos `visual`, `gameplay` y `completion` con microtextos propios de finalización.
 
 **Mapa Vivo (21A):** El mapa de capa (`viewLevel: 'layer'`) muestra ahora una red densa de caminos orgánicos en vez de líneas simples. Para `stratum_01`, cinco redes visuales (`LAYER_ROUTE_NETWORKS`) con 7–10 puntos cada una cubren la totalidad de los asentamientos: `net_aethel_to_mist`, `net_mist_to_ruins`, `net_aethel_to_salt`, `net_aethel_to_dustgate`, `net_dustgate_to_blindlake`. Cada punto tiene un `kind` (gate, junction, segment, landmark, rest, danger, hidden) que determina el tamaño y color del nodo. Un token de caravana (`MarchPositionMarker`) aparece sobre el camino cuando hay expedición activa, interpolando su posición en función de los tramos completados y el progreso actual (`expedition.progress`). El mismo token aparece en la vista de ruta (`viewLevel: 'route'`), interpolado entre el nodo actual y el siguiente. El pan está ahora contenido en todas las vistas mediante `MAP_PAN_POLICY` y `clampPanForView`. Un botón "Seguir caravana →" aparece en el mapa cuando hay expedición activa.
+
+**Ubicación persistente (21A.2):** La caravana tiene ahora un estado propio de posición física, `currentLocation`, independiente de `expedition.sectorId`. El campo `sectorId` de la expedición reflejaba implícitamente el destino al completar una ruta, pero no era una fuente de verdad explícita para "dónde está la caravana ahora". El nuevo sistema introduce `locationSystem.js` con `createInitialLocation()`, `buildLocationFromRouteDestination()`, `sanitizeLocation()` y otros helpers. El estado se persiste en el save y se carga con retrocompatibilidad (si el campo falta, se reconstruye desde `expedition.sectorId`). CaravanScreen muestra "La caravana descansa en [nombre]" usando `currentLocation.label`. El mapa de capa muestra un marcador estático en reposo (`MarchPositionMarker paused`) sobre el asentamiento que corresponde a `currentLocation.settlementId` cuando no hay expedición activa. `handleAlzar` y `handlePrepareNext` usan `currentLocation.sectorId` como sector de partida real.
 
 *Este documento es una referencia de diseño viva. Se actualiza conforme el juego avanza.*
 </file>
@@ -16146,6 +16259,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 20A — Marcha Viva visual: escena de expedición con caravana, bioma, progreso de tramo, eventos visuales, transición de tramo y resumen de ruta.
 - ✅ 21A — Mapa vivo: pan clamped por vista, red densa de caminos (5 redes / 7-10 puntos) en stratum_01, token de caravana animado sobre la red y sobre la ruta, botón "Seguir caravana" en mapa.
 - ✅ 21A.1 — Notificaciones globales de expedición: avisos no intrusivos de tramo completado y ruta completada visibles en cualquier pestaña; tramos de route_aethel_to_mist con visual, gameplay y completion enriched; cola de prioridad; convive con dock de combate.
+- ✅ 21A.2 — Ubicación persistente real de la caravana: estado `currentLocation` independiente de `expedition.sectorId`; `locationSystem.js` con helpers de construcción y saneamiento; save/load con retrocompatibilidad; CaravanScreen muestra la ubicación real; marcador en reposo visible en la vista de capa del mapa.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
