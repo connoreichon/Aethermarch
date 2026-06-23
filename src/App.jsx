@@ -603,10 +603,6 @@ export default function App() {
 
   function handleAbandonExpedition() {
     const routeName = expedition.routeName ?? expedition.routeId ?? 'ruta desconocida'
-    const confirmed = window.confirm(
-      `Abandonar la expedición?\nConservarás lo ya obtenido en tramos completados, pero no completarás la ruta ni descubrirás el destino.`
-    )
-    if (!confirmed) return
 
     const entry = {
       id:          `abandon-${Date.now()}`,

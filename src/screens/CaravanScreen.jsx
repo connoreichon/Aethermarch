@@ -939,7 +939,13 @@ export default function CaravanScreen({
   lastPoiResult, onUsePoiAction,
   contractState, lastContractResult, onStartContract, onResolveActiveContract,
 }) {
-  const [selectedRouteId, setSelectedRouteId] = useState(null)
+  const [selectedRouteId,     setSelectedRouteId]     = useState(null)
+  const [abandonConfirming,   setAbandonConfirming]   = useState(false)
+
+  // Reset confirm when expedition changes away from marching
+  useEffect(() => {
+    if (expedition?.status !== 'marching') setAbandonConfirming(false)
+  }, [expedition?.status])
 
   const archetype = ARCHETYPES.find(a => a.id === player?.archetypeId)
   const creature  = CREATURES.find(c => c.id === player?.creatureId)
@@ -1039,13 +1045,32 @@ export default function CaravanScreen({
           </CollapsiblePanel>
         )}
         <div style={{ padding:'8px 14px 12px', textAlign:'center' }}>
-          <button
-            className="btn btn-secondary"
-            style={{ fontSize:'0.58rem', opacity:0.65 }}
-            onClick={onAbandonExpedition}
-          >
-            Abandonar expedición
-          </button>
+          {abandonConfirming ? (
+            <div style={{ display:'flex', gap:8, justifyContent:'center' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ fontSize:'0.58rem', color:'var(--color-hp)' }}
+                onClick={() => { setAbandonConfirming(false); onAbandonExpedition() }}
+              >
+                Confirmar abandono
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ fontSize:'0.58rem', opacity:0.65 }}
+                onClick={() => setAbandonConfirming(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize:'0.58rem', opacity:0.65 }}
+              onClick={() => setAbandonConfirming(true)}
+            >
+              Abandonar expedición
+            </button>
+          )}
         </div>
       </div>
     )
