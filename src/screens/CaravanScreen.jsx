@@ -927,6 +927,7 @@ function ContractsPanel({ sector, player, contractState, expedition, combat, las
 
 export default function CaravanScreen({
   player, expedition, sectors, combat,
+  currentLocation,
   lastSaved, recoveredFromInterruption,
   onAlzar, onSelectMode, onSelectSector,
   onResolveCombat, onContinueMarch, onContinueToNextSegment, onAbandonExpedition, onPrepareNext,
@@ -1290,7 +1291,7 @@ export default function CaravanScreen({
 
   // ── RESTING ───────────────────────────────────────────────────────────────
   const discoveredSectors = (sectors ?? []).filter(s => s.discovered)
-  const activeSector      = sectors?.find(s => s.id === expedition?.sectorId)
+  const activeSector      = sectors?.find(s => s.id === (currentLocation?.sectorId ?? expedition?.sectorId))
   const activeBiome       = BIOMES[activeSector?.biomeId ?? expedition?.biomeId ?? 'forest']
   const canAlzar          = !!activeSector
 
@@ -1354,7 +1355,9 @@ export default function CaravanScreen({
         <div className="camp-mist" />
         <div className="camp-caption">
           <div className="camp-caption-label">Caravana en reposo · Tramo {expedition?.currentTramo}</div>
-          <p className="camp-caption-rest">La caravana descansa junto al farol.</p>
+          <p className="camp-caption-rest">
+            La caravana descansa en {currentLocation?.label ?? activeSector?.name ?? '—'}.
+          </p>
         </div>
       </section>
 

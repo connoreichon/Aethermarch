@@ -693,6 +693,7 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 20A — Marcha Viva visual: escena de expedición con caravana, bioma, progreso de tramo, eventos visuales, transición de tramo y resumen de ruta.
 - ✅ 21A — Mapa vivo: pan clamped por vista, red densa de caminos (5 redes / 7-10 puntos) en stratum_01, token de caravana animado sobre la red y sobre la ruta, botón "Seguir caravana" en mapa.
 - ✅ 21A.1 — Notificaciones globales de expedición: avisos no intrusivos de tramo completado y ruta completada visibles en cualquier pestaña; tramos de route_aethel_to_mist con visual, gameplay y completion enriched; cola de prioridad; convive con dock de combate.
+- ✅ 21A.2 — Ubicación persistente real de la caravana: estado `currentLocation` independiente de `expedition.sectorId`; `locationSystem.js` con helpers de construcción y saneamiento; save/load con retrocompatibilidad; CaravanScreen muestra la ubicación real; marcador en reposo visible en la vista de capa del mapa.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas

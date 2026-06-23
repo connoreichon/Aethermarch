@@ -358,6 +358,7 @@ export default function VisualMapCanvas({
   settlements,
   discoveredSegmentIds,
   expedition,
+  currentLocation,
   onSelectLayer,
   onSelectSettlement,
   onSelectRoute,
@@ -663,6 +664,9 @@ export default function VisualMapCanvas({
     const marchPos           = isExpeditionActive
       ? getMarchPositionOnNetwork(networks, expedition, routeSegments)
       : null
+    const restPos = !isExpeditionActive && currentLocation?.settlementId && SETTLEMENT_POS[currentLocation.settlementId]
+      ? SETTLEMENT_POS[currentLocation.settlementId]
+      : null
 
     return (
       <>
@@ -846,6 +850,10 @@ export default function VisualMapCanvas({
             y={marchPos.y}
             paused={expedition?.status === 'segment_transition'}
           />
+        )}
+        {/* Token de caravana en reposo */}
+        {restPos && (
+          <MarchPositionMarker x={restPos.x} y={restPos.y} paused={true}/>
         )}
 
         {layerSettlements.length === 0 && Object.keys(sectorPosMap).length === 0 && (

@@ -41,6 +41,7 @@ export function createSaveSnapshot({
   stepSource,
   contractState,
   discoveredSegmentIds,
+  currentLocation,
 }) {
   // Track whether the save was created while a run was active
   const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
@@ -69,6 +70,7 @@ export function createSaveSnapshot({
     stepSource:            stepSource ?? null,
     contractState:         contractState ?? null,
     discoveredSegmentIds:  Array.isArray(discoveredSegmentIds) ? discoveredSegmentIds : [],
+    currentLocation:       currentLocation ?? null,
     meta: {
       recoveredFromInterruptedRun: wasActive,
     },

@@ -25,6 +25,10 @@ import {
   getSegmentsForRoute,
 } from './systems/routeSegmentSystem.js'
 import {
+  createInitialLocation, sanitizeLocation,
+  buildLocationFromSector, buildLocationFromRouteDestination,
+} from './systems/locationSystem.js'
+import {
   createInitialContractState, sanitizeContractState,
   canStartContract, startContract, resolveContract, getContractSuccessChance,
 } from './systems/contractSystem.js'
@@ -151,6 +155,7 @@ export default function App() {
   const [discoveredSegmentIds,      setDiscoveredSegmentIds]      = useState([])
   const [mapCameraState,            setMapCameraState]            = useState(loadMapCamera)
   const [expeditionNotices,         setExpeditionNotices]         = useState([])
+  const [currentLocation,           setCurrentLocation]           = useState(createInitialLocation)
 
   const completionDone      = useRef(false)
   const combatTriggered     = useRef(new Set())
@@ -203,6 +208,10 @@ export default function App() {
     setStepSource(sanitizeStepSource(save.stepSource))
     setContractState(sanitizeContractState(save.contractState ?? null))
     setDiscoveredSegmentIds(save.discoveredSegmentIds ?? [])
+    setCurrentLocation(
+      sanitizeLocation(save.currentLocation, mergedSectors) ??
+      buildLocationFromSector(mergedSectors.find(s => s.id === (save.expedition?.sectorId ?? 'sector_aethel_edge')))
+    )
     setPedometer(createPedometerState())  // pedometer always starts idle after reload
 
     completionDone.current  = false
@@ -237,6 +246,7 @@ export default function App() {
     setContractState(createInitialContractState())
     setLastContractResult(null)
     setDiscoveredSegmentIds([])
+    setCurrentLocation(createInitialLocation())
     setMapCameraState(DEFAULT_MAP_CAMERA)
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
@@ -311,7 +321,7 @@ export default function App() {
     setCombat(INITIAL_COMBAT)
     setRecoveredFromInterruption(false)
 
-    const currentSectorId = expedition.sectorId
+    const currentSectorId = currentLocation?.sectorId ?? expedition.sectorId
     const currentSector   = sectors.find(s => s.id === currentSectorId)
 
     const selectedRoute =
@@ -391,12 +401,13 @@ export default function App() {
   function handlePrepareNext() {
     combatTriggered.current = new Set()
     setCombat(INITIAL_COMBAT)
+    const locSector = sectors.find(s => s.id === (currentLocation?.sectorId ?? expedition.sectorId))
     setExpedition(prev => ({
       ...INITIAL_EXPEDITION,
       currentTramo: prev.currentTramo + 1,
       modeId:       prev.modeId,
-      sectorId:     prev.sectorId,
-      biomeId:      prev.biomeId,
+      sectorId:     locSector?.id ?? prev.sectorId,
+      biomeId:      locSector?.biomeId ?? prev.biomeId,
     }))
     setLastDiscovery(null)
     setLastContractResult(null)
@@ -914,6 +925,14 @@ export default function App() {
     }
     setSectors(finalSectors)
 
+    // Actualizar ubicación real de la caravana al destino de la ruta
+    if (expedition.routeRun?.completed) {
+      setCurrentLocation(buildLocationFromRouteDestination({
+        routeRun: expedition.routeRun,
+        sectors:  finalSectors,
+      }))
+    }
+
     const rawEntry = buildDiaryEntry(expedition, sectorName, discovery, completedSector)
     const fromSector = expedition.routeRun?.fromSectorId
       ? sectors.find(s => s.id === expedition.routeRun.fromSectorId)
@@ -930,7 +949,7 @@ export default function App() {
     // Aviso global de ruta completada
     if (expedition.routeRun?.completed) {
       const noticeRoute    = WORLD_ROUTES.find(r => r.id === expedition.routeRun?.routeId)
-      const noticeDest     = INITIAL_SECTORS.find(s => s.id === expedition.sectorId)
+      const noticeDest     = INITIAL_SECTORS.find(s => s.id === (expedition.routeRun?.toSectorId ?? expedition.sectorId))
       const noticeCount    = expedition.routeRun.completedSegmentIds?.length ?? 0
       const noticePlural   = noticeCount !== 1
       setExpeditionNotices(prev => {
@@ -992,6 +1011,7 @@ export default function App() {
       stepSource,
       contractState,
       discoveredSegmentIds,
+      currentLocation,
     })
     writeSave(snapshot)
     setLastSaved(new Date())
@@ -1030,6 +1050,7 @@ export default function App() {
             expedition={expedition}
             sectors={sectors}
             combat={combat}
+            currentLocation={currentLocation}
             lastSaved={lastSaved}
             recoveredFromInterruption={recoveredFromInterruption}
             onAlzar={handleAlzar}
@@ -1064,6 +1085,7 @@ export default function App() {
           sectors={sectors}
           expedition={expedition}
           discoveredSegmentIds={discoveredSegmentIds}
+          currentLocation={currentLocation}
           cameraState={mapCameraState}
           onCameraChange={setMapCameraState}
           onGoToCaravan={() => setCurrentTab('caravana')}

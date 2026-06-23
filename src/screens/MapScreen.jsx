@@ -25,6 +25,7 @@ export default function MapScreen({
   sectors,
   expedition,
   discoveredSegmentIds = [],
+  currentLocation,
   cameraState,
   onCameraChange,
   onGoToCaravan,
@@ -116,6 +117,7 @@ export default function MapScreen({
           settlements={ABYSS_SETTLEMENTS}
           discoveredSegmentIds={discoveredSegmentIds}
           expedition={expedition}
+          currentLocation={currentLocation}
           onSelectLayer={handleSelectLayer}
           onSelectSettlement={() => {}}
           onSelectRoute={handleSelectRoute}
