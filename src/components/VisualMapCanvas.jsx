@@ -1009,6 +1009,13 @@ export default function VisualMapCanvas({
                 <text x={pos.x} y={pos.y - nodeR - 6} textAnchor="middle" fontSize={7}
                       fill="var(--color-teal)">← actual</text>
               )}
+
+              {/* Indicador de parada menor */}
+              {seg.routeStopId && !isHidden && (
+                <text x={pos.x + nodeR + 3} y={pos.y - nodeR + 2}
+                      fontSize={many ? 7 : 9}
+                      fill="rgba(188,150,88,0.75)">⛺</text>
+              )}
             </g>
           )
         })}

@@ -938,6 +938,7 @@ export default function CaravanScreen({
   onStartPedometer, onStopPedometer, onAddPrototypeSteps,
   lastPoiResult, onUsePoiAction,
   contractState, lastContractResult, onStartContract, onResolveActiveContract,
+  activeRouteStop,
 }) {
   const [selectedRouteId,     setSelectedRouteId]     = useState(null)
   const [abandonConfirming,   setAbandonConfirming]   = useState(false)
@@ -986,6 +987,7 @@ export default function CaravanScreen({
         player={player}
         onContinueToNextSegment={onContinueToNextSegment}
         onAbandonExpedition={onAbandonExpedition}
+        activeRouteStop={activeRouteStop}
       />
     )
   }

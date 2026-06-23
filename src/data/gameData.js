@@ -712,6 +712,7 @@ export const WORLD_ROUTE_SEGMENTS = [
     visual:    { mood: 'ancient',      terrain: 'roots',          landmark: 'root_bridge',    colorHint: '#4A3728' },
     gameplay:  { likelyEvents: ['exploration','creature','resource'],  resourceHints: ['root','moss'],      threatHints: ['root_beast'],              discoveryChance: 0.15, restChance: 0.05 },
     completion: { title: 'El puente raíz cruzado',     text: 'Las raíces se abren lo justo para dejar cruzar a la caravana.' },
+    routeStopId: 'stop_old_bark_refuge',
   },
   {
     id: 'seg_afm_04', routeId: 'route_aethel_to_mist', order: 3,
@@ -747,6 +748,7 @@ export const WORLD_ROUTE_SEGMENTS = [
     visual:    { mood: 'dark',         terrain: 'hollow_log',     landmark: 'creature_marks', colorHint: '#2A1F15' },
     gameplay:  { likelyEvents: ['creature','exploration','threat'],    resourceHints: ['dark_wood','bone_shard'], threatHints: ['hollow_beast','cave_spider'], discoveryChance: 0.25, restChance: 0 },
     completion: { title: 'El tronco cruzado',           text: 'El tronco hueco devuelve el eco de los pasos.' },
+    routeStopId: 'stop_broken_lantern_post',
   },
   {
     id: 'seg_afm_07', routeId: 'route_aethel_to_mist', order: 6,
@@ -777,6 +779,7 @@ export const WORLD_ROUTE_SEGMENTS = [
     visual:    { mood: 'oppressive',   terrain: 'taut_roots',     landmark: 'arching_roots',  colorHint: '#3B2A18' },
     gameplay:  { likelyEvents: ['creature','exploration','threat'],    resourceHints: ['root_fiber','ancient_resin'], threatHints: ['root_lurker','vine_spider'], discoveryChance: 0.15, restChance: 0 },
     completion: { title: 'Las raíces detrás',           text: 'Las raíces vibran bajo el suelo, tensas como cuerdas antiguas.' },
+    routeStopId: 'stop_three_nails_camp',
   },
   {
     id: 'seg_afm_10', routeId: 'route_aethel_to_mist', order: 9,

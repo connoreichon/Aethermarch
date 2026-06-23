@@ -37,6 +37,10 @@ import {
   applyBranchChoice, getFamiliarityThreatReduction,
 } from './systems/routeBranchSystem.js'
 import RouteChoiceDock from './components/RouteChoiceDock.jsx'
+import RouteStopDock   from './components/RouteStopDock.jsx'
+import {
+  getRouteStopById, resolveRouteStopRest,
+} from './systems/routeStopSystem.js'
 import {
   createInitialContractState, sanitizeContractState,
   canStartContract, startContract, resolveContract, getContractSuccessChance,
@@ -169,13 +173,21 @@ export default function App() {
   const [currentLocation,           setCurrentLocation]           = useState(createInitialLocation)
   const [branchKnowledge,           setBranchKnowledge]           = useState(createInitialBranchKnowledge)
   const [activeSettlementId,        setActiveSettlementId]        = useState(null)
+  const [activeRouteStopId,         setActiveRouteStopIdState]    = useState(null)
 
   const completionDone      = useRef(false)
   const combatTriggered     = useRef(new Set())
   const segNoticeFiredRef   = useRef(new Set())
+  const routeStopFiredRef   = useRef(new Set())
+  const activeRouteStopIdRef = useRef(null)
   const combatAutoResumeRef = useRef(false)
   const pedStateRef         = useRef(createPedometerState())
   const motionHandlerRef    = useRef(null)
+
+  function setActiveRouteStop(id) {
+    activeRouteStopIdRef.current = id
+    setActiveRouteStopIdState(id)
+  }
 
   // ── Nueva partida ────────────────────────────────────────────────────────────
   function handleStart({ archetypeId, creatureId }) {
@@ -264,6 +276,8 @@ export default function App() {
     setBranchKnowledge(createInitialBranchKnowledge())
     setMapCameraState(DEFAULT_MAP_CAMERA)
     setActiveSettlementId(null)
+    setActiveRouteStop(null)
+    routeStopFiredRef.current = new Set()
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
     if (motionHandlerRef.current) {
@@ -326,6 +340,46 @@ export default function App() {
       }
       return withHp
     })
+  }
+
+  // ── Paradas de ruta ──────────────────────────────────────────────────────────
+  function handleRouteStopRest() {
+    const stop   = getRouteStopById(activeRouteStopId)
+    const result = resolveRouteStopRest(player, stop)
+    if (!result.ok) return result
+    setPlayer(prev => ({ ...prev, hp: Math.min(prev.maxHp, prev.hp + result.hpGain) }))
+    return result
+  }
+
+  function handleRouteStopBuy(resourceId) {
+    const result = buyShopItem({ player, inventory, resourceId, qty: 1 })
+    if (result.ok) {
+      setPlayer(result.player)
+      setInventory(result.inventory)
+      return { ok: true, text: `Compraste ${RESOURCES[resourceId]?.name ?? resourceId}` }
+    }
+    return { ok: false, text: result.reason }
+  }
+
+  function handleRouteStopSell(resourceId) {
+    const result = sellInventoryItem({ player, inventory, resourceId, qty: 1 })
+    if (result.ok) {
+      setPlayer(result.player)
+      setInventory(result.inventory)
+      const earned = getResourceSellPrice(resourceId)
+      return { ok: true, text: `Vendiste ${RESOURCES[resourceId]?.name ?? resourceId} · +${earned} ${CURRENCY_SYMBOL}` }
+    }
+    return { ok: false, text: result.reason }
+  }
+
+  function handleDismissRouteStop() {
+    setActiveRouteStop(null)
+  }
+
+  function handleContinueFromRouteStop() {
+    setActiveRouteStop(null)
+    setExpedition(prev => advanceFromSegmentTransition(prev))
+    combatTriggered.current = new Set()
   }
 
   // ── Podómetro experimental ───────────────────────────────────────────────────
@@ -576,6 +630,7 @@ export default function App() {
   }
 
   function handleContinueToNextSegment() {
+    setActiveRouteStop(null)
     setExpedition(prev => advanceFromSegmentTransition(prev))
     combatTriggered.current = new Set()
   }
@@ -972,8 +1027,9 @@ export default function App() {
     if (expedition.status !== 'segment_transition') return
     if (!expedition.segmentTransition) return
 
-    // Tick every second, auto-advance at 0
+    // Tick every second; pause while a route stop dock is open
     const id = setInterval(() => {
+      if (activeRouteStopIdRef.current) return
       setExpedition(prev => {
         if (prev.status !== 'segment_transition' || !prev.segmentTransition) return prev
         const next = prev.segmentTransition.secondsRemaining - 1
@@ -1030,6 +1086,18 @@ export default function App() {
         minimized:       false,
       }]
     })
+  }, [expedition.status, expedition.segmentTransition?.completedSegmentId])
+
+  // ── Detectar parada de ruta al completar un tramo ───────────────────────────
+  useEffect(() => {
+    if (expedition.status !== 'segment_transition') return
+    const st = expedition.segmentTransition
+    if (!st?.completedSegmentId) return
+    if (routeStopFiredRef.current.has(st.completedSegmentId)) return
+    const completedSeg = WORLD_ROUTE_SEGMENTS.find(s => s.id === st.completedSegmentId)
+    if (!completedSeg?.routeStopId) return
+    routeStopFiredRef.current.add(st.completedSegmentId)
+    setActiveRouteStop(completedSeg.routeStopId)
   }, [expedition.status, expedition.segmentTransition?.completedSegmentId])
 
   // ── Efectos de completado ────────────────────────────────────────────────────
@@ -1259,6 +1327,7 @@ export default function App() {
             lastContractResult={lastContractResult}
             onStartContract={handleStartContract}
             onResolveActiveContract={handleResolveActiveContract}
+            activeRouteStop={activeRouteStopId ? getRouteStopById(activeRouteStopId) : null}
           />
         )
       case 'mapa':       return (
@@ -1329,11 +1398,24 @@ export default function App() {
           onGoToMap={() => setCurrentTab('mapa')}
         />
       )}
+      {activeRouteStopId && expedition.status === 'segment_transition' && (
+        <RouteStopDock
+          routeStop={getRouteStopById(activeRouteStopId)}
+          player={player}
+          inventory={inventory}
+          onRest={handleRouteStopRest}
+          onBuy={handleRouteStopBuy}
+          onSell={handleRouteStopSell}
+          onContinue={handleContinueFromRouteStop}
+          onDismiss={handleDismissRouteStop}
+        />
+      )}
       <ExpeditionNoticeDock
         notices={expeditionNotices}
         combat={combat}
         currentTab={currentTab}
         branchChoiceActive={expedition.status === 'branch_choice'}
+        routeStopActive={Boolean(activeRouteStopId)}
         onDismiss={id => setExpeditionNotices(prev => prev.filter(n => n.id !== id))}
         onMinimize={id => setExpeditionNotices(prev => prev.map(n => n.id === id ? { ...n, minimized: !n.minimized } : n))}
         onGoToMap={() => setCurrentTab('mapa')}

@@ -350,6 +350,7 @@ export default function LiveMarchScene({
   onContinueToNextSegment,
   onAbandonExpedition,
   onGoToMap,
+  activeRouteStop,
 }) {
   const isTransition   = expedition.status === 'segment_transition'
   const isBranchChoice = expedition.status === 'branch_choice'
@@ -392,9 +393,17 @@ export default function LiveMarchScene({
           <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'8px 0' }}/>
           <div className="live-march-segment-label" style={{ marginBottom:4, opacity:0.7 }}>Siguiente tramo</div>
           <div className="live-march-segment-next">{t.nextSegmentName}</div>
+          {activeRouteStop && (
+            <div className="live-march-route-stop-signal">
+              <span className="live-march-route-stop-icon">⛺</span>
+              <span className="live-march-route-stop-name">{activeRouteStop.name}</span>
+            </div>
+          )}
           <div className="live-march-segment-timer">
-            La caravana retomará la marcha en{' '}
-            <span style={{ color:'var(--color-parchment)', fontWeight:600 }}>{t.secondsRemaining} s</span>
+            {activeRouteStop
+              ? 'La marcha se ha pausado por la parada.'
+              : <>La caravana retomará la marcha en{' '}<span style={{ color:'var(--color-parchment)', fontWeight:600 }}>{t.secondsRemaining} s</span></>
+            }
           </div>
           <div style={{ height:3, background:'rgba(98,107,111,0.2)', borderRadius:2, margin:'0 0 14px', overflow:'hidden' }}>
             <div style={{

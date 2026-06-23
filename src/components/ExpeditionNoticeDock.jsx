@@ -47,6 +47,7 @@ export default function ExpeditionNoticeDock({
   combat,
   currentTab,
   branchChoiceActive,
+  routeStopActive,
   onDismiss,
   onMinimize,
   onGoToMap,
@@ -76,7 +77,8 @@ export default function ExpeditionNoticeDock({
   const suppress =
     (inCaravan && active.type === 'segment_complete') ||
     (combatActive && active.type !== 'route_complete') ||
-    (branchChoiceActive && active.type !== 'route_complete' && active.type !== 'branch_chosen')
+    (branchChoiceActive && active.type !== 'route_complete' && active.type !== 'branch_chosen') ||
+    (routeStopActive && active.type === 'segment_complete')
 
   if (suppress) return null
 
