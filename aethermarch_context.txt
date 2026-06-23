@@ -147,6 +147,7 @@ src/systems/poiSystem.js
 src/systems/preparationSystem.js
 src/systems/rankSystem.js
 src/systems/routeBranchSystem.js
+src/systems/routeDecisionSystem.js
 src/systems/routeSegmentSystem.js
 src/systems/routeStopSystem.js
 src/systems/saveSystem.js
@@ -1575,151 +1576,6 @@ export default function CollapsiblePanel({ title, defaultOpen = false, children,
           {children}
         </div>
       )}
-    </div>
-  )
-}
-</file>
-
-<file path="src/components/RouteChoiceDock.jsx">
-import { useState, useEffect } from 'react'
-import { getBranchChoiceSummary, getFamiliarityThreatReduction } from '../systems/routeBranchSystem.js'
-
-const RISK_LABEL = { low: 'bajo', medium: 'medio', high: 'alto' }
-const RISK_COLOR = {
-  low:    'var(--color-xp)',
-  medium: 'var(--color-gold)',
-  high:   'var(--color-hp)',
-}
-
-function ProsCons({ pros, cons }) {
-  return (
-    <div className="route-choice-option-proscons">
-      {(pros ?? []).map((p, i) => (
-        <div key={i} className="route-choice-proscon pro">+ {p}</div>
-      ))}
-      {(cons ?? []).map((c, i) => (
-        <div key={i} className="route-choice-proscon con">— {c}</div>
-      ))}
-    </div>
-  )
-}
-
-function BranchOption({ option, knowledge, onChoose }) {
-  const summary       = getBranchChoiceSummary({ knowledge })
-  const riskColor     = RISK_COLOR[option.risk] ?? 'var(--color-stone-light)'
-  const familiar      = getFamiliarityThreatReduction(knowledge)
-  const effectiveThreat = (option.threatModifier ?? 0) + familiar
-
-  return (
-    <div className={`route-choice-option ${summary.status}`}>
-      <div className="route-choice-option-header">
-        <span className="route-choice-option-side">{option.label}</span>
-        <span className="route-choice-option-name">{option.name}</span>
-        <span className="route-choice-option-risk" style={{ color: riskColor }}>
-          Riesgo {RISK_LABEL[option.risk] ?? '?'}
-        </span>
-      </div>
-
-      {summary.status !== 'unknown' && (
-        <div className={`route-choice-option-memory ${summary.status}`}>
-          {summary.label}
-          {familiar < 0 && (
-            <span className="route-choice-option-familiar">
-              {' · '}Amenaza {Math.abs(Math.round(effectiveThreat * 100)) < Math.abs(Math.round((option.threatModifier ?? 0) * 100))
-                ? 'reducida por familiaridad'
-                : 'conocida'}
-            </span>
-          )}
-        </div>
-      )}
-
-      <ProsCons pros={option.pros} cons={option.cons} />
-
-      <button
-        className={`route-choice-option-button ${option.risk === 'high' ? '' : 'primary'}`}
-        onClick={() => onChoose(option.id)}
-      >
-        {option.label === 'Izquierda' ? '← ' : option.label === 'Derecha' ? '→ ' : ''}
-        Tomar {option.shortName ?? option.name}
-      </button>
-    </div>
-  )
-}
-
-export default function RouteChoiceDock({
-  pendingBranchChoice,
-  branchKnowledge,
-  onChooseBranch,
-  onGoToMap,
-}) {
-  const [minimized, setMinimized] = useState(false)
-
-  // Auto-expand when a new branch choice arrives
-  useEffect(() => {
-    if (pendingBranchChoice?.branchId) setMinimized(false)
-  }, [pendingBranchChoice?.branchId])
-
-  if (!pendingBranchChoice) return null
-
-  const { name, description, options = [] } = pendingBranchChoice
-
-  if (minimized) {
-    return (
-      <div className="route-choice-layer">
-        <div className="route-choice-dock minimized">
-          <div className="route-choice-minimized-bar" role="button" onClick={() => setMinimized(false)}>
-            <span className="route-choice-minimized-icon">⑂</span>
-            <span className="route-choice-minimized-title">Bifurcación — {name}</span>
-            <span className="route-choice-minimized-hint">Decisión pendiente</span>
-            <button
-              className="route-choice-expand-btn"
-              aria-label="Expandir elección de ruta"
-              onClick={e => { e.stopPropagation(); setMinimized(false) }}
-            >▲</button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="route-choice-layer">
-      <div className="route-choice-dock">
-        <div className="route-choice-header">
-          <span className="route-choice-fork-icon">⑂</span>
-          <div className="route-choice-titles">
-            <div className="route-choice-title">Bifurcación encontrada</div>
-            <div className="route-choice-subtitle">{name}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            {onGoToMap && (
-              <button className="route-choice-map-btn" onClick={onGoToMap}>
-                Ver mapa
-              </button>
-            )}
-            <button
-              className="route-choice-minimize-btn"
-              aria-label="Minimizar elección de ruta"
-              onClick={() => setMinimized(true)}
-            >—</button>
-          </div>
-        </div>
-
-        {description && (
-          <div className="route-choice-description">{description}</div>
-        )}
-
-        <div className="route-choice-options">
-          {options.map(opt => (
-            <BranchOption
-              key={opt.id}
-              option={opt}
-              knowledge={branchKnowledge?.[opt.id] ?? null}
-              onChoose={onChooseBranch}
-            />
-          ))}
-        </div>
-      </div>
     </div>
   )
 }
@@ -3700,6 +3556,79 @@ export function getAvailableBranchChoice({ expedition, routeBranches, branchKnow
 }
 </file>
 
+<file path="src/systems/routeDecisionSystem.js">
+// Scoring heuristic for choosing the best branch option automatically.
+// Higher score = better choice for the caravan given its current state.
+
+export function chooseRecommendedBranchOption({ options, branchKnowledge, player }) {
+  if (!options?.length) return null
+  if (options.length === 1) return options[0]
+
+  const hp    = player?.hp    ?? 30
+  const maxHp = player?.maxHp ?? 30
+  const hpPct = maxHp > 0 ? hp / maxHp : 1
+  const hpLow = hpPct < 0.40   // critical
+  const hpMed = hpPct < 0.65   // wounded
+
+  const scored = options.map(opt => {
+    let score = 0
+    const know = branchKnowledge?.[opt.id] ?? null
+
+    // ── Base safety score
+    // low risk = +20, medium = +5, high = -20
+    if      (opt.risk === 'low')    score += 20
+    else if (opt.risk === 'medium') score += 5
+    else if (opt.risk === 'high')   score -= 20
+
+    // ── HP penalties: when low, heavily penalize risky paths
+    if (hpLow) {
+      if (opt.risk === 'high')   score -= 40
+      if (opt.risk === 'medium') score -= 12
+      // Bonus for rest potential when HP critical
+      if ((opt.restChanceModifier ?? 0) > 0) score += 18
+      if ((opt.threatModifier ?? 0) > 0.1)   score -= 20
+    } else if (hpMed) {
+      if (opt.risk === 'high') score -= 15
+    }
+
+    // ── Rest signal from pros text (e.g. "Posible descanso")
+    if (hpLow && opt.pros?.some(p => /descans/i.test(p))) score += 10
+
+    // ── Familiarity bonuses (mastered > known multiple > known once)
+    if (know?.mastered)              score += 22
+    else if (know?.chosenCount >= 3) score += 14
+    else if (know?.chosenCount >= 1) score += 8
+
+    // ── Threat modifier: positive = more danger = penalty
+    // scaled so +0.30 threat ≈ -15 score
+    score -= (opt.threatModifier ?? 0) * 50
+
+    return { ...opt, _score: score }
+  })
+
+  // Sort descending by score; break ties with lower risk index
+  const RISK_ORDER = { low: 0, medium: 1, high: 2 }
+  scored.sort((a, b) => {
+    const diff = b._score - a._score
+    if (diff !== 0) return diff
+    return (RISK_ORDER[a.risk] ?? 1) - (RISK_ORDER[b.risk] ?? 1)
+  })
+
+  return scored[0] ?? options[0]
+}
+
+export function getRecommendationReason({ recommended, player }) {
+  const hp    = player?.hp    ?? 30
+  const maxHp = player?.maxHp ?? 30
+  const hpPct = maxHp > 0 ? hp / maxHp : 1
+
+  if (hpPct < 0.40) return 'HP crítico — prioridad: supervivencia'
+  if (hpPct < 0.65 && recommended?.risk === 'low') return 'HP reducido — ruta más segura'
+  if (recommended?.risk === 'low')  return 'Menor riesgo disponible'
+  return 'Mejor equilibrio para la caravana'
+}
+</file>
+
 <file path="src/systems/routeStopSystem.js">
 import { getResourceBuyPrice } from './economySystem.js'
 
@@ -4249,6 +4178,214 @@ export default function CombatAlertModal({
             </button>
           </div>
         )}
+
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="src/components/RouteChoiceDock.jsx">
+import { useState, useEffect } from 'react'
+import { getBranchChoiceSummary, getFamiliarityThreatReduction } from '../systems/routeBranchSystem.js'
+import { chooseRecommendedBranchOption, getRecommendationReason } from '../systems/routeDecisionSystem.js'
+
+export const BRANCH_CHOICE_SECONDS = 15
+
+const RISK_LABEL = { low: 'bajo', medium: 'medio', high: 'alto' }
+const RISK_COLOR = {
+  low:    'var(--color-xp)',
+  medium: 'var(--color-gold)',
+  high:   'var(--color-hp)',
+}
+
+function ProsCons({ pros, cons }) {
+  if (!pros?.length && !cons?.length) return null
+  return (
+    <div className="route-choice-option-proscons">
+      {(pros ?? []).map((p, i) => (
+        <div key={i} className="route-choice-proscon pro">+ {p}</div>
+      ))}
+      {(cons ?? []).map((c, i) => (
+        <div key={i} className="route-choice-proscon con">— {c}</div>
+      ))}
+    </div>
+  )
+}
+
+function BranchOption({ option, knowledge, isRecommended, onChoose }) {
+  const summary         = getBranchChoiceSummary({ knowledge })
+  const riskColor       = RISK_COLOR[option.risk] ?? 'var(--color-stone-light)'
+  const familiar        = getFamiliarityThreatReduction(knowledge)
+  const effectiveThreat = (option.threatModifier ?? 0) + familiar
+  const arrowDir        = option.label === 'Izquierda' ? '← ' : option.label === 'Derecha' ? '→ ' : ''
+
+  return (
+    <div className={`route-choice-option ${summary.status}${isRecommended ? ' recommended' : ''}`}>
+
+      <div className="route-choice-option-header">
+        <span className="route-choice-option-side">{option.label}</span>
+        <span className="route-choice-option-name">{option.name}</span>
+        <div className="route-choice-option-badges">
+          {isRecommended && (
+            <span className="route-choice-recommended-badge">Recomendada</span>
+          )}
+          <span className="route-choice-option-risk" style={{ color: riskColor }}>
+            ● {RISK_LABEL[option.risk] ?? '?'}
+          </span>
+        </div>
+      </div>
+
+      {summary.status !== 'unknown' && (
+        <div className={`route-choice-option-memory ${summary.status}`}>
+          {summary.label}
+          {familiar < 0 && effectiveThreat < (option.threatModifier ?? 0) && (
+            <span className="route-choice-option-familiar"> · Amenaza reducida por familiaridad</span>
+          )}
+        </div>
+      )}
+
+      <ProsCons pros={option.pros} cons={option.cons} />
+
+      <button
+        className={`route-choice-option-button${isRecommended ? ' primary' : option.risk !== 'high' ? ' primary' : ''}`}
+        onClick={() => onChoose(option.id)}
+      >
+        {arrowDir}{option.shortName ?? option.name}
+      </button>
+    </div>
+  )
+}
+
+export default function RouteChoiceDock({
+  pendingBranchChoice,
+  branchKnowledge,
+  player,
+  onChooseBranch,
+  onGoToMap,
+}) {
+  const [minimized, setMinimized] = useState(false)
+  const [timeLeft,  setTimeLeft]  = useState(BRANCH_CHOICE_SECONDS)
+  const [chose,     setChose]     = useState(false)
+
+  // Reset when a new branch arrives
+  useEffect(() => {
+    if (pendingBranchChoice?.branchId) {
+      setMinimized(false)
+      setTimeLeft(BRANCH_CHOICE_SECONDS)
+      setChose(false)
+    }
+  }, [pendingBranchChoice?.branchId])
+
+  // Countdown — auto-choose on 0
+  useEffect(() => {
+    if (!pendingBranchChoice || chose) return
+    if (timeLeft <= 0) {
+      const rec = chooseRecommendedBranchOption({
+        options:        pendingBranchChoice.options ?? [],
+        branchKnowledge,
+        player,
+      })
+      if (rec) {
+        setChose(true)
+        onChooseBranch(rec.id)
+      }
+      return
+    }
+    const id = setTimeout(() => setTimeLeft(t => t - 1), 1000)
+    return () => clearTimeout(id)
+  }, [timeLeft, pendingBranchChoice?.branchId, chose])
+
+  if (!pendingBranchChoice) return null
+
+  const { name, description, options = [] } = pendingBranchChoice
+
+  const recommended = chooseRecommendedBranchOption({ options, branchKnowledge, player })
+  const reason      = getRecommendationReason({ recommended, player })
+  const timerPct    = Math.max(0, (timeLeft / BRANCH_CHOICE_SECONDS) * 100)
+
+  function handleChoose(optionId) {
+    setChose(true)
+    onChooseBranch(optionId)
+  }
+
+  if (minimized) {
+    return (
+      <div className="route-choice-layer">
+        <div className="route-choice-dock minimized">
+          <div className="route-choice-minimized-bar" role="button" onClick={() => setMinimized(false)}>
+            <span className="route-choice-minimized-icon">⑂</span>
+            <span className="route-choice-minimized-title">Bifurcación — {name}</span>
+            <span className="route-choice-minimized-hint">{timeLeft}s</span>
+            <button
+              className="route-choice-expand-btn"
+              aria-label="Expandir elección de ruta"
+              onClick={e => { e.stopPropagation(); setMinimized(false) }}
+            >▲</button>
+          </div>
+          <div className="route-choice-timer-bar-wrap">
+            <div className="route-choice-timer-bar" style={{ width: `${timerPct}%` }}/>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="route-choice-layer">
+      <div className="route-choice-dock">
+
+        {/* Timer bar at top edge */}
+        <div className="route-choice-timer-bar-wrap">
+          <div className="route-choice-timer-bar" style={{ width: `${timerPct}%` }}/>
+        </div>
+
+        {/* Header */}
+        <div className="route-choice-header">
+          <span className="route-choice-fork-icon">⑂</span>
+          <div className="route-choice-titles">
+            <div className="route-choice-title">Bifurcación encontrada</div>
+            <div className="route-choice-subtitle">{name}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <span className="route-choice-timer-label">{timeLeft}s</span>
+            {onGoToMap && (
+              <button className="route-choice-map-btn" onClick={onGoToMap}>
+                Ver mapa
+              </button>
+            )}
+            <button
+              className="route-choice-minimize-btn"
+              aria-label="Minimizar"
+              onClick={() => setMinimized(true)}
+            >—</button>
+          </div>
+        </div>
+
+        {/* Auto-choice notice */}
+        {recommended && (
+          <div className="route-choice-auto-notice">
+            Si no eliges, la caravana tomará <strong>{recommended.shortName ?? recommended.name}</strong>
+            <span className="route-choice-auto-reason"> · {reason}</span>
+          </div>
+        )}
+
+        {description && (
+          <div className="route-choice-description">{description}</div>
+        )}
+
+        {/* Options */}
+        <div className="route-choice-options">
+          {options.map(opt => (
+            <BranchOption
+              key={opt.id}
+              option={opt}
+              knowledge={branchKnowledge?.[opt.id] ?? null}
+              isRecommended={opt.id === recommended?.id}
+              onChoose={handleChoose}
+            />
+          ))}
+        </div>
 
       </div>
     </div>
@@ -5474,682 +5611,6 @@ export function completeCurrentRouteSegment({ routeRun, route, segments }) {
 }
 </file>
 
-<file path="src/components/ExpeditionNoticeDock.jsx">
-import { useEffect } from 'react'
-
-const NOTICE_PRIORITY = {
-  route_complete: 0, route_discovery: 1, segment_complete: 2,
-  major_reward: 3, rest_stop: 4, danger_passed: 5, branch_chosen: 6,
-}
-
-function getTopNotice(notices) {
-  const now    = Date.now()
-  const active = notices.filter(n => !n.expiresAt || n.expiresAt > now)
-  if (!active.length) return null
-  return [...active].sort((a, b) =>
-    (NOTICE_PRIORITY[a.type] ?? 99) - (NOTICE_PRIORITY[b.type] ?? 99)
-  )[0]
-}
-
-function formatRewards(rewards) {
-  if (!rewards) return null
-  const parts = []
-  if (rewards.resources) {
-    Object.entries(rewards.resources).forEach(([k, v]) => {
-      if (v > 0) parts.push(`${k.replace(/_/g, ' ')} ×${v}`)
-    })
-  }
-  if ((rewards.xp ?? 0) > 0) parts.push(`+${rewards.xp} XP`)
-  return parts.length ? parts.join(' · ') : null
-}
-
-function NoticeIcon({ type }) {
-  const icons = {
-    route_complete:  '✦',
-    route_discovery: '◈',
-    major_reward:    '◇',
-    segment_complete: '›',
-    rest_stop:       '○',
-    danger_passed:   '△',
-  }
-  return (
-    <span className={`expedition-notice-icon expedition-notice-icon-${type}`}>
-      {icons[type] ?? '·'}
-    </span>
-  )
-}
-
-export default function ExpeditionNoticeDock({
-  notices,
-  combat,
-  currentTab,
-  branchChoiceActive,
-  routeStopActive,
-  onDismiss,
-  onMinimize,
-  onGoToMap,
-  onGoToCaravan,
-  onGoToInventory,
-}) {
-  const active = getTopNotice(notices)
-
-  // Auto-dismiss expired notices
-  useEffect(() => {
-    if (!active?.autoDismiss || !active?.expiresAt) return
-    const remaining = Math.max(0, active.expiresAt - Date.now())
-    if (remaining <= 0) { onDismiss(active.id); return }
-    const t = setTimeout(() => onDismiss(active.id), remaining)
-    return () => clearTimeout(t)
-  }, [active?.id, active?.expiresAt])
-
-  if (!active) return null
-
-  const combatActive = combat?.status === 'awaiting_choice' || combat?.status === 'resolved'
-  const inCaravan    = currentTab === 'caravana'
-
-  // Suppress segment_complete entirely when caravan handles it visually
-  // or when combat is demanding full attention
-  // Suppress when branch choice is pending (RouteChoiceDock takes visual priority)
-  // Exception: route_complete and branch_chosen still show
-  const suppress =
-    (inCaravan && active.type === 'segment_complete') ||
-    (combatActive && active.type !== 'route_complete') ||
-    (branchChoiceActive && active.type !== 'route_complete' && active.type !== 'branch_chosen') ||
-    (routeStopActive && active.type === 'segment_complete')
-
-  if (suppress) return null
-
-  const shouldMinimize = active.minimized
-
-  const dockClass = [
-    'expedition-notice-dock',
-    active.type.replace('_', '-'),
-    shouldMinimize ? 'minimized' : '',
-  ].filter(Boolean).join(' ')
-
-  // Push notice above combat dock when both are visible
-  const bottomOffset = (combatActive && active.type === 'route_complete') ? 236 : 64
-
-  const rewardText = formatRewards(active.rewards)
-
-  return (
-    <div className="expedition-notice-layer" style={{ bottom: bottomOffset }}>
-      <div className={dockClass}>
-
-        {shouldMinimize ? (
-          /* ── Minimizada ── */
-          <div className="expedition-notice-minimized-bar"
-               onClick={() => onMinimize(active.id)}
-               role="button">
-            <NoticeIcon type={active.type}/>
-            <span className="expedition-notice-minimized-title">{active.title}</span>
-            {active.subtitle && (
-              <span className="expedition-notice-minimized-sub">{active.subtitle}</span>
-            )}
-            <button
-              className="expedition-notice-close"
-              onClick={e => { e.stopPropagation(); onDismiss(active.id) }}
-              aria-label="Cerrar aviso">×</button>
-          </div>
-        ) : (
-          /* ── Expandida ── */
-          <>
-            <div className="expedition-notice-header">
-              <NoticeIcon type={active.type}/>
-              <div className="expedition-notice-titles">
-                <div className="expedition-notice-title">{active.title}</div>
-                {active.subtitle && (
-                  <div className="expedition-notice-subtitle">{active.subtitle}</div>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button
-                  className="expedition-notice-close"
-                  onClick={() => onMinimize(active.id)}
-                  aria-label="Minimizar aviso"
-                  style={{ fontSize: '0.7rem', opacity: 0.6 }}>—</button>
-                <button
-                  className="expedition-notice-close"
-                  onClick={() => onDismiss(active.id)}
-                  aria-label="Cerrar aviso">×</button>
-              </div>
-            </div>
-
-            {active.body && (
-              <div className="expedition-notice-body">{active.body}</div>
-            )}
-
-            {active.type === 'segment_complete' && active.nextSegmentName && (
-              <div className="expedition-notice-next">
-                Siguiente: <strong>{active.nextSegmentName}</strong>
-              </div>
-            )}
-
-            {rewardText && (
-              <div className="expedition-notice-rewards">{rewardText}</div>
-            )}
-
-            <div className="expedition-notice-actions">
-              {active.type === 'segment_complete' && (
-                <>
-                  <button className="expedition-notice-action"
-                          onClick={() => { onGoToMap(); onDismiss(active.id) }}>
-                    Ver ruta
-                  </button>
-                  <button className="expedition-notice-action primary"
-                          onClick={() => { onGoToCaravan(); onDismiss(active.id) }}>
-                    Ver caravana
-                  </button>
-                </>
-              )}
-
-              {active.type === 'route_complete' && (
-                <>
-                  <button className="expedition-notice-action"
-                          onClick={() => { onGoToMap(); onDismiss(active.id) }}>
-                    Ver mapa
-                  </button>
-                  <button className="expedition-notice-action primary"
-                          onClick={() => { onGoToCaravan(); onDismiss(active.id) }}>
-                    Ver resumen
-                  </button>
-                </>
-              )}
-
-              {active.type === 'route_discovery' && (
-                <button className="expedition-notice-action primary"
-                        onClick={() => { onGoToMap(); onDismiss(active.id) }}>
-                  Ver en mapa
-                </button>
-              )}
-
-              {active.type === 'major_reward' && (
-                <button className="expedition-notice-action primary"
-                        onClick={() => { onGoToInventory(); onDismiss(active.id) }}>
-                  Ver inventario
-                </button>
-              )}
-
-              {active.type === 'rest_stop' && (
-                <button className="expedition-notice-action primary"
-                        onClick={() => { onGoToCaravan(); onDismiss(active.id) }}>
-                  Ver caravana
-                </button>
-              )}
-            </div>
-
-            {active.autoDismiss && active.expiresAt && active.createdAt && (
-              <div className="expedition-notice-progress">
-                <div
-                  className="expedition-notice-progress-fill"
-                  style={{
-                    animationDuration: `${active.expiresAt - active.createdAt}ms`,
-                  }}
-                />
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-</file>
-
-<file path="src/components/LiveMarchScene.jsx">
-import { RESOURCES } from '../data/gameData.js'
-import ArchetypeToken from './tokens/ArchetypeToken.jsx'
-import CreatureToken  from './tokens/CreatureToken.jsx'
-import ResourceNode   from './tokens/ResourceNode.jsx'
-
-// ── SVG Biome Backdrops ───────────────────────────────────────────────────────
-
-function ForestBackdrop() {
-  return (
-    <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}
-         viewBox="0 0 360 290" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <linearGradient id="fs-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#030604"/><stop offset="100%" stopColor="#091009"/>
-        </linearGradient>
-        <linearGradient id="fs-rd" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#120F07" stopOpacity="0"/><stop offset="100%" stopColor="#1A1309"/>
-        </linearGradient>
-        <linearGradient id="fs-gnd" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#080F08"/><stop offset="100%" stopColor="#040904"/>
-        </linearGradient>
-        <linearGradient id="fs-mst" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0D1A0D" stopOpacity="0"/><stop offset="100%" stopColor="#0D1A0D" stopOpacity="0.82"/>
-        </linearGradient>
-      </defs>
-      <rect width="360" height="290" fill="url(#fs-sky)"/>
-      <ellipse cx="18"  cy="155" rx="24" ry="52" fill="#040A04"/>
-      <ellipse cx="58"  cy="140" rx="20" ry="56" fill="#030903"/>
-      <ellipse cx="98"  cy="150" rx="22" ry="44" fill="#050B05"/>
-      <ellipse cx="143" cy="136" rx="18" ry="52" fill="#030903"/>
-      <ellipse cx="216" cy="138" rx="20" ry="50" fill="#040A04"/>
-      <ellipse cx="258" cy="148" rx="22" ry="44" fill="#030903"/>
-      <ellipse cx="304" cy="134" rx="20" ry="56" fill="#050B05"/>
-      <ellipse cx="346" cy="150" rx="18" ry="42" fill="#040A04"/>
-      <rect x="0"  y="118" width="14" height="172" fill="#030703" rx="2"/>
-      <rect x="22" y="144" width="9"  height="146" fill="#030703" rx="1"/>
-      <rect x="40" y="160" width="6"  height="130" fill="#030803" rx="1"/>
-      <rect x="346" y="114" width="14" height="176" fill="#030703" rx="2"/>
-      <rect x="328" y="142" width="9"  height="148" fill="#030803" rx="1"/>
-      <rect x="312" y="162" width="6"  height="128" fill="#030803" rx="1"/>
-      <ellipse cx="7"   cy="108" rx="33" ry="60" fill="#020902"/>
-      <ellipse cx="30"  cy="130" rx="24" ry="44" fill="#020A02"/>
-      <ellipse cx="353" cy="104" rx="34" ry="64" fill="#020902"/>
-      <ellipse cx="330" cy="134" rx="24" ry="46" fill="#020A02"/>
-      <rect x="0" y="226" width="360" height="64" fill="url(#fs-gnd)"/>
-      <path d="M132 192 L228 192 L310 290 L50 290 Z" fill="url(#fs-rd)"/>
-      <path d="M132 192 L228 192 L310 290 L50 290 Z" fill="#14100A" fillOpacity="0.5"/>
-      <rect x="174" y="218" width="12" height="1.5" fill="#1C1609" rx="1"/>
-      <rect x="163" y="244" width="34" height="1.5" fill="#1C1609" rx="1"/>
-      <rect x="148" y="272" width="64" height="1.5" fill="#1C1609" rx="1"/>
-      <rect x="264" y="206" width="9" height="22" fill="#0C1510" rx="1"/>
-      <rect x="264" y="210" width="9" height="2"  fill="#3FA34D" fillOpacity="0.38"/>
-      <rect x="264" y="214" width="9" height="1"  fill="#3FA34D" fillOpacity="0.2"/>
-      <path d="M42 290 Q58 264 48 240 Q53 226 66 232 Q75 240 68 260" stroke="#040904" strokeWidth="4" fill="none"/>
-      <rect x="0" y="212" width="360" height="78" fill="url(#fs-mst)"/>
-      <ellipse cx="180" cy="222" rx="172" ry="26" fill="#0C180C" fillOpacity="0.38"/>
-    </svg>
-  )
-}
-
-function CoastBackdrop() {
-  return (
-    <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}
-         viewBox="0 0 360 290" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <linearGradient id="cb-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#04060A"/><stop offset="100%" stopColor="#0B1020"/>
-        </linearGradient>
-        <linearGradient id="cb-wtr" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0A1525"/><stop offset="100%" stopColor="#060C18"/>
-        </linearGradient>
-        <linearGradient id="cb-rd" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#10121A" stopOpacity="0"/><stop offset="100%" stopColor="#14161E"/>
-        </linearGradient>
-      </defs>
-      <rect width="360" height="290" fill="url(#cb-sky)"/>
-      <rect x="0" y="108" width="360" height="112" fill="url(#cb-wtr)"/>
-      <path d="M0 126 Q60 120 120 128 Q180 136 240 124 Q300 114 360 128" stroke="#0E1E35" strokeWidth="1.5" fill="none" opacity="0.7"/>
-      <path d="M0 144 Q80 136 160 146 Q240 154 320 142 Q344 138 360 146" stroke="#0E1E35" strokeWidth="1" fill="none" opacity="0.45"/>
-      <path d="M0 162 Q70 154 140 162 Q220 170 300 156 Q330 152 360 162" stroke="#0E1E35" strokeWidth="1" fill="none" opacity="0.3"/>
-      <ellipse cx="54"  cy="188" rx="28" ry="20" fill="#090B14"/>
-      <ellipse cx="43"  cy="185" rx="16" ry="12" fill="#0C0E16"/>
-      <ellipse cx="296" cy="190" rx="24" ry="17" fill="#090B14"/>
-      <ellipse cx="310" cy="187" rx="14" ry="11" fill="#0C0E16"/>
-      <polygon points="64,164 67,148 70,164" fill="#1A2535" opacity="0.55"/>
-      <polygon points="57,167 60,152 63,167" fill="#1A2535" opacity="0.45"/>
-      <polygon points="299,165 301,149 304,165" fill="#1A2535" opacity="0.45"/>
-      <rect x="0" y="210" width="360" height="80" fill="#0A0C10"/>
-      <path d="M134 188 L226 188 L302 290 L58 290 Z" fill="url(#cb-rd)"/>
-      <path d="M134 188 L226 188 L302 290 L58 290 Z" fill="#121420" fillOpacity="0.5"/>
-      <rect x="172" y="220" width="16" height="1.5" fill="#16182A" rx="1"/>
-      <rect x="161" y="248" width="38" height="1.5" fill="#16182A" rx="1"/>
-      <rect x="0" y="122" width="360" height="80" fill="#0A1A30" fillOpacity="0.28"/>
-      <ellipse cx="180" cy="224" rx="180" ry="30" fill="#0A1530" fillOpacity="0.32"/>
-    </svg>
-  )
-}
-
-function ForgeBackdrop() {
-  return (
-    <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}
-         viewBox="0 0 360 290" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <linearGradient id="fk-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#070402"/><stop offset="100%" stopColor="#130905"/>
-        </linearGradient>
-        <radialGradient id="fk-glow" cx="50%" cy="92%" r="46%">
-          <stop offset="0%" stopColor="#8B3A0A" stopOpacity="0.38"/>
-          <stop offset="100%" stopColor="#130905" stopOpacity="0"/>
-        </radialGradient>
-        <linearGradient id="fk-rd" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#1C1109" stopOpacity="0"/><stop offset="100%" stopColor="#1C1109"/>
-        </linearGradient>
-      </defs>
-      <rect width="360" height="290" fill="url(#fk-sky)"/>
-      <rect x="0"   y="54" width="126" height="236" fill="#0D0805"/>
-      <rect x="234" y="67" width="126" height="223" fill="#0D0805"/>
-      <rect x="142" y="96"  width="76" height="106" fill="#090604"/>
-      <path d="M142 96 Q180 64 218 96" fill="#090604"/>
-      <rect x="144" y="96"  width="72" height="104" fill="#060403"/>
-      <rect x="108" y="108" width="20" height="132" fill="#100A06" rx="1"/>
-      <rect x="105" y="106" width="26" height="10"  fill="#130C07" rx="1"/>
-      <rect x="105" y="236" width="26" height="4"   fill="#130C07" rx="1"/>
-      <path d="M105 180 L131 176" stroke="#080504" strokeWidth="4"/>
-      <rect x="103" y="178" width="30" height="5"   fill="#0F0905" fillOpacity="0.6"/>
-      <rect x="232" y="120" width="16" height="120" fill="#100A06" rx="1"/>
-      <rect x="229" y="118" width="22" height="8"   fill="#130C07" rx="1"/>
-      <rect x="0" y="240" width="360" height="50" fill="url(#fk-glow)"/>
-      <rect x="0" y="240" width="360" height="50" fill="#110806"/>
-      <path d="M134 188 L226 188 L300 290 L60 290 Z" fill="url(#fk-rd)"/>
-      <path d="M134 188 L226 188 L300 290 L60 290 Z" fill="#1C1109" fillOpacity="0.5"/>
-      <line x1="88"  y1="246" x2="272" y2="246" stroke="#100905" strokeWidth="1"/>
-      <line x1="72"  y1="272" x2="288" y2="272" stroke="#100905" strokeWidth="1"/>
-      <line x1="180" y1="195" x2="180" y2="290" stroke="#100905" strokeWidth="1"/>
-      <circle cx="148" cy="178" r="1.5" fill="#D46A2D" fillOpacity="0.75"/>
-      <circle cx="218" cy="192" r="1"   fill="#D46A2D" fillOpacity="0.55"/>
-      <circle cx="175" cy="163" r="1.2" fill="#D46A2D" fillOpacity="0.45"/>
-      <circle cx="202" cy="172" r="1.5" fill="#D46A2D" fillOpacity="0.65"/>
-      <path d="M180 136 Q175 118 184 98 Q189 82 178 66"  stroke="#1C1208" strokeWidth="3" fill="none" opacity="0.35"/>
-      <path d="M186 140 Q193 122 185 105 Q178 92 191 78" stroke="#1C1208" strokeWidth="2" fill="none" opacity="0.25"/>
-    </svg>
-  )
-}
-
-function BiomeMarchBackdrop({ biomeId }) {
-  if (biomeId === 'coast') return <CoastBackdrop />
-  if (biomeId === 'forge') return <ForgeBackdrop />
-  return <ForestBackdrop />
-}
-
-// ── Lantern (exported so CaravanScreen can reuse it in camp scene) ─────────────
-
-export function LanternSVG() {
-  return (
-    <svg width="26" height="34" viewBox="0 0 26 34">
-      <rect x="11" y="0" width="4" height="5" fill="#3A2618" rx="1"/>
-      <rect x="5"  y="5" width="16" height="22" fill="#1A1208" rx="2"/>
-      <rect x="7"  y="7" width="12" height="18" fill="rgba(184,148,74,0.07)" rx="1"/>
-      <rect x="7"  y="7" width="3"  height="18" fill="rgba(184,148,74,0.05)"/>
-      <rect x="16" y="7" width="3"  height="18" fill="rgba(184,148,74,0.05)"/>
-      <ellipse cx="13" cy="17" rx="3"   ry="4"   fill="rgba(212,106,45,0.32)"/>
-      <ellipse cx="13" cy="18" rx="1.8" ry="2.5" fill="rgba(212,106,45,0.52)"/>
-      <rect x="4" y="27" width="18" height="3" fill="#3A2618" rx="1"/>
-      <ellipse cx="13" cy="17" rx="9" ry="9" fill="rgba(184,148,74,0.07)"/>
-    </svg>
-  )
-}
-
-// ── Event visual floating inside the scene canvas ────────────────────────────
-
-function MarchEventVisual({ event }) {
-  if (!event) return null
-  const base = { position:'absolute', zIndex:6, animation:'eventAppear 0.5s ease-out' }
-
-  if (event.type === 'resource') {
-    return (
-      <div style={{ ...base, top:'14%', right:'10%' }}>
-        <div style={{
-          background:'rgba(7,8,7,0.88)', border:'1px solid rgba(184,148,74,0.45)',
-          borderRadius:6, padding:'6px 8px', textAlign:'center',
-          animation:'resourceGlow 2.2s ease-in-out infinite',
-        }}>
-          <ResourceNode resourceId={event.resourceId} size={30} />
-          {event.resourceId && (
-            <div style={{ fontSize:'0.5rem', color:'var(--color-gold)', marginTop:2, letterSpacing:'0.04em', maxWidth:56 }}>
-              {RESOURCES[event.resourceId]?.name ?? ''}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  if (event.type === 'exploration') {
-    return (
-      <div style={{ ...base, top:'20%', left:'8%' }}>
-        <svg width="50" height="60" viewBox="0 0 50 60">
-          <ellipse cx="25" cy="30" rx="20" ry="26" fill="rgba(30,55,30,0.32)"/>
-          <path d="M8 30 Q25 8 42 30" stroke="rgba(63,163,77,0.22)" strokeWidth="1.5" fill="none"/>
-          <rect x="23" y="14" width="4" height="36" fill="#0A1309" rx="1"/>
-          <rect x="21" y="20" width="8" height="2"  fill="#0A1309" rx="1"/>
-          <rect x="23" y="16" width="4" height="1"  fill="#3FA34D" fillOpacity="0.42"/>
-          <rect x="23" y="20" width="4" height="1"  fill="#3FA34D" fillOpacity="0.22"/>
-        </svg>
-      </div>
-    )
-  }
-
-  if (event.type === 'creature') {
-    return (
-      <div style={{ ...base, top:'32%', left:'8%' }}>
-        <div style={{
-          width:54, height:54, borderRadius:'50%',
-          border:'1px solid rgba(79,143,149,0.3)',
-          boxShadow:'0 0 14px rgba(79,143,149,0.12)',
-          display:'flex', alignItems:'center', justifyContent:'center',
-        }}>
-          <div style={{ width:34, height:34, borderRadius:'50%', border:'1px solid rgba(79,143,149,0.18)' }}/>
-        </div>
-      </div>
-    )
-  }
-
-  if (event.type === 'threat') {
-    return (
-      <div style={{ ...base, top:'28%', left:'5%' }}>
-        <svg width="50" height="54" viewBox="0 0 50 54">
-          <ellipse cx="25" cy="40" rx="13" ry="7"  fill="rgba(180,40,40,0.14)"/>
-          <ellipse cx="16" cy="26" rx="5"   ry="7" fill="rgba(180,40,40,0.1)"/>
-          <ellipse cx="26" cy="24" rx="5"   ry="7" fill="rgba(180,40,40,0.1)"/>
-          <ellipse cx="34" cy="28" rx="4.5" ry="6" fill="rgba(180,40,40,0.09)"/>
-          <ellipse cx="8"  cy="12" rx="3.5" ry="2.2" fill="rgba(214,60,60,0.38)"/>
-          <ellipse cx="18" cy="10" rx="3.5" ry="2.2" fill="rgba(214,60,60,0.38)"/>
-        </svg>
-      </div>
-    )
-  }
-
-  if (event.type === 'microevent') {
-    return (
-      <div style={{ ...base, top:'18%', left:'36%' }}>
-        <svg width="46" height="44" viewBox="0 0 46 44">
-          <path d="M3 22  Q13 16 23 22 Q33 28 46 20" stroke="rgba(184,148,74,0.28)" strokeWidth="1.5" fill="none"/>
-          <path d="M3 28  Q11 22 21 28 Q31 34 46 26" stroke="rgba(184,148,74,0.18)" strokeWidth="1"   fill="none"/>
-          <circle cx="23" cy="10" r="5"   fill="rgba(184,148,74,0.1)"/>
-          <circle cx="23" cy="10" r="2.5" fill="rgba(184,148,74,0.26)"/>
-        </svg>
-      </div>
-    )
-  }
-
-  return null
-}
-
-// ── Event toast card (below the scene) ───────────────────────────────────────
-
-const TOAST_LABEL = {
-  resource:    'Hallazgo',
-  exploration: 'Senda',
-  creature:    'Criatura',
-  threat:      'Amenaza',
-  microevent:  'Atmósfera',
-}
-
-function MarchEventToast({ event }) {
-  if (!event) return null
-  return (
-    <div className={`live-march-event-toast ${event.type ?? ''}`}>
-      <div className="live-march-event-toast-type">
-        {TOAST_LABEL[event.type] ?? event.type}
-      </div>
-      <div className="live-march-event-toast-text">{event.text}</div>
-      {event.resourceGain && Object.entries(event.resourceGain).length > 0 && (
-        <div className="live-march-event-toast-rewards">
-          {Object.entries(event.resourceGain).map(([id, qty]) => (
-            <div key={id} className="live-march-event-toast-reward">
-              <ResourceNode resourceId={id} size={16} />
-              <span>+{qty} {RESOURCES[id]?.name ?? id}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {(event.xpGain ?? 0) > 0 && (
-        <div className="live-march-event-toast-reward" style={{ color:'var(--color-xp)' }}>
-          +{event.xpGain} XP
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Scene core (stable component — not nested inside LiveMarchScene) ───────────
-
-function MarchSceneCore({ expedition, player, isTransition }) {
-  const biomeId   = expedition.biomeId ?? 'forest'
-  const latestEvt = expedition.events?.[expedition.events.length - 1] ?? null
-  const mistColor = biomeId === 'coast'
-    ? 'rgba(10,15,30,0.76)'
-    : biomeId === 'forge'
-    ? 'rgba(20,10,5,0.8)'
-    : 'rgba(10,18,10,0.76)'
-
-  return (
-    <div className={`live-march-scene ${biomeId}`}>
-      <div className="live-march-background">
-        <BiomeMarchBackdrop biomeId={biomeId} />
-      </div>
-      <div className="march-road-wrap">
-        <div className="march-road-surface" />
-        <div className="march-road-marks" />
-      </div>
-      <div className="march-mist" style={{ background:`linear-gradient(to top, ${mistColor}, transparent)` }}/>
-      {!isTransition && <MarchEventVisual event={latestEvt} />}
-      <div className="live-march-party">
-        <div className="live-march-creature"><CreatureToken creatureId={player.creatureId} size={62} /></div>
-        <div className="live-march-lantern"><LanternSVG /></div>
-        <div className="live-march-character"><ArchetypeToken archetypeId={player.archetypeId} size={70} /></div>
-      </div>
-      <div className="march-header-overlay">
-        <span style={{ color:'var(--color-gold)' }}>Tramo {expedition.currentTramo}</span>
-        {expedition.routeName ? (
-          <span style={{ color:'var(--color-parchment)', fontSize:'0.6rem' }}>{expedition.routeName}</span>
-        ) : (
-          <span style={{ color:'var(--color-parchment)' }}>Marcha Libre</span>
-        )}
-        {expedition.routeSegmentName ? (
-          <span style={{ color:'var(--color-mist)', fontSize:'0.58rem' }}>
-            {isTransition ? (
-              <>Tramo {expedition.routeSegmentOrder}/{expedition.routeSegmentCount} completado</>
-            ) : (
-              <>Tramo {expedition.routeSegmentOrder}/{expedition.routeSegmentCount} · {expedition.routeSegmentName}</>
-            )}
-          </span>
-        ) : null}
-        {!isTransition && (
-          <span style={{ color:'var(--color-stone-light)' }}>
-            {expedition.currentSteps}&thinsp;/&thinsp;{expedition.targetSteps}
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── Main export ───────────────────────────────────────────────────────────────
-
-export default function LiveMarchScene({
-  expedition,
-  player,
-  onContinueToNextSegment,
-  onAbandonExpedition,
-  onGoToMap,
-  activeRouteStop,
-}) {
-  const isTransition   = expedition.status === 'segment_transition'
-  const isBranchChoice = expedition.status === 'branch_choice'
-  const t              = expedition.segmentTransition ?? null
-  const latestEvt      = expedition.events?.[expedition.events.length - 1] ?? null
-
-  // ── Branch choice waiting state ───────────────────────────────────────────
-  if (isBranchChoice) {
-    const bc = expedition.pendingBranchChoice
-    return (
-      <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:'var(--color-bg)' }}>
-        <MarchSceneCore expedition={expedition} player={player} isTransition />
-        <div className="live-march-branch-waiting">
-          <div className="live-march-segment-label">Bifurcación en el camino</div>
-          {bc?.name && (
-            <div className="live-march-segment-name">{bc.name}</div>
-          )}
-          <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'8px 0' }}/>
-          <div style={{ fontSize:'0.68rem', color:'var(--color-stone-light)', marginBottom:14, fontStyle:'italic', lineHeight:1.45 }}>
-            La caravana espera una decisión de camino.
-          </div>
-          {onGoToMap && (
-            <button className="btn btn-primary" onClick={onGoToMap}>
-              Ver opciones en el mapa →
-            </button>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // ── Segment transition ────────────────────────────────────────────────────
-  if (isTransition && t) {
-    return (
-      <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:'var(--color-bg)' }}>
-        <MarchSceneCore expedition={expedition} player={player} isTransition />
-        <div className="live-march-segment-transition">
-          <div className="live-march-segment-label">Tramo completado</div>
-          <div className="live-march-segment-name">{t.completedSegmentName}</div>
-          <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'8px 0' }}/>
-          <div className="live-march-segment-label" style={{ marginBottom:4, opacity:0.7 }}>Siguiente tramo</div>
-          <div className="live-march-segment-next">{t.nextSegmentName}</div>
-          {activeRouteStop && (
-            <div className="live-march-route-stop-signal">
-              <span className="live-march-route-stop-icon">⛺</span>
-              <span className="live-march-route-stop-name">{activeRouteStop.name}</span>
-            </div>
-          )}
-          <div className="live-march-segment-timer">
-            {activeRouteStop
-              ? 'La marcha se ha pausado por la parada.'
-              : <>La caravana retomará la marcha en{' '}<span style={{ color:'var(--color-parchment)', fontWeight:600 }}>{t.secondsRemaining} s</span></>
-            }
-          </div>
-          <div style={{ height:3, background:'rgba(98,107,111,0.2)', borderRadius:2, margin:'0 0 14px', overflow:'hidden' }}>
-            <div style={{
-              height:'100%', borderRadius:2, background:'var(--color-teal)',
-              width:`${(t.secondsRemaining / 20) * 100}%`, transition:'width 1s linear',
-            }}/>
-          </div>
-          <button className="btn btn-primary" style={{ marginBottom:8 }} onClick={onContinueToNextSegment}>
-            Siguiente tramo
-          </button>
-          <button
-            className="btn btn-secondary"
-            style={{ fontSize:'0.6rem', opacity:0.65 }}
-            onClick={onAbandonExpedition}
-          >
-            Abandonar expedición
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Marching ─────────────────────────────────────────────────────────────
-  return (
-    <>
-      <MarchSceneCore expedition={expedition} player={player} isTransition={false} />
-
-      <div className="live-march-progress">
-        <div className="live-march-progress-meta">
-          <span>{expedition.routeSegmentName ?? expedition.routeName ?? '—'}</span>
-          <span style={{ color:'var(--color-xp)' }}>{expedition.progress}%</span>
-        </div>
-        <div className="live-march-progress-track">
-          <div className="live-march-progress-fill" style={{ width:`${expedition.progress}%` }}/>
-        </div>
-        <div className="live-march-progress-meta" style={{ opacity:0.7, marginTop:2 }}>
-          <span>{expedition.events.length} hallazgo{expedition.events.length !== 1 ? 's' : ''}</span>
-          <span>{expedition.currentSteps} / {expedition.targetSteps} pasos</span>
-        </div>
-      </div>
-
-      {latestEvt && <MarchEventToast event={latestEvt} />}
-    </>
-  )
-}
-</file>
-
 <file path="src/systems/codexSystem.js">
 import { ABYSS_STRATA, RESOURCES, ENEMIES, CREATURES, POIS } from '../data/gameData.js'
 
@@ -6784,6 +6245,811 @@ export default defineConfig({
 })
 </file>
 
+<file path="src/components/ExpeditionNoticeDock.jsx">
+import { useEffect, useState } from 'react'
+
+const NOTICE_PRIORITY = {
+  route_complete: 0, route_discovery: 1, segment_complete: 2,
+  major_reward: 3, rest_stop: 4, danger_passed: 5, branch_chosen: 6,
+}
+
+function getTopNotice(notices) {
+  const now    = Date.now()
+  const active = notices.filter(n => !n.expiresAt || n.expiresAt > now)
+  if (!active.length) return null
+  return [...active].sort((a, b) =>
+    (NOTICE_PRIORITY[a.type] ?? 99) - (NOTICE_PRIORITY[b.type] ?? 99)
+  )[0]
+}
+
+function formatRewards(rewards) {
+  if (!rewards) return null
+  const parts = []
+  if (rewards.resources) {
+    Object.entries(rewards.resources).forEach(([k, v]) => {
+      if (v > 0) parts.push(`${k.replace(/_/g, ' ')} ×${v}`)
+    })
+  }
+  if ((rewards.xp ?? 0) > 0) parts.push(`+${rewards.xp} XP`)
+  return parts.length ? parts.join(' · ') : null
+}
+
+function NoticeIcon({ type }) {
+  const icons = {
+    route_complete:  '✦',
+    route_discovery: '◈',
+    major_reward:    '◇',
+    segment_complete: '›',
+    rest_stop:       '○',
+    danger_passed:   '△',
+  }
+  return (
+    <span className={`expedition-notice-icon expedition-notice-icon-${type}`}>
+      {icons[type] ?? '·'}
+    </span>
+  )
+}
+
+export default function ExpeditionNoticeDock({
+  notices,
+  combat,
+  currentTab,
+  branchChoiceActive,
+  routeStopActive,
+  onDismiss,
+  onMinimize,
+  onGoToMap,
+  onGoToCaravan,
+  onGoToInventory,
+  onContinueNow,
+}) {
+  const active = getTopNotice(notices)
+
+  // Countdown display for segment_complete (uses expiresAt)
+  const [segCountdown, setSegCountdown] = useState(null)
+  useEffect(() => {
+    if (active?.type !== 'segment_complete' || !active?.expiresAt) {
+      setSegCountdown(null)
+      return
+    }
+    function tick() {
+      const s = Math.max(0, Math.round((active.expiresAt - Date.now()) / 1000))
+      setSegCountdown(s)
+    }
+    tick()
+    const id = setInterval(tick, 500)
+    return () => clearInterval(id)
+  }, [active?.id, active?.type, active?.expiresAt])
+
+  // Auto-dismiss expired notices
+  useEffect(() => {
+    if (!active?.autoDismiss || !active?.expiresAt) return
+    const remaining = Math.max(0, active.expiresAt - Date.now())
+    if (remaining <= 0) { onDismiss(active.id); return }
+    const t = setTimeout(() => onDismiss(active.id), remaining)
+    return () => clearTimeout(t)
+  }, [active?.id, active?.expiresAt])
+
+  if (!active) return null
+
+  const combatActive = combat?.status === 'awaiting_choice' || combat?.status === 'resolved'
+  const inCaravan    = currentTab === 'caravana'
+
+  // Suppress segment_complete entirely when caravan handles it visually
+  // or when combat is demanding full attention
+  // Suppress when branch choice is pending (RouteChoiceDock takes visual priority)
+  // Exception: route_complete and branch_chosen still show
+  const suppress =
+    (inCaravan && active.type === 'segment_complete') ||
+    (combatActive && active.type !== 'route_complete') ||
+    (branchChoiceActive && active.type !== 'route_complete' && active.type !== 'branch_chosen') ||
+    (routeStopActive && active.type === 'segment_complete')
+
+  if (suppress) return null
+
+  const shouldMinimize = active.minimized
+
+  const dockClass = [
+    'expedition-notice-dock',
+    active.type.replace('_', '-'),
+    shouldMinimize ? 'minimized' : '',
+  ].filter(Boolean).join(' ')
+
+  // Push notice above combat dock when both are visible
+  const bottomOffset = (combatActive && active.type === 'route_complete') ? 236 : 64
+
+  const rewardText = formatRewards(active.rewards)
+
+  return (
+    <div className="expedition-notice-layer" style={{ bottom: bottomOffset }}>
+      <div className={dockClass}>
+
+        {shouldMinimize ? (
+          /* ── Minimizada ── */
+          <div className="expedition-notice-minimized-bar"
+               onClick={() => onMinimize(active.id)}
+               role="button">
+            <NoticeIcon type={active.type}/>
+            <span className="expedition-notice-minimized-title">{active.title}</span>
+            {active.subtitle && (
+              <span className="expedition-notice-minimized-sub">{active.subtitle}</span>
+            )}
+            <button
+              className="expedition-notice-close"
+              onClick={e => { e.stopPropagation(); onDismiss(active.id) }}
+              aria-label="Cerrar aviso">×</button>
+          </div>
+        ) : (
+          /* ── Expandida ── */
+          <>
+            <div className="expedition-notice-header">
+              <NoticeIcon type={active.type}/>
+              <div className="expedition-notice-titles">
+                <div className="expedition-notice-title">{active.title}</div>
+                {active.subtitle && (
+                  <div className="expedition-notice-subtitle">{active.subtitle}</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  className="expedition-notice-close"
+                  onClick={() => onMinimize(active.id)}
+                  aria-label="Minimizar aviso"
+                  style={{ fontSize: '0.7rem', opacity: 0.6 }}>—</button>
+                <button
+                  className="expedition-notice-close"
+                  onClick={() => onDismiss(active.id)}
+                  aria-label="Cerrar aviso">×</button>
+              </div>
+            </div>
+
+            {active.body && (
+              <div className="expedition-notice-body">{active.body}</div>
+            )}
+
+            {active.type === 'segment_complete' && active.nextSegmentName && (
+              <div className="expedition-notice-next">
+                Siguiente: <strong>{active.nextSegmentName}</strong>
+              </div>
+            )}
+
+            {rewardText && (
+              <div className="expedition-notice-rewards">{rewardText}</div>
+            )}
+
+            {active.type === 'segment_complete' && segCountdown !== null && (
+              <div className="expedition-notice-seg-countdown">
+                <div className="expedition-notice-seg-countdown-bar-wrap">
+                  <div
+                    className="expedition-notice-seg-countdown-bar"
+                    style={{
+                      animationDuration: `${active.expiresAt - active.createdAt}ms`,
+                    }}
+                  />
+                </div>
+                <span className="expedition-notice-seg-countdown-label">
+                  Siguiente tramo en {segCountdown}s
+                </span>
+              </div>
+            )}
+
+            <div className="expedition-notice-actions">
+              {active.type === 'segment_complete' && (
+                <>
+                  <button className="expedition-notice-action"
+                          onClick={() => { onGoToMap(); onDismiss(active.id) }}>
+                    Ver ruta
+                  </button>
+                  <button className="expedition-notice-action primary"
+                          onClick={() => { onContinueNow?.(); onDismiss(active.id) }}>
+                    Continuar ahora
+                  </button>
+                </>
+              )}
+
+              {active.type === 'route_complete' && (
+                <>
+                  <button className="expedition-notice-action"
+                          onClick={() => { onGoToMap(); onDismiss(active.id) }}>
+                    Ver mapa
+                  </button>
+                  <button className="expedition-notice-action primary"
+                          onClick={() => { onGoToCaravan(); onDismiss(active.id) }}>
+                    Ver resumen
+                  </button>
+                </>
+              )}
+
+              {active.type === 'route_discovery' && (
+                <button className="expedition-notice-action primary"
+                        onClick={() => { onGoToMap(); onDismiss(active.id) }}>
+                  Ver en mapa
+                </button>
+              )}
+
+              {active.type === 'major_reward' && (
+                <button className="expedition-notice-action primary"
+                        onClick={() => { onGoToInventory(); onDismiss(active.id) }}>
+                  Ver inventario
+                </button>
+              )}
+
+              {active.type === 'rest_stop' && (
+                <button className="expedition-notice-action primary"
+                        onClick={() => { onGoToCaravan(); onDismiss(active.id) }}>
+                  Ver caravana
+                </button>
+              )}
+            </div>
+
+            {active.autoDismiss && active.expiresAt && active.createdAt && (
+              <div className="expedition-notice-progress">
+                <div
+                  className="expedition-notice-progress-fill"
+                  style={{
+                    animationDuration: `${active.expiresAt - active.createdAt}ms`,
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="src/components/LiveMarchScene.jsx">
+import { RESOURCES } from '../data/gameData.js'
+import ArchetypeToken from './tokens/ArchetypeToken.jsx'
+import CreatureToken  from './tokens/CreatureToken.jsx'
+import ResourceNode   from './tokens/ResourceNode.jsx'
+
+// ── SVG Biome Backdrops ───────────────────────────────────────────────────────
+
+function ForestBackdrop() {
+  return (
+    <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}
+         viewBox="0 0 360 290" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="fs-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#030604"/><stop offset="100%" stopColor="#091009"/>
+        </linearGradient>
+        <linearGradient id="fs-rd" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#120F07" stopOpacity="0"/><stop offset="100%" stopColor="#1A1309"/>
+        </linearGradient>
+        <linearGradient id="fs-gnd" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#080F08"/><stop offset="100%" stopColor="#040904"/>
+        </linearGradient>
+        <linearGradient id="fs-mst" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#0D1A0D" stopOpacity="0"/><stop offset="100%" stopColor="#0D1A0D" stopOpacity="0.82"/>
+        </linearGradient>
+      </defs>
+      <rect width="360" height="290" fill="url(#fs-sky)"/>
+      <ellipse cx="18"  cy="155" rx="24" ry="52" fill="#040A04"/>
+      <ellipse cx="58"  cy="140" rx="20" ry="56" fill="#030903"/>
+      <ellipse cx="98"  cy="150" rx="22" ry="44" fill="#050B05"/>
+      <ellipse cx="143" cy="136" rx="18" ry="52" fill="#030903"/>
+      <ellipse cx="216" cy="138" rx="20" ry="50" fill="#040A04"/>
+      <ellipse cx="258" cy="148" rx="22" ry="44" fill="#030903"/>
+      <ellipse cx="304" cy="134" rx="20" ry="56" fill="#050B05"/>
+      <ellipse cx="346" cy="150" rx="18" ry="42" fill="#040A04"/>
+      <rect x="0"  y="118" width="14" height="172" fill="#030703" rx="2"/>
+      <rect x="22" y="144" width="9"  height="146" fill="#030703" rx="1"/>
+      <rect x="40" y="160" width="6"  height="130" fill="#030803" rx="1"/>
+      <rect x="346" y="114" width="14" height="176" fill="#030703" rx="2"/>
+      <rect x="328" y="142" width="9"  height="148" fill="#030803" rx="1"/>
+      <rect x="312" y="162" width="6"  height="128" fill="#030803" rx="1"/>
+      <ellipse cx="7"   cy="108" rx="33" ry="60" fill="#020902"/>
+      <ellipse cx="30"  cy="130" rx="24" ry="44" fill="#020A02"/>
+      <ellipse cx="353" cy="104" rx="34" ry="64" fill="#020902"/>
+      <ellipse cx="330" cy="134" rx="24" ry="46" fill="#020A02"/>
+      <rect x="0" y="226" width="360" height="64" fill="url(#fs-gnd)"/>
+      <path d="M132 192 L228 192 L310 290 L50 290 Z" fill="url(#fs-rd)"/>
+      <path d="M132 192 L228 192 L310 290 L50 290 Z" fill="#14100A" fillOpacity="0.5"/>
+      <rect x="174" y="218" width="12" height="1.5" fill="#1C1609" rx="1"/>
+      <rect x="163" y="244" width="34" height="1.5" fill="#1C1609" rx="1"/>
+      <rect x="148" y="272" width="64" height="1.5" fill="#1C1609" rx="1"/>
+      <rect x="264" y="206" width="9" height="22" fill="#0C1510" rx="1"/>
+      <rect x="264" y="210" width="9" height="2"  fill="#3FA34D" fillOpacity="0.38"/>
+      <rect x="264" y="214" width="9" height="1"  fill="#3FA34D" fillOpacity="0.2"/>
+      <path d="M42 290 Q58 264 48 240 Q53 226 66 232 Q75 240 68 260" stroke="#040904" strokeWidth="4" fill="none"/>
+      <rect x="0" y="212" width="360" height="78" fill="url(#fs-mst)"/>
+      <ellipse cx="180" cy="222" rx="172" ry="26" fill="#0C180C" fillOpacity="0.38"/>
+    </svg>
+  )
+}
+
+function CoastBackdrop() {
+  return (
+    <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}
+         viewBox="0 0 360 290" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="cb-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#04060A"/><stop offset="100%" stopColor="#0B1020"/>
+        </linearGradient>
+        <linearGradient id="cb-wtr" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#0A1525"/><stop offset="100%" stopColor="#060C18"/>
+        </linearGradient>
+        <linearGradient id="cb-rd" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#10121A" stopOpacity="0"/><stop offset="100%" stopColor="#14161E"/>
+        </linearGradient>
+      </defs>
+      <rect width="360" height="290" fill="url(#cb-sky)"/>
+      <rect x="0" y="108" width="360" height="112" fill="url(#cb-wtr)"/>
+      <path d="M0 126 Q60 120 120 128 Q180 136 240 124 Q300 114 360 128" stroke="#0E1E35" strokeWidth="1.5" fill="none" opacity="0.7"/>
+      <path d="M0 144 Q80 136 160 146 Q240 154 320 142 Q344 138 360 146" stroke="#0E1E35" strokeWidth="1" fill="none" opacity="0.45"/>
+      <path d="M0 162 Q70 154 140 162 Q220 170 300 156 Q330 152 360 162" stroke="#0E1E35" strokeWidth="1" fill="none" opacity="0.3"/>
+      <ellipse cx="54"  cy="188" rx="28" ry="20" fill="#090B14"/>
+      <ellipse cx="43"  cy="185" rx="16" ry="12" fill="#0C0E16"/>
+      <ellipse cx="296" cy="190" rx="24" ry="17" fill="#090B14"/>
+      <ellipse cx="310" cy="187" rx="14" ry="11" fill="#0C0E16"/>
+      <polygon points="64,164 67,148 70,164" fill="#1A2535" opacity="0.55"/>
+      <polygon points="57,167 60,152 63,167" fill="#1A2535" opacity="0.45"/>
+      <polygon points="299,165 301,149 304,165" fill="#1A2535" opacity="0.45"/>
+      <rect x="0" y="210" width="360" height="80" fill="#0A0C10"/>
+      <path d="M134 188 L226 188 L302 290 L58 290 Z" fill="url(#cb-rd)"/>
+      <path d="M134 188 L226 188 L302 290 L58 290 Z" fill="#121420" fillOpacity="0.5"/>
+      <rect x="172" y="220" width="16" height="1.5" fill="#16182A" rx="1"/>
+      <rect x="161" y="248" width="38" height="1.5" fill="#16182A" rx="1"/>
+      <rect x="0" y="122" width="360" height="80" fill="#0A1A30" fillOpacity="0.28"/>
+      <ellipse cx="180" cy="224" rx="180" ry="30" fill="#0A1530" fillOpacity="0.32"/>
+    </svg>
+  )
+}
+
+function ForgeBackdrop() {
+  return (
+    <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}
+         viewBox="0 0 360 290" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="fk-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#070402"/><stop offset="100%" stopColor="#130905"/>
+        </linearGradient>
+        <radialGradient id="fk-glow" cx="50%" cy="92%" r="46%">
+          <stop offset="0%" stopColor="#8B3A0A" stopOpacity="0.38"/>
+          <stop offset="100%" stopColor="#130905" stopOpacity="0"/>
+        </radialGradient>
+        <linearGradient id="fk-rd" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#1C1109" stopOpacity="0"/><stop offset="100%" stopColor="#1C1109"/>
+        </linearGradient>
+      </defs>
+      <rect width="360" height="290" fill="url(#fk-sky)"/>
+      <rect x="0"   y="54" width="126" height="236" fill="#0D0805"/>
+      <rect x="234" y="67" width="126" height="223" fill="#0D0805"/>
+      <rect x="142" y="96"  width="76" height="106" fill="#090604"/>
+      <path d="M142 96 Q180 64 218 96" fill="#090604"/>
+      <rect x="144" y="96"  width="72" height="104" fill="#060403"/>
+      <rect x="108" y="108" width="20" height="132" fill="#100A06" rx="1"/>
+      <rect x="105" y="106" width="26" height="10"  fill="#130C07" rx="1"/>
+      <rect x="105" y="236" width="26" height="4"   fill="#130C07" rx="1"/>
+      <path d="M105 180 L131 176" stroke="#080504" strokeWidth="4"/>
+      <rect x="103" y="178" width="30" height="5"   fill="#0F0905" fillOpacity="0.6"/>
+      <rect x="232" y="120" width="16" height="120" fill="#100A06" rx="1"/>
+      <rect x="229" y="118" width="22" height="8"   fill="#130C07" rx="1"/>
+      <rect x="0" y="240" width="360" height="50" fill="url(#fk-glow)"/>
+      <rect x="0" y="240" width="360" height="50" fill="#110806"/>
+      <path d="M134 188 L226 188 L300 290 L60 290 Z" fill="url(#fk-rd)"/>
+      <path d="M134 188 L226 188 L300 290 L60 290 Z" fill="#1C1109" fillOpacity="0.5"/>
+      <line x1="88"  y1="246" x2="272" y2="246" stroke="#100905" strokeWidth="1"/>
+      <line x1="72"  y1="272" x2="288" y2="272" stroke="#100905" strokeWidth="1"/>
+      <line x1="180" y1="195" x2="180" y2="290" stroke="#100905" strokeWidth="1"/>
+      <circle cx="148" cy="178" r="1.5" fill="#D46A2D" fillOpacity="0.75"/>
+      <circle cx="218" cy="192" r="1"   fill="#D46A2D" fillOpacity="0.55"/>
+      <circle cx="175" cy="163" r="1.2" fill="#D46A2D" fillOpacity="0.45"/>
+      <circle cx="202" cy="172" r="1.5" fill="#D46A2D" fillOpacity="0.65"/>
+      <path d="M180 136 Q175 118 184 98 Q189 82 178 66"  stroke="#1C1208" strokeWidth="3" fill="none" opacity="0.35"/>
+      <path d="M186 140 Q193 122 185 105 Q178 92 191 78" stroke="#1C1208" strokeWidth="2" fill="none" opacity="0.25"/>
+    </svg>
+  )
+}
+
+function BiomeMarchBackdrop({ biomeId }) {
+  if (biomeId === 'coast') return <CoastBackdrop />
+  if (biomeId === 'forge') return <ForgeBackdrop />
+  return <ForestBackdrop />
+}
+
+// ── Lantern (exported so CaravanScreen can reuse it in camp scene) ─────────────
+
+export function LanternSVG() {
+  return (
+    <svg width="26" height="34" viewBox="0 0 26 34">
+      <rect x="11" y="0" width="4" height="5" fill="#3A2618" rx="1"/>
+      <rect x="5"  y="5" width="16" height="22" fill="#1A1208" rx="2"/>
+      <rect x="7"  y="7" width="12" height="18" fill="rgba(184,148,74,0.07)" rx="1"/>
+      <rect x="7"  y="7" width="3"  height="18" fill="rgba(184,148,74,0.05)"/>
+      <rect x="16" y="7" width="3"  height="18" fill="rgba(184,148,74,0.05)"/>
+      <ellipse cx="13" cy="17" rx="3"   ry="4"   fill="rgba(212,106,45,0.32)"/>
+      <ellipse cx="13" cy="18" rx="1.8" ry="2.5" fill="rgba(212,106,45,0.52)"/>
+      <rect x="4" y="27" width="18" height="3" fill="#3A2618" rx="1"/>
+      <ellipse cx="13" cy="17" rx="9" ry="9" fill="rgba(184,148,74,0.07)"/>
+    </svg>
+  )
+}
+
+// ── Event visual floating inside the scene canvas ────────────────────────────
+
+function MarchEventVisual({ event }) {
+  if (!event) return null
+  const base = { position:'absolute', zIndex:6, animation:'eventAppear 0.5s ease-out' }
+
+  if (event.type === 'resource') {
+    return (
+      <div style={{ ...base, top:'14%', right:'10%' }}>
+        <div style={{
+          background:'rgba(7,8,7,0.88)', border:'1px solid rgba(184,148,74,0.45)',
+          borderRadius:6, padding:'6px 8px', textAlign:'center',
+          animation:'resourceGlow 2.2s ease-in-out infinite',
+        }}>
+          <ResourceNode resourceId={event.resourceId} size={30} />
+          {event.resourceId && (
+            <div style={{ fontSize:'0.5rem', color:'var(--color-gold)', marginTop:2, letterSpacing:'0.04em', maxWidth:56 }}>
+              {RESOURCES[event.resourceId]?.name ?? ''}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if (event.type === 'exploration') {
+    return (
+      <div style={{ ...base, top:'20%', left:'8%' }}>
+        <svg width="50" height="60" viewBox="0 0 50 60">
+          <ellipse cx="25" cy="30" rx="20" ry="26" fill="rgba(30,55,30,0.32)"/>
+          <path d="M8 30 Q25 8 42 30" stroke="rgba(63,163,77,0.22)" strokeWidth="1.5" fill="none"/>
+          <rect x="23" y="14" width="4" height="36" fill="#0A1309" rx="1"/>
+          <rect x="21" y="20" width="8" height="2"  fill="#0A1309" rx="1"/>
+          <rect x="23" y="16" width="4" height="1"  fill="#3FA34D" fillOpacity="0.42"/>
+          <rect x="23" y="20" width="4" height="1"  fill="#3FA34D" fillOpacity="0.22"/>
+        </svg>
+      </div>
+    )
+  }
+
+  if (event.type === 'creature') {
+    return (
+      <div style={{ ...base, top:'32%', left:'8%' }}>
+        <div style={{
+          width:54, height:54, borderRadius:'50%',
+          border:'1px solid rgba(79,143,149,0.3)',
+          boxShadow:'0 0 14px rgba(79,143,149,0.12)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+        }}>
+          <div style={{ width:34, height:34, borderRadius:'50%', border:'1px solid rgba(79,143,149,0.18)' }}/>
+        </div>
+      </div>
+    )
+  }
+
+  if (event.type === 'threat') {
+    return (
+      <div style={{ ...base, top:'28%', left:'5%' }}>
+        <svg width="50" height="54" viewBox="0 0 50 54">
+          <ellipse cx="25" cy="40" rx="13" ry="7"  fill="rgba(180,40,40,0.14)"/>
+          <ellipse cx="16" cy="26" rx="5"   ry="7" fill="rgba(180,40,40,0.1)"/>
+          <ellipse cx="26" cy="24" rx="5"   ry="7" fill="rgba(180,40,40,0.1)"/>
+          <ellipse cx="34" cy="28" rx="4.5" ry="6" fill="rgba(180,40,40,0.09)"/>
+          <ellipse cx="8"  cy="12" rx="3.5" ry="2.2" fill="rgba(214,60,60,0.38)"/>
+          <ellipse cx="18" cy="10" rx="3.5" ry="2.2" fill="rgba(214,60,60,0.38)"/>
+        </svg>
+      </div>
+    )
+  }
+
+  if (event.type === 'microevent') {
+    return (
+      <div style={{ ...base, top:'18%', left:'36%' }}>
+        <svg width="46" height="44" viewBox="0 0 46 44">
+          <path d="M3 22  Q13 16 23 22 Q33 28 46 20" stroke="rgba(184,148,74,0.28)" strokeWidth="1.5" fill="none"/>
+          <path d="M3 28  Q11 22 21 28 Q31 34 46 26" stroke="rgba(184,148,74,0.18)" strokeWidth="1"   fill="none"/>
+          <circle cx="23" cy="10" r="5"   fill="rgba(184,148,74,0.1)"/>
+          <circle cx="23" cy="10" r="2.5" fill="rgba(184,148,74,0.26)"/>
+        </svg>
+      </div>
+    )
+  }
+
+  return null
+}
+
+// ── Event toast card (below the scene) ───────────────────────────────────────
+
+const TOAST_LABEL = {
+  resource:    'Hallazgo',
+  exploration: 'Senda',
+  creature:    'Criatura',
+  threat:      'Amenaza',
+  microevent:  'Atmósfera',
+}
+
+function MarchEventToast({ event }) {
+  if (!event) return null
+  return (
+    <div className={`live-march-event-toast ${event.type ?? ''}`}>
+      <div className="live-march-event-toast-type">
+        {TOAST_LABEL[event.type] ?? event.type}
+      </div>
+      <div className="live-march-event-toast-text">{event.text}</div>
+      {event.resourceGain && Object.entries(event.resourceGain).length > 0 && (
+        <div className="live-march-event-toast-rewards">
+          {Object.entries(event.resourceGain).map(([id, qty]) => (
+            <div key={id} className="live-march-event-toast-reward">
+              <ResourceNode resourceId={id} size={16} />
+              <span>+{qty} {RESOURCES[id]?.name ?? id}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {(event.xpGain ?? 0) > 0 && (
+        <div className="live-march-event-toast-reward" style={{ color:'var(--color-xp)' }}>
+          +{event.xpGain} XP
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Scene core (stable component — not nested inside LiveMarchScene) ───────────
+
+function MarchSceneCore({ expedition, player, isTransition }) {
+  const biomeId   = expedition.biomeId ?? 'forest'
+  const latestEvt = expedition.events?.[expedition.events.length - 1] ?? null
+  const mistColor = biomeId === 'coast'
+    ? 'rgba(10,15,30,0.76)'
+    : biomeId === 'forge'
+    ? 'rgba(20,10,5,0.8)'
+    : 'rgba(10,18,10,0.76)'
+
+  return (
+    <div className={`live-march-scene ${biomeId}`}>
+      <div className="live-march-background">
+        <BiomeMarchBackdrop biomeId={biomeId} />
+      </div>
+      <div className="march-road-wrap">
+        <div className="march-road-surface" />
+        <div className="march-road-marks" />
+      </div>
+      <div className="march-mist" style={{ background:`linear-gradient(to top, ${mistColor}, transparent)` }}/>
+      {!isTransition && <MarchEventVisual event={latestEvt} />}
+      <div className="live-march-party">
+        <div className="live-march-creature"><CreatureToken creatureId={player.creatureId} size={62} /></div>
+        <div className="live-march-lantern"><LanternSVG /></div>
+        <div className="live-march-character"><ArchetypeToken archetypeId={player.archetypeId} size={70} /></div>
+      </div>
+      <div className="march-header-overlay">
+        <span style={{ color:'var(--color-gold)' }}>Tramo {expedition.currentTramo}</span>
+        {expedition.routeName ? (
+          <span style={{ color:'var(--color-parchment)', fontSize:'0.6rem' }}>{expedition.routeName}</span>
+        ) : (
+          <span style={{ color:'var(--color-parchment)' }}>Marcha Libre</span>
+        )}
+        {expedition.routeSegmentName ? (
+          <span style={{ color:'var(--color-mist)', fontSize:'0.58rem' }}>
+            {isTransition ? (
+              <>Tramo {expedition.routeSegmentOrder}/{expedition.routeSegmentCount} completado</>
+            ) : (
+              <>Tramo {expedition.routeSegmentOrder}/{expedition.routeSegmentCount} · {expedition.routeSegmentName}</>
+            )}
+          </span>
+        ) : null}
+        {!isTransition && (
+          <span style={{ color:'var(--color-stone-light)' }}>
+            {expedition.currentSteps}&thinsp;/&thinsp;{expedition.targetSteps}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Fork SVG overlay for branch_choice ───────────────────────────────────────
+
+const FORK_RISK_COLOR = {
+  low:    'rgba(74,163,74,0.72)',
+  medium: 'rgba(184,148,74,0.72)',
+  high:   'rgba(180,60,60,0.72)',
+}
+
+function BranchSceneFork({ expedition, player, bc }) {
+  const biomeId   = expedition.biomeId ?? 'forest'
+  const options   = bc?.options ?? []
+  const leftOpt   = options.find(o => o.label === 'Izquierda' || o.side === 'left') ?? options[0] ?? null
+  const rightOpt  = options.find(o => o.label === 'Derecha'   || o.side === 'right') ?? options[1] ?? null
+  const mistColor = biomeId === 'coast'
+    ? 'rgba(10,15,30,0.76)'
+    : biomeId === 'forge'
+    ? 'rgba(20,10,5,0.8)'
+    : 'rgba(10,18,10,0.76)'
+
+  return (
+    <div className="live-march-scene branch-state">
+      <div className="live-march-background">
+        <BiomeMarchBackdrop biomeId={biomeId} />
+      </div>
+      {/* Road hidden via CSS .branch-state .march-road-wrap */}
+      <div className="march-road-wrap">
+        <div className="march-road-surface" />
+        <div className="march-road-marks" />
+      </div>
+      <div className="march-mist" style={{ background:`linear-gradient(to top, ${mistColor}, transparent)` }}/>
+
+      {/* Fork SVG overlay */}
+      <div className="march-fork-overlay">
+        <svg width="100%" height="100%" viewBox="0 0 360 290" preserveAspectRatio="xMidYMid meet"
+             style={{ position:'absolute', inset:0 }}>
+          {/* Main path up to fork */}
+          <path d="M180 290 L180 200 L180 168" stroke="rgba(184,148,74,0.28)" strokeWidth={6}
+                strokeDasharray="12 7" fill="none" strokeLinecap="round"/>
+          {/* Fork point marker */}
+          <circle cx={180} cy={164} r={5} fill="rgba(184,148,74,0.55)"/>
+
+          {/* Left arm */}
+          <path d="M180 164 L96 112" stroke={leftOpt ? FORK_RISK_COLOR[leftOpt.risk] ?? 'rgba(184,148,74,0.5)' : 'rgba(184,148,74,0.35)'}
+                strokeWidth={4} strokeDasharray="10 6" fill="none" strokeLinecap="round"/>
+          {leftOpt && (
+            <>
+              <text x={83} y={103} textAnchor="middle" fontSize={8} fill={FORK_RISK_COLOR[leftOpt.risk] ?? 'rgba(184,148,74,0.7)'}
+                    fontFamily="Georgia,serif" fontStyle="italic">
+                {leftOpt.shortName ?? leftOpt.name}
+              </text>
+              <text x={83} y={113} textAnchor="middle" fontSize={6.5} fill="rgba(184,148,74,0.5)"
+                    fontFamily="Georgia,serif">
+                ←
+              </text>
+            </>
+          )}
+
+          {/* Right arm */}
+          <path d="M180 164 L264 112" stroke={rightOpt ? FORK_RISK_COLOR[rightOpt.risk] ?? 'rgba(184,148,74,0.5)' : 'rgba(184,148,74,0.35)'}
+                strokeWidth={4} strokeDasharray="10 6" fill="none" strokeLinecap="round"/>
+          {rightOpt && (
+            <>
+              <text x={277} y={103} textAnchor="middle" fontSize={8} fill={FORK_RISK_COLOR[rightOpt.risk] ?? 'rgba(184,148,74,0.7)'}
+                    fontFamily="Georgia,serif" fontStyle="italic">
+                {rightOpt.shortName ?? rightOpt.name}
+              </text>
+              <text x={277} y={113} textAnchor="middle" fontSize={6.5} fill="rgba(184,148,74,0.5)"
+                    fontFamily="Georgia,serif">
+                →
+              </text>
+            </>
+          )}
+        </svg>
+      </div>
+
+      {/* Party idle — CSS stops marchBob animation via .branch-state */}
+      <div className="live-march-party">
+        <div className="live-march-creature branch-party-idle">
+          <CreatureToken creatureId={player.creatureId} size={62} />
+        </div>
+        <div className="live-march-lantern"><LanternSVG /></div>
+        <div className="live-march-character branch-party-idle">
+          <ArchetypeToken archetypeId={player.archetypeId} size={70} />
+        </div>
+      </div>
+
+      <div className="march-header-overlay">
+        <span style={{ color:'var(--color-gold)' }}>Tramo {expedition.currentTramo}</span>
+        {expedition.routeName ? (
+          <span style={{ color:'var(--color-parchment)', fontSize:'0.6rem' }}>{expedition.routeName}</span>
+        ) : (
+          <span style={{ color:'var(--color-parchment)' }}>Marcha Libre</span>
+        )}
+        {bc?.name && (
+          <span style={{ color:'var(--color-mist)', fontSize:'0.58rem', fontStyle:'italic' }}>{bc.name}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
+export default function LiveMarchScene({
+  expedition,
+  player,
+  onContinueToNextSegment,
+  onAbandonExpedition,
+  onGoToMap,
+  activeRouteStop,
+}) {
+  const isTransition   = expedition.status === 'segment_transition'
+  const isBranchChoice = expedition.status === 'branch_choice'
+  const t              = expedition.segmentTransition ?? null
+  const latestEvt      = expedition.events?.[expedition.events.length - 1] ?? null
+
+  // ── Branch choice — fork visual ──────────────────────────────────────────
+  if (isBranchChoice) {
+    const bc = expedition.pendingBranchChoice
+    return (
+      <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:'var(--color-bg)' }}>
+        <BranchSceneFork expedition={expedition} player={player} bc={bc} />
+        <div className="live-march-branch-waiting">
+          <div className="live-march-segment-label">Bifurcación en el camino</div>
+          {bc?.name && (
+            <div className="live-march-segment-name">{bc.name}</div>
+          )}
+          <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'8px 0' }}/>
+          <div style={{ fontSize:'0.68rem', color:'var(--color-stone-light)', fontStyle:'italic', lineHeight:1.45 }}>
+            La caravana aguarda tu decisión.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Segment transition ────────────────────────────────────────────────────
+  if (isTransition && t) {
+    return (
+      <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:'var(--color-bg)' }}>
+        <MarchSceneCore expedition={expedition} player={player} isTransition />
+        <div className="live-march-segment-transition">
+          <div className="live-march-segment-label">Tramo completado</div>
+          <div className="live-march-segment-name">{t.completedSegmentName}</div>
+          <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'8px 0' }}/>
+          <div className="live-march-segment-label" style={{ marginBottom:4, opacity:0.7 }}>Siguiente tramo</div>
+          <div className="live-march-segment-next">{t.nextSegmentName}</div>
+          {activeRouteStop && (
+            <div className="live-march-route-stop-signal">
+              <span className="live-march-route-stop-icon">⛺</span>
+              <span className="live-march-route-stop-name">{activeRouteStop.name}</span>
+            </div>
+          )}
+          <div className="live-march-segment-timer">
+            {activeRouteStop
+              ? 'La marcha se ha pausado por la parada.'
+              : <>La caravana retomará la marcha en{' '}<span style={{ color:'var(--color-parchment)', fontWeight:600 }}>{t.secondsRemaining} s</span></>
+            }
+          </div>
+          <div style={{ height:3, background:'rgba(98,107,111,0.2)', borderRadius:2, margin:'0 0 14px', overflow:'hidden' }}>
+            <div style={{
+              height:'100%', borderRadius:2, background:'var(--color-teal)',
+              width:`${(t.secondsRemaining / 10) * 100}%`, transition:'width 1s linear',
+            }}/>
+          </div>
+          <button className="btn btn-primary" style={{ marginBottom:8 }} onClick={onContinueToNextSegment}>
+            Siguiente tramo
+          </button>
+          <button
+            className="btn btn-secondary"
+            style={{ fontSize:'0.6rem', opacity:0.65 }}
+            onClick={onAbandonExpedition}
+          >
+            Abandonar expedición
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Marching ─────────────────────────────────────────────────────────────
+  return (
+    <>
+      <MarchSceneCore expedition={expedition} player={player} isTransition={false} />
+
+      <div className="live-march-progress">
+        <div className="live-march-progress-meta">
+          <span>{expedition.routeSegmentName ?? expedition.routeName ?? '—'}</span>
+          <span style={{ color:'var(--color-xp)' }}>{expedition.progress}%</span>
+        </div>
+        <div className="live-march-progress-track">
+          <div className="live-march-progress-fill" style={{ width:`${expedition.progress}%` }}/>
+        </div>
+        <div className="live-march-progress-meta" style={{ opacity:0.7, marginTop:2 }}>
+          <span>{expedition.events.length} hallazgo{expedition.events.length !== 1 ? 's' : ''}</span>
+          <span>{expedition.currentSteps} / {expedition.targetSteps} pasos</span>
+        </div>
+      </div>
+
+      {latestEvt && <MarchEventToast event={latestEvt} />}
+    </>
+  )
+}
+</file>
+
 <file path="src/screens/DiaryScreen.jsx">
 import { RESOURCES, BIOMES } from '../data/gameData.js'
 
@@ -7396,21 +7662,38 @@ function getMarchPositionOnNetwork(networks, expedition, routeSegments) {
   }
 }
 
-function MarchPositionMarker({ x, y, paused }) {
+function MarchPositionMarker({ x, y, paused, status }) {
+  const isBranch = status === 'branch_choice'
   return (
     <g transform={`translate(${x}, ${y})`}>
-      <circle cx={0} cy={0} r={14}
-              fill="rgba(79,143,149,0.06)"
-              stroke="rgba(79,143,149,0.2)" strokeWidth={1}
-              className={paused ? '' : 'map-march-marker-ring'}/>
-      <circle cx={0} cy={0} r={8}
-              fill="rgba(12,9,4,0.94)"
-              stroke="var(--color-teal)" strokeWidth={1.8}
-              className={paused ? '' : 'map-march-marker'}/>
-      <rect x={-3} y={-2.5} width={6} height={4} rx={1}
-            fill="rgba(184,148,74,0.88)"/>
-      <circle cx={-2} cy={2}  r={1.3} fill="rgba(79,143,149,0.75)"/>
-      <circle cx={2}  cy={2}  r={1.3} fill="rgba(79,143,149,0.75)"/>
+      {/* Glow ring */}
+      <circle cx={0} cy={0} r={18}
+              fill={isBranch ? 'rgba(184,148,74,0.06)' : 'rgba(79,143,149,0.06)'}
+              stroke={isBranch ? 'rgba(184,148,74,0.28)' : 'rgba(79,143,149,0.2)'}
+              strokeWidth={1}
+              strokeDasharray={isBranch ? '4 3' : undefined}
+              className={paused || isBranch ? '' : 'map-march-marker-ring'}/>
+      {/* Main body */}
+      <circle cx={0} cy={0} r={11}
+              fill="rgba(12,9,4,0.96)"
+              stroke={isBranch ? 'rgba(184,148,74,0.8)' : 'var(--color-teal)'}
+              strokeWidth={isBranch ? 2.2 : 2}
+              className={paused || isBranch ? '' : 'map-march-marker'}/>
+      {isBranch ? (
+        /* Fork symbol inside */
+        <>
+          <line x1={0} y1={4} x2={0} y2={-1} stroke="rgba(184,148,74,0.9)" strokeWidth={1.8} strokeLinecap="round"/>
+          <line x1={0} y1={-1} x2={-4} y2={-5} stroke="rgba(184,148,74,0.9)" strokeWidth={1.8} strokeLinecap="round"/>
+          <line x1={0} y1={-1} x2={4}  y2={-5} stroke="rgba(184,148,74,0.9)" strokeWidth={1.8} strokeLinecap="round"/>
+        </>
+      ) : (
+        /* Lantern symbol */
+        <>
+          <rect x={-3.5} y={-3} width={7} height={5} rx={1} fill="rgba(184,148,74,0.88)"/>
+          <circle cx={-2.5} cy={2.5} r={1.5} fill="rgba(79,143,149,0.75)"/>
+          <circle cx={2.5}  cy={2.5} r={1.5} fill="rgba(79,143,149,0.75)"/>
+        </>
+      )}
     </g>
   )
 }
@@ -7979,6 +8262,7 @@ export default function VisualMapCanvas({
             x={marchPos.x}
             y={marchPos.y}
             paused={expedition?.status === 'segment_transition'}
+            status={expedition?.status}
           />
         )}
         {/* Token de caravana en reposo */}
@@ -8261,7 +8545,8 @@ export default function VisualMapCanvas({
           return (
             <MarchPositionMarker key="march-route"
               x={mx} y={my}
-              paused={expedition?.status === 'segment_transition'}/>
+              paused={expedition?.status === 'segment_transition'}
+              status={expedition?.status}/>
           )
         })}
 
@@ -8278,7 +8563,7 @@ export default function VisualMapCanvas({
           return (
             <MarchPositionMarker key="march-branch-choice"
               x={(p0.x + p1.x) / 2} y={(p0.y + p1.y) / 2}
-              paused={true}/>
+              paused={true} status="branch_choice"/>
           )
         })()}
       </>
@@ -10705,7 +10990,7 @@ Los tramos no son simples segmentos técnicos. Cada tramo puede tener nombre, at
 </file>
 
 <file path="src/screens/MapScreen.jsx">
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ABYSS_STRATA, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS, ABYSS_SETTLEMENTS } from '../data/gameData.js'
 import VisualMapCanvas from '../components/VisualMapCanvas.jsx'
 
@@ -10740,10 +11025,26 @@ export default function MapScreen({
   onGoToCaravan,
   onGoToCaravanForChoice,
   onSelectSettlement,
+  focusIntent,
+  onClearFocusIntent,
 }) {
   // centerTrigger is purely local — only fires on explicit "Centrar" press
   const [centerTrigger, setCenterTrigger] = useState(0)
   const [mapViewKey,    setMapViewKey]    = useState(0) // for enter-transition
+
+  // Respond to contextual focus (e.g. "Ver mapa" from branch choice dock)
+  useEffect(() => {
+    if (!focusIntent?.routeId) return
+    if (focusIntent.type === 'branch') {
+      setMapViewKey(k => k + 1)
+      onCameraChange(prev => ({
+        ...prev,
+        viewLevel:       'route',
+        selectedRouteId: focusIntent.routeId,
+      }))
+    }
+    onClearFocusIntent?.()
+  }, [focusIntent?.createdAt])
 
   const { viewLevel, selectedLayerId, selectedRouteId, panByView } = cameraState
 
@@ -13314,6 +13615,7 @@ export default function App() {
   const [branchKnowledge,           setBranchKnowledge]           = useState(createInitialBranchKnowledge)
   const [activeSettlementId,        setActiveSettlementId]        = useState(null)
   const [activeRouteStopId,         setActiveRouteStopIdState]    = useState(null)
+  const [mapFocusIntent,            setMapFocusIntent]            = useState(null)
 
   const completionDone      = useRef(false)
   const combatTriggered     = useRef(new Set())
@@ -13775,6 +14077,18 @@ export default function App() {
     combatTriggered.current = new Set()
   }
 
+  function handleGoToMapForBranch() {
+    const bc = expedition.pendingBranchChoice
+    setMapFocusIntent({
+      type:          'branch',
+      routeId:       bc?.routeId ?? expedition.routeRun?.routeId ?? null,
+      segmentId:     bc?.afterSegmentId ?? null,
+      branchId:      bc?.branchId ?? null,
+      createdAt:     Date.now(),
+    })
+    setCurrentTab('mapa')
+  }
+
   function handleChooseRouteBranch(optionId) {
     if (expedition.status !== 'branch_choice' || !expedition.pendingBranchChoice) return
     const choice = expedition.pendingBranchChoice
@@ -14108,7 +14422,7 @@ export default function App() {
                   nextSegmentName:      nextSeg?.name ?? '—',
                   nextSegmentOrder:     nextRouteRun.currentSegmentOrder,
                   nextTargetSteps:      nextSeg?.stepMax ?? prev.targetSteps,
-                  secondsRemaining:     20,
+                  secondsRemaining:     10,
                   startedAt:            new Date().toISOString(),
                 },
               }
@@ -14483,6 +14797,8 @@ export default function App() {
           onGoToCaravan={() => setCurrentTab('caravana')}
           onGoToCaravanForChoice={() => setCurrentTab('caravana')}
           onSelectSettlement={handleEnterSettlement}
+          focusIntent={mapFocusIntent}
+          onClearFocusIntent={() => setMapFocusIntent(null)}
         />
       )
       case 'diario':     return <DiaryScreen      diary={diary} />
@@ -14534,8 +14850,9 @@ export default function App() {
         <RouteChoiceDock
           pendingBranchChoice={expedition.pendingBranchChoice}
           branchKnowledge={branchKnowledge}
+          player={player}
           onChooseBranch={handleChooseRouteBranch}
-          onGoToMap={() => setCurrentTab('mapa')}
+          onGoToMap={handleGoToMapForBranch}
         />
       )}
       {activeRouteStopId && expedition.status === 'segment_transition' && (
@@ -14561,6 +14878,7 @@ export default function App() {
         onGoToMap={() => setCurrentTab('mapa')}
         onGoToCaravan={() => setCurrentTab('caravana')}
         onGoToInventory={() => setCurrentTab('inventario')}
+        onContinueNow={handleContinueToNextSegment}
       />
     </AppShell>
   )
@@ -19386,6 +19704,136 @@ html, body, #root {
   font-family: Georgia, serif;
   color: var(--color-gold);
   font-style: italic;
+}
+
+/* ── 24B.1: RouteChoiceDock timer, recommended badge, auto-notice ─────────── */
+
+.route-choice-timer-bar-wrap {
+  height: 3px;
+  background: rgba(98,107,111,0.18);
+  border-radius: 0;
+  overflow: hidden;
+}
+.route-choice-timer-bar {
+  height: 100%;
+  background: rgba(184,148,74,0.65);
+  transition: width 1s linear;
+  border-radius: 0;
+}
+
+.route-choice-timer-label {
+  font-size: 0.6rem;
+  color: var(--color-gold);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  min-width: 22px;
+  text-align: right;
+}
+
+.route-choice-auto-notice {
+  font-size: 0.6rem;
+  color: var(--color-stone-light);
+  background: rgba(184,148,74,0.05);
+  border-left: 2px solid rgba(184,148,74,0.28);
+  padding: 5px 8px;
+  border-radius: 0 4px 4px 0;
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+.route-choice-auto-notice strong { color: var(--color-parchment); }
+.route-choice-auto-reason { color: rgba(184,148,74,0.65); }
+
+.route-choice-recommended-badge {
+  display: inline-block;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-teal);
+  background: rgba(79,143,149,0.1);
+  border: 1px solid rgba(79,143,149,0.28);
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.route-choice-option.recommended {
+  border-left: 2px solid rgba(79,143,149,0.5);
+  background: rgba(79,143,149,0.03);
+}
+
+.route-choice-option-badges {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.route-choice-map-btn {
+  font-size: 0.58rem;
+  background: none;
+  border: 1px solid rgba(98,107,111,0.35);
+  color: var(--color-stone-light);
+  border-radius: 4px;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+.route-choice-map-btn:hover { border-color: rgba(79,143,149,0.4); color: var(--color-teal); }
+
+/* Minimized bar countdown bar */
+.route-choice-dock.minimized .route-choice-timer-bar-wrap {
+  margin-top: 0;
+  border-radius: 0 0 6px 6px;
+}
+
+/* ── 24B.1: BranchSceneFork (LiveMarchScene) ──────────────────────────────── */
+
+/* Hide the straight road in branch-state */
+.live-march-scene.branch-state .march-road-wrap {
+  visibility: hidden;
+}
+
+/* Stop march-bob on characters when at fork */
+.live-march-scene.branch-state .live-march-character,
+.live-march-scene.branch-state .live-march-creature,
+.branch-party-idle {
+  animation: none !important;
+}
+
+.march-fork-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ── 24B.1: ExpeditionNoticeDock segment_complete countdown ───────────────── */
+
+.expedition-notice-seg-countdown {
+  padding: 0 0 8px;
+}
+.expedition-notice-seg-countdown-bar-wrap {
+  height: 2px;
+  background: rgba(98,107,111,0.18);
+  overflow: hidden;
+  border-radius: 1px;
+  margin-bottom: 4px;
+}
+.expedition-notice-seg-countdown-bar {
+  height: 100%;
+  background: rgba(79,143,149,0.5);
+  border-radius: 1px;
+  animation: noticeProgressDrain linear forwards;
+  transform-origin: left;
+}
+@keyframes noticeProgressDrain {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+.expedition-notice-seg-countdown-label {
+  font-size: 0.58rem;
+  color: var(--color-stone-light);
+  display: block;
 }
 </file>
 
