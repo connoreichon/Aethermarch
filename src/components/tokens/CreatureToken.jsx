@@ -15,42 +15,13 @@ export default function CreatureToken({ creatureId, size = 72 }) {
 
   if (creatureId === 'brontik') {
     return (
-      <svg width={s} height={s} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <ellipse cx="36" cy="67" rx="16" ry="3.5" fill="rgba(0,0,0,0.4)" />
-        {/* body — low, wide, armored */}
-        <ellipse cx="36" cy="48" rx="18" ry="12" fill="#3A2618" />
-        {/* armor plates on back */}
-        <ellipse cx="36" cy="38" rx="16" ry="8" fill="#5A5F61" />
-        <ellipse cx="24" cy="42" rx="7" ry="5" fill="#5A5F61" />
-        <ellipse cx="48" cy="42" rx="7" ry="5" fill="#5A5F61" />
-        <ellipse cx="36" cy="44" rx="8" ry="5" fill="#626B6F" />
-        {/* brasa glow between plates */}
-        <ellipse cx="30" cy="41" rx="2" ry="1.5" fill="#D46A2D" opacity="0.6" />
-        <ellipse cx="42" cy="41" rx="2" ry="1.5" fill="#D46A2D" opacity="0.5" />
-        <ellipse cx="36" cy="38" rx="1.5" ry="1" fill="#D46A2D" opacity="0.4" />
-        {/* head — low, forward */}
-        <ellipse cx="28" cy="52" rx="10" ry="8" fill="#3A2618" />
-        {/* snout */}
-        <ellipse cx="20" cy="54" rx="6" ry="4.5" fill="#4B321F" />
-        {/* nostrils */}
-        <ellipse cx="16" cy="53" rx="1.2" ry="1" fill="#2A1A10" />
-        <ellipse cx="19" cy="54.5" rx="1.2" ry="1" fill="#2A1A10" />
-        {/* eye */}
-        <ellipse cx="31" cy="50" rx="2" ry="2" fill="#D46A2D" />
-        <ellipse cx="31" cy="50" rx="1" ry="1" fill="#070807" />
-        {/* armor head plate */}
-        <path d="M20 46 Q28 42 36 46 L34 54 L22 56 Z" fill="#5A5F61" opacity="0.7" />
-        {/* tail — short heavy */}
-        <path d="M54 50 Q60 48 62 54 Q60 60 54 58 Z" fill="#4B321F" />
-        {/* legs — stubby */}
-        <rect x="22" y="56" width="8" height="10" rx="3" fill="#3A2618" />
-        <rect x="32" y="56" width="8" height="10" rx="3" fill="#3A2618" />
-        <rect x="42" y="56" width="8" height="10" rx="3" fill="#3A2618" />
-        <rect x="50" y="54" width="7" height="10" rx="3" fill="#3A2618" />
-        {/* claws */}
-        <path d="M22 66 L20 70 M26 66 L26 70 M30 66 L28 70" stroke="#626B6F" strokeWidth="1.2" strokeLinecap="round" />
-        <path d="M32 66 L30 70 M36 66 L36 70 M40 66 L38 70" stroke="#626B6F" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
+      <img
+        src={`${import.meta.env.BASE_URL}assets/generated/brontik.png`}
+        alt="Brontik"
+        width={s}
+        height={Math.round(s * 1.1)}
+        style={{ objectFit: 'contain', imageRendering: 'auto' }}
+      />
     )
   }
 
