@@ -694,6 +694,8 @@ Si algo se rompe → primero corregir la compilación. No acumular features enci
 - ✅ 21A — Mapa vivo: pan clamped por vista, red densa de caminos (5 redes / 7-10 puntos) en stratum_01, token de caravana animado sobre la red y sobre la ruta, botón "Seguir caravana" en mapa.
 - ✅ 21A.1 — Notificaciones globales de expedición: avisos no intrusivos de tramo completado y ruta completada visibles en cualquier pestaña; tramos de route_aethel_to_mist con visual, gameplay y completion enriched; cola de prioridad; convive con dock de combate.
 - ✅ 21A.2 — Ubicación persistente real de la caravana: estado `currentLocation` independiente de `expedition.sectorId`; `locationSystem.js` con helpers de construcción y saneamiento; save/load con retrocompatibilidad; CaravanScreen muestra la ubicación real; marcador en reposo visible en la vista de capa del mapa.
+- ✅ 22B — Bifurcaciones persistentes entre tramos: `routeBranchSystem.js`, `RouteChoiceDock` global minimizable, 2 ramas reales en `route_aethel_to_mist`, `branchKnowledge` por `optionId`, reducción de amenaza por familiaridad (−5/−8/−12 %), visualización de ramas en mapa (arcos, colores, nodo ⑂), status `branch_choice` persiste en save/load.
+- ✅ 23A — Preparación APK Android con Capacitor: el proyecto React/Vite se mantiene como base y se empaqueta como aplicación Android instalable para pruebas reales en móvil.
 
 ### Próximo
 - 🔲 14B — Códice de secretos y lore de ruinas
@@ -752,3 +754,53 @@ El equipo no define la apariencia del personaje. Las skins sí.
 ### Estado
 
 Ni equipo mecánico completo ni skins están implementados todavía. Esta sección documenta la decisión de diseño para que no se mezclen los dos sistemas en el futuro.
+
+---
+
+## Android APK
+
+La primera versión Android usa Capacitor para envolver la app React/Vite actual. No es una migración a Kotlin puro. Esta decisión permite probar rápido en móvil real sin tirar el avance del prototipo.
+
+### Configuración (23A)
+
+- **appId:** `com.connorblythe.aethermarch`
+- **appName:** Aethermarch
+- **webDir:** `dist`
+- **androidScheme:** `https` (carga assets locales, sin servidor remoto)
+
+### Builds
+
+| Propósito | Comando |
+|---|---|
+| Web (GitHub Pages) | `npm run build` — base `/Aethermarch/` |
+| Android (Capacitor) | `npm run android:sync` — base `./` |
+
+### Comandos principales
+
+```
+npm run android:sync   # build + sync android
+npm run android:open   # abrir Android Studio
+npm run android:build  # build + sync (alias)
+npm run android:copy   # build + copy (sin sync completo)
+```
+
+### APK debug
+
+Desde Android Studio: Build > Build Bundle(s) / APK(s) > Build APK(s)
+
+O por consola desde la carpeta `android/`:
+```
+.\gradlew assembleDebug
+```
+
+Resultado esperado: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+### Pendiente para versión real
+
+- Podómetro nativo (sensor de pasos Android)
+- Permisos de actividad física
+- Background activity / Health Connect
+- Notificaciones locales
+- GPS (si se implementa en futuro)
+- Icono y splash definitivos
+- Firma de release APK / AAB para Play Store

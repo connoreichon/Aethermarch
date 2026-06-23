@@ -4269,3 +4269,42 @@ body { background: #070807; color: #C8B88A; font-family: 'Georgia', 'Times New R
   color: var(--color-parchment);
   margin-bottom: 4px;
 }
+
+/* ── ANDROID / CAPACITOR SAFE AREAS ────────────────────────────────────────── */
+
+/* Prevent rubber-band scroll on Android WebView */
+body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Full-screen stable height — avoids URL-bar resize jank on mobile */
+html, body, #root {
+  min-height: 100%;
+  min-height: -webkit-fill-available;
+}
+
+/* Bottom nav clears the Android home bar / gesture zone */
+.bottom-nav {
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+}
+
+/* Route choice dock floats above bottom nav — account for safe area */
+.route-choice-layer {
+  bottom: max(56px, calc(56px + env(safe-area-inset-bottom, 0px)));
+}
+
+/* Combat / notice docks floating above bottom nav */
+.expedition-notice-layer,
+.combat-alert-layer {
+  bottom: max(56px, calc(56px + env(safe-area-inset-bottom, 0px)));
+}
+
+/* No horizontal overflow on any screen */
+.app-shell,
+.abyss-map-screen,
+.caravan-screen,
+.codex-screen,
+.inventory-screen {
+  overflow-x: hidden;
+}
