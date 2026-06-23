@@ -32,6 +32,7 @@ export default function MapScreen({
   onCameraChange,
   onGoToCaravan,
   onGoToCaravanForChoice,
+  onSelectSettlement,
 }) {
   // centerTrigger is purely local — only fires on explicit "Centrar" press
   const [centerTrigger, setCenterTrigger] = useState(0)
@@ -124,7 +125,7 @@ export default function MapScreen({
           routeBranches={routeBranches}
           branchKnowledge={branchKnowledge}
           onSelectLayer={handleSelectLayer}
-          onSelectSettlement={() => {}}
+          onSelectSettlement={onSelectSettlement ?? (() => {})}
           onSelectRoute={handleSelectRoute}
           centerTrigger={centerTrigger}
           panByView={panByView}

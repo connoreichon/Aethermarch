@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ARCHETYPES, BIOMES, ENEMIES, INITIAL_SECTORS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS, WORLD_ROUTE_BRANCHES } from './data/gameData.js'
+import { ARCHETYPES, BIOMES, ENEMIES, INITIAL_SECTORS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS, WORLD_ROUTE_BRANCHES, ABYSS_SETTLEMENTS, RESOURCES } from './data/gameData.js'
 import CombatAlertModal from './components/CombatAlertModal.jsx'
 import { emptyInventory, addResources } from './systems/inventorySystem.js'
 import { generateEvent, calculateRewards, buildDiaryEntry } from './systems/expeditionSystem.js'
@@ -20,6 +20,10 @@ import {
 } from './systems/pedometerSystem.js'
 import { canUsePoiAction, resolvePoiAction } from './systems/poiSystem.js'
 import {
+  buyShopItem, sellInventoryItem, resolveSettlementRest,
+  spendCurrency, getResourceSellPrice, CURRENCY_SYMBOL,
+} from './systems/economySystem.js'
+import {
   buildRouteRunState,
   completeCurrentRouteSegment,
   getSegmentsForRoute,
@@ -37,6 +41,7 @@ import {
   createInitialContractState, sanitizeContractState,
   canStartContract, startContract, resolveContract, getContractSuccessChance,
 } from './systems/contractSystem.js'
+import SettlementScreen from './screens/SettlementScreen.jsx'
 import AppShell              from './components/AppShell.jsx'
 import ExpeditionNoticeDock  from './components/ExpeditionNoticeDock.jsx'
 import StartScreen     from './screens/StartScreen.jsx'
@@ -109,13 +114,14 @@ function buildInitialPlayer(archetypeId, creatureId) {
   const archetype = ARCHETYPES.find(a => a.id === archetypeId)
   const hpBonus   = archetype?.hpBonus ?? 0
   return {
-    level:    1,
-    xp:       0,
-    xpToNext: 100,
-    hp:       30 + hpBonus,
-    maxHp:    30 + hpBonus,
+    level:        1,
+    xp:           0,
+    xpToNext:     100,
+    hp:           30 + hpBonus,
+    maxHp:        30 + hpBonus,
     archetypeId,
     creatureId,
+    lanternMarks: 12,
   }
 }
 
@@ -162,6 +168,7 @@ export default function App() {
   const [expeditionNotices,         setExpeditionNotices]         = useState([])
   const [currentLocation,           setCurrentLocation]           = useState(createInitialLocation)
   const [branchKnowledge,           setBranchKnowledge]           = useState(createInitialBranchKnowledge)
+  const [activeSettlementId,        setActiveSettlementId]        = useState(null)
 
   const completionDone      = useRef(false)
   const combatTriggered     = useRef(new Set())
@@ -256,6 +263,7 @@ export default function App() {
     setCurrentLocation(createInitialLocation())
     setBranchKnowledge(createInitialBranchKnowledge())
     setMapCameraState(DEFAULT_MAP_CAMERA)
+    setActiveSettlementId(null)
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
     if (motionHandlerRef.current) {
@@ -267,6 +275,52 @@ export default function App() {
     completionDone.current  = false
     combatTriggered.current = new Set()
     setHasStarted(false)
+  }
+
+  // ── Navegación de tabs (cierra asentamiento al cambiar) ─────────────────────
+  function handleChangeTab(tab) {
+    setActiveSettlementId(null)
+    setCurrentTab(tab)
+  }
+
+  // ── Asentamientos ────────────────────────────────────────────────────────────
+  function handleEnterSettlement(settlementId) {
+    setActiveSettlementId(settlementId)
+  }
+
+  function handleExitSettlement() {
+    setActiveSettlementId(null)
+  }
+
+  function handleBuyItem({ resourceId, qty = 1 }) {
+    const result = buyShopItem({ player, inventory, resourceId, qty })
+    if (result.ok) {
+      setPlayer(result.player)
+      setInventory(result.inventory)
+      return { ok: true, text: `Compraste ${RESOURCES[resourceId]?.name ?? resourceId}` }
+    }
+    return { ok: false, text: result.reason }
+  }
+
+  function handleSellItem({ resourceId, qty = 1 }) {
+    const result = sellInventoryItem({ player, inventory, resourceId, qty })
+    if (result.ok) {
+      setPlayer(result.player)
+      setInventory(result.inventory)
+      const earned = getResourceSellPrice(resourceId) * qty
+      return { ok: true, text: `Vendiste ${RESOURCES[resourceId]?.name ?? resourceId} · +${earned} ${CURRENCY_SYMBOL}` }
+    }
+    return { ok: false, text: result.reason }
+  }
+
+  function handleSettlementRest(restInfo) {
+    setPlayer(prev => {
+      const withHp = { ...prev, hp: Math.min(prev.maxHp, prev.hp + restInfo.hpGain) }
+      if (restInfo.cost > 0) {
+        return spendCurrency(withHp, restInfo.cost) ?? withHp
+      }
+      return withHp
+    })
   }
 
   // ── Podómetro experimental ───────────────────────────────────────────────────
@@ -1140,6 +1194,27 @@ export default function App() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   function renderTab() {
+    // Settlement view overlays any tab
+    if (activeSettlementId) {
+      const settlement = ABYSS_SETTLEMENTS.find(s => s.id === activeSettlementId)
+      if (settlement) {
+        return (
+          <SettlementScreen
+            settlement={settlement}
+            player={player}
+            inventory={inventory}
+            currentLocation={currentLocation}
+            contractState={contractState}
+            sectors={sectors}
+            onExit={handleExitSettlement}
+            onBuy={handleBuyItem}
+            onSell={handleSellItem}
+            onRest={handleSettlementRest}
+          />
+        )
+      }
+    }
+
     switch (currentTab) {
       case 'caravana':
         return (
@@ -1162,6 +1237,7 @@ export default function App() {
             onPrepareNext={handlePrepareNext}
             onResetGame={resetGame}
             onGoToMap={() => setCurrentTab('mapa')}
+            onEnterSettlement={handleEnterSettlement}
             onChooseBranch={handleChooseRouteBranch}
             onClaimEcho={handleClaimMarchEcho}
             echoMessage={echoMessage}
@@ -1192,10 +1268,11 @@ export default function App() {
           onCameraChange={setMapCameraState}
           onGoToCaravan={() => setCurrentTab('caravana')}
           onGoToCaravanForChoice={() => setCurrentTab('caravana')}
+          onSelectSettlement={handleEnterSettlement}
         />
       )
       case 'diario':     return <DiaryScreen      diary={diary} />
-      case 'inventario': return <InventoryScreen  inventory={inventory} />
+      case 'inventario': return <InventoryScreen  inventory={inventory} player={player} />
       case 'criatura':   return <CreatureScreen   player={player} />
       case 'codice':     return (
         <CodexScreen
@@ -1229,7 +1306,7 @@ export default function App() {
   ].filter(Boolean).join(' ')
 
   return (
-    <AppShell currentTab={currentTab} onChangeTab={setCurrentTab} flowClass={appFlowClass}>
+    <AppShell currentTab={currentTab} onChangeTab={handleChangeTab} flowClass={appFlowClass}>
       {renderTab()}
       {(combat.status === 'awaiting_choice' || combat.status === 'resolved') && currentTab !== 'caravana' && (
         <CombatAlertModal

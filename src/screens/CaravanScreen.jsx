@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS } from '../data/gameData.js'
+import { ARCHETYPES, CREATURES, EXPEDITION_MODES, RESOURCES, BIOMES, ENEMIES, POIS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS, ABYSS_SETTLEMENTS } from '../data/gameData.js'
 import { getSegmentsForRoute, getRouteSegmentsTotalSteps } from '../systems/routeSegmentSystem.js'
 import { canUsePoiAction, getPoiActionLabel, getPoiFlavorText } from '../systems/poiSystem.js'
 import { getAvailableContracts, canStartContract, isSectorContractCompleted, getContractSuccessChance, getContractRewardText } from '../systems/contractSystem.js'
@@ -931,7 +931,7 @@ export default function CaravanScreen({
   lastSaved, recoveredFromInterruption,
   onAlzar, onSelectMode, onSelectSector,
   onResolveCombat, onContinueMarch, onContinueToNextSegment, onAbandonExpedition, onPrepareNext,
-  onResetGame, onGoToMap,
+  onResetGame, onGoToMap, onEnterSettlement,
   onClaimEcho, echoMessage, lastEchoResult,
   lastDiscovery,
   stepSource, pedometer,
@@ -1398,6 +1398,22 @@ export default function CaravanScreen({
           </p>
         </div>
       </section>
+
+      {/* Entrada a asentamiento */}
+      {expedition?.status === 'resting' && currentLocation?.settlementId && onEnterSettlement && (() => {
+        const s = ABYSS_SETTLEMENTS.find(x => x.id === currentLocation.settlementId)
+        if (!s) return null
+        return (
+          <div style={{ padding: '6px 14px 2px' }}>
+            <button
+              className="btn btn-primary settlement-enter-btn"
+              onClick={() => onEnterSettlement(s.id)}
+            >
+              Entrar en {s.name}
+            </button>
+          </div>
+        )
+      })()}
 
       {/* Nota de reagrupación */}
       {recoveredFromInterruption && (

@@ -1,4 +1,5 @@
 import { RESOURCES, BIOMES } from '../data/gameData.js'
+import { getPlayerCurrency, CURRENCY_SYMBOL, CURRENCY_NAME } from '../systems/economySystem.js'
 import ResourceNode from '../components/tokens/ResourceNode.jsx'
 
 const BIOME_TAG = {
@@ -19,7 +20,7 @@ const RARITY_COLOR = {
   raro:        'var(--color-gold)',
 }
 
-export default function InventoryScreen({ inventory }) {
+export default function InventoryScreen({ inventory, player }) {
   const hasItems = Object.values(inventory ?? {}).some(q => q > 0)
 
   // Catálogo ordenado: qty > 0 primero, luego qty = 0; dentro de cada grupo, por bioma
@@ -35,6 +36,15 @@ export default function InventoryScreen({ inventory }) {
 
   return (
     <div className="screen-scroll">
+
+      {/* Moneda */}
+      {player && (
+        <div className="inventory-currency-row">
+          <span className="inventory-currency-symbol">{CURRENCY_SYMBOL}</span>
+          <span className="inventory-currency-amount">{getPlayerCurrency(player)}</span>
+          <span className="inventory-currency-name">{CURRENCY_NAME}</span>
+        </div>
+      )}
 
       {/* Botín actual */}
       <div className="panel">

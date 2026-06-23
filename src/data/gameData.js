@@ -732,6 +732,11 @@ export const WORLD_ROUTE_SEGMENTS = [
     visual:    { mood: 'eerie',        terrain: 'mist_floor',     landmark: 'low_mist',       colorHint: '#5A7070' },
     gameplay:  { likelyEvents: ['exploration','resource','microevent'], resourceHints: ['damp_moss','mist_crystal'], threatHints: ['mist_wisp'],   discoveryChance: 0.2,  restChance: 0.05 },
     completion: { title: 'La bruma cede',               text: 'La niebla se repliega entre las piedras como si hubiese algo debajo.' },
+    minorStop: {
+      id: 'minor_stop_mist_crossroads', name: 'Cruce de la Bruma',
+      description: 'Un claro inesperado en la niebla. Las caravanas dejan marcas talladas en las piedras del borde.',
+      services: ['rumors', 'basic_rest'],
+    },
   },
   {
     id: 'seg_afm_06', routeId: 'route_aethel_to_mist', order: 5,
