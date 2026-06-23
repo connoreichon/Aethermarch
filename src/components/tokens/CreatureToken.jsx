@@ -4,7 +4,7 @@ export default function CreatureToken({ creatureId, size = 72 }) {
   if (creatureId === 'velthar') {
     return (
       <img
-        src="/assets/generated/ciervo_velthar.png"
+        src={`${import.meta.env.BASE_URL}assets/generated/ciervo_velthar.png`}
         alt="Velthar"
         width={s}
         height={Math.round(s * 1.25)}
