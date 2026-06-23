@@ -974,6 +974,7 @@ export default function App() {
             onAbandonExpedition={handleAbandonExpedition}
             onPrepareNext={handlePrepareNext}
             onResetGame={resetGame}
+            onGoToMap={() => setCurrentTab('mapa')}
             onClaimEcho={handleClaimMarchEcho}
             echoMessage={echoMessage}
             lastEchoResult={lastEchoResult}

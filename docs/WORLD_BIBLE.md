@@ -1075,6 +1075,8 @@ La ruta Senda de los Faroles Bajos tiene ahora 12 tramos dibujados como puntos e
 
 ---
 
+La expedición se percibe como viaje continuo. Cada tramo tiene atmósfera visual, pequeños sucesos y señales del bioma, aunque todavía no haya assets finales. El jugador ve la caravana moverse, el camino extenderse y los eventos aparecer como señales del entorno, no como listas de texto.
+
 *Este documento es la base de diseño del mundo de Aethermarch. Se actualiza conforme el juego avanza.*
 *Para estado de implementación técnica, ver `docs/ABYSS_DESIGN.md`.*
 *Para roadmap de bloques, ver `docs/PROJECT_BRIEF.md`.*

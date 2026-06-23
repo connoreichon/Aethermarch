@@ -552,4 +552,6 @@ La vista Abismo se rediseñó completamente para transmitir la sensación de una
 - Compatible con saves anteriores (el campo `order` cambió, no el `id`)
 - Con n>8 tramos: radio de punto reducido a 7, labels solo para actual/seleccionado/último completado
 
+**Live March UX (20A):** La Caravana deja de ser solo paneles. Durante una expedición, la pantalla principal muestra una escena visual con camino, personaje, criatura, progreso, evento actual y estado de peligro. El componente `LiveMarchScene` gestiona los estados `marching` y `segment_transition`: bioma de fondo SVG, party animada con marchBob/lanternFlicker, barra de progreso dorada, toast del último evento con recursos concretos y nombre visible, y panel de transición entre tramos con cuenta regresiva. El registro completo de eventos va en un CollapsiblePanel ("Registro del tramo") para reducir scroll. Al completar la última ruta, aparece un resumen visual de ruta con icono de check dorado, nombre de ruta, pasos, XP, recursos y botón "Ver en mapa".
+
 *Este documento es una referencia de diseño viva. Se actualiza conforme el juego avanza.*

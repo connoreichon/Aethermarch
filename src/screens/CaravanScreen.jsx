@@ -13,6 +13,7 @@ import EnemyToken     from '../components/tokens/EnemyToken.jsx'
 import ResourceNode   from '../components/tokens/ResourceNode.jsx'
 import StatBar           from '../components/StatBar.jsx'
 import CollapsiblePanel  from '../components/CollapsiblePanel.jsx'
+import LiveMarchScene    from '../components/LiveMarchScene.jsx'
 
 const DANGER_RANK_LABELS = { low: 'bajo', medium: 'medio', high: 'alto', extreme: 'extremo' }
 const DANGER_RANK_COLORS = { low: 'var(--color-xp)', medium: 'var(--color-ember)', high: 'var(--color-hp)', extreme: 'var(--color-hp)' }
@@ -929,7 +930,7 @@ export default function CaravanScreen({
   lastSaved, recoveredFromInterruption,
   onAlzar, onSelectMode, onSelectSector,
   onResolveCombat, onContinueMarch, onContinueToNextSegment, onAbandonExpedition, onPrepareNext,
-  onResetGame,
+  onResetGame, onGoToMap,
   onClaimEcho, echoMessage, lastEchoResult,
   lastDiscovery,
   stepSource, pedometer,
@@ -959,220 +960,146 @@ export default function CaravanScreen({
 
   // ── SEGMENT TRANSITION ────────────────────────────────────────────────────
   if (expedition?.status === 'segment_transition' && expedition.segmentTransition) {
-    const t       = expedition.segmentTransition
-    const biomeId = expedition.biomeId ?? 'forest'
-    const mistColor = biomeId === 'coast'
-      ? 'rgba(10,15,30,0.76)'
-      : biomeId === 'forge' ? 'rgba(20,10,5,0.8)' : 'rgba(10,18,10,0.76)'
-
     return (
-      <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:'var(--color-bg)' }}>
-        <div className="march-scene" style={{ flex:'none' }}>
-          <BiomeMarchBackdrop biomeId={biomeId} />
-          <div className="march-road-wrap">
-            <div className="march-road-surface" />
-            <div className="march-road-marks" />
-          </div>
-          <div className="march-mist" style={{ background:`linear-gradient(to top, ${mistColor}, transparent)` }}/>
-          <div className="march-party">
-            <div className="march-creature"><CreatureToken creatureId={player.creatureId} size={62} /></div>
-            <div className="march-lantern"><LanternSVG /></div>
-            <div className="march-character"><ArchetypeToken archetypeId={player.archetypeId} size={70} /></div>
-          </div>
-          <div className="march-header-overlay">
-            <span style={{ color:'var(--color-gold)' }}>Tramo {expedition.currentTramo}</span>
-            <span style={{ color:'var(--color-parchment)', fontSize:'0.6rem' }}>{expedition.routeName}</span>
-            <span style={{ color:'var(--color-xp)', fontSize:'0.58rem' }}>
-              Tramo {expedition.routeSegmentOrder}/{expedition.routeSegmentCount} completado
-            </span>
-          </div>
-        </div>
-
-        <div style={{ flex:1, padding:'14px', display:'flex', flexDirection:'column', gap:10 }}>
-          <div className="panel" style={{ textAlign:'center' }}>
-            <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
-              Tramo completado
-            </div>
-            <div style={{ fontSize:'0.88rem', color:'var(--color-gold)', fontWeight:600, marginBottom:4 }}>
-              {t.completedSegmentName}
-            </div>
-            <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'8px 0' }} />
-            <div style={{ fontSize:'0.58rem', color:'var(--color-stone-light)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>
-              Siguiente tramo
-            </div>
-            <div style={{ fontSize:'0.82rem', color:'var(--color-parchment)', marginBottom:8 }}>
-              {t.nextSegmentName}
-            </div>
-
-            <div style={{ fontSize:'0.62rem', color:'var(--color-mist)', marginBottom:8 }}>
-              La caravana retomará la marcha en{' '}
-              <span style={{ color:'var(--color-parchment)', fontWeight:600 }}>{t.secondsRemaining} s</span>
-            </div>
-            <div style={{ height:3, background:'rgba(98,107,111,0.2)', borderRadius:2, margin:'0 0 12px', overflow:'hidden' }}>
-              <div style={{
-                height:'100%', borderRadius:2, background:'var(--color-teal)',
-                width:`${(t.secondsRemaining / 20) * 100}%`, transition:'width 1s linear',
-              }} />
-            </div>
-
-            <button className="btn btn-primary" onClick={onContinueToNextSegment}>
-              Siguiente tramo
-            </button>
-          </div>
-
-          <div style={{ textAlign:'center' }}>
-            <button
-              className="btn btn-secondary"
-              style={{ fontSize:'0.6rem', opacity:0.7 }}
-              onClick={onAbandonExpedition}
-            >
-              Salir de expedición
-            </button>
-          </div>
-        </div>
-      </div>
+      <LiveMarchScene
+        expedition={expedition}
+        player={player}
+        onContinueToNextSegment={onContinueToNextSegment}
+        onAbandonExpedition={onAbandonExpedition}
+      />
     )
   }
 
   // ── MARCHING ─────────────────────────────────────────────────────────────
   if (expedition?.status === 'marching') {
-    const lastEvent = expedition.events[expedition.events.length - 1]
-    const biomeId   = expedition.biomeId ?? 'forest'
-    const mistColor = biomeId === 'coast'
-      ? 'rgba(10,15,30,0.76)'
-      : biomeId === 'forge'
-      ? 'rgba(20,10,5,0.8)'
-      : 'rgba(10,18,10,0.76)'
-
     return (
       <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:'var(--color-bg)' }}>
-
-        <div className="march-scene">
-          <BiomeMarchBackdrop biomeId={biomeId} />
-          <div className="march-road-wrap">
-            <div className="march-road-surface" />
-            <div className="march-road-marks" />
-          </div>
-          <div className="march-mist" style={{ background:`linear-gradient(to top, ${mistColor}, transparent)` }}/>
-          <MarchEventVisual event={lastEvent} />
-          <div className="march-party">
-            <div className="march-creature"><CreatureToken creatureId={player.creatureId} size={62} /></div>
-            <div className="march-lantern"><LanternSVG /></div>
-            <div className="march-character"><ArchetypeToken archetypeId={player.archetypeId} size={70} /></div>
-          </div>
-          <div className="march-header-overlay">
-            <span style={{ color:'var(--color-gold)' }}>Tramo {expedition.currentTramo}</span>
-            {expedition.routeName ? (
-              <span style={{ color:'var(--color-parchment)', fontSize:'0.6rem' }}>
-                {expedition.routeName}
-              </span>
-            ) : (
-              <span style={{ color:'var(--color-parchment)' }}>{MODE_LABELS[expedition.modeId]}</span>
-            )}
-            {expedition.routeSegmentName ? (
-              <span style={{ color:'var(--color-mist)', fontSize:'0.58rem' }}>
-                Tramo {expedition.routeSegmentOrder}/{expedition.routeSegmentCount}
-                {' · '}{expedition.routeSegmentName}
-              </span>
-            ) : (
-              <span style={{ color:'var(--color-stone-light)' }}>{sector?.name}</span>
-            )}
-            <span style={{ color:'var(--color-stone-light)' }}>
-              {expedition.currentSteps}&thinsp;/&thinsp;{expedition.targetSteps}
-            </span>
-          </div>
-        </div>
-
-        <div className="march-progress-panel">
-          <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.58rem',
-                        color:'var(--color-stone-light)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-            <span>Avance del tramo</span>
-            <span style={{ color:'var(--color-xp)' }}>{expedition.progress}%</span>
-          </div>
-          <div className="march-progress-bar-track">
-            <div className="march-progress-bar-fill" style={{ width:`${expedition.progress}%` }}/>
-          </div>
-          <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.56rem', color:'var(--color-stone-light)' }}>
-            <span>{expedition.events.length} hallazgo{expedition.events.length !== 1 ? 's' : ''}</span>
-            <span>{expedition.currentSteps} / {expedition.targetSteps} pasos</span>
-          </div>
-        </div>
-
-        {lastEvent && (
-          <div className={`march-current-event ${lastEvent.type}`}>
-            <div style={{ flex:1 }}>
-              <div className={`march-event-type-label ${lastEvent.type}`}>{lastEvent.title ?? EVT_LABEL[lastEvent.type]}</div>
-              <div className="march-event-body">{lastEvent.text}</div>
-              <div className="march-event-reward">
-                {lastEvent.resourceGain && Object.entries(lastEvent.resourceGain).map(([id, qty]) => (
-                  <span key={id} style={{ color:'var(--color-gold)' }}>+{qty} {RESOURCES[id]?.name ?? id}</span>
-                ))}
-                {(lastEvent.xpGain ?? 0) > 0 && <span style={{ color:'var(--color-xp)', marginLeft:4 }}>+{lastEvent.xpGain} XP</span>}
-                {(lastEvent.masteryGain ?? 0) > 0 && <span style={{ color:'var(--color-magic)', marginLeft:4 }}>+{lastEvent.masteryGain} dom</span>}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {expedition.events.length > 0 && (
-          <div className="march-event-log">
-            {[...expedition.events].reverse().map((e, i) => (
-              <div key={e.id} className={`march-event-entry${i === 0 ? ' march-event-latest' : ''}`}>
-                <MarchEventIcon type={e.type} />
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div>
-                    <span style={{ color:'var(--color-stone-light)', fontSize:'0.57rem',
-                                   textTransform:'uppercase', letterSpacing:'0.05em', marginRight:5 }}>
-                      {EVT_LABEL[e.type]}
-                    </span>
-                    {e.text}
-                  </div>
-                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:2 }}>
-                    {e.resourceGain && Object.entries(e.resourceGain).map(([id, qty]) => (
-                      <span key={id} style={{ fontSize:'0.54rem', color:'var(--color-gold)', fontWeight:500 }}>
-                        +{qty} {RESOURCES[id]?.name ?? id}
-                      </span>
-                    ))}
-                    {(e.xpGain ?? 0) > 0 && (
-                      <span style={{ fontSize:'0.54rem', color:'var(--color-xp)' }}>+{e.xpGain} XP</span>
-                    )}
-                    {(e.masteryGain ?? 0) > 0 && (
-                      <span style={{ fontSize:'0.54rem', color:'var(--color-magic)' }}>+{e.masteryGain} dominio</span>
-                    )}
-                    {e.type === 'threat' && e.enemyId && ENEMIES[e.enemyId] && (
-                      <span style={{ fontSize:'0.54rem', color:'var(--color-ember)' }}>
-                        Rastro: {ENEMIES[e.enemyId].name}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div style={{ padding:'10px 14px', borderTop:'1px solid var(--color-iron-dark)', marginTop:'auto' }}>
+        <LiveMarchScene
+          expedition={expedition}
+          player={player}
+          onContinueToNextSegment={onContinueToNextSegment}
+          onAbandonExpedition={onAbandonExpedition}
+        />
+        <div style={{ padding:'10px 14px', borderTop:'1px solid var(--color-iron-dark)' }}>
           <div className="stat-bar-wrap">
             <StatBar label="HP" value={player.hp} max={player.maxHp} type="hp" />
             <StatBar label="XP" value={player.xp} max={player.xpToNext} type="xp" />
           </div>
-          {expedition.routeRun && !expedition.routeRun.completed && (
-            <div style={{ textAlign:'center', marginTop:8 }}>
-              <button
-                className="btn btn-secondary"
-                style={{ fontSize:'0.58rem', opacity:0.65 }}
-                onClick={onAbandonExpedition}
-              >
-                Salir de expedición
-              </button>
+        </div>
+        {expedition.events.length > 0 && (
+          <CollapsiblePanel title="Registro del tramo" defaultOpen={false}>
+            <div className="march-event-log">
+              {[...expedition.events].reverse().map((e, i) => (
+                <div key={e.id} className={`march-event-entry${i === 0 ? ' march-event-latest' : ''}`}>
+                  <MarchEventIcon type={e.type} />
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div>
+                      <span style={{ color:'var(--color-stone-light)', fontSize:'0.57rem',
+                                     textTransform:'uppercase', letterSpacing:'0.05em', marginRight:5 }}>
+                        {EVT_LABEL[e.type]}
+                      </span>
+                      {e.text}
+                    </div>
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:2 }}>
+                      {e.resourceGain && Object.entries(e.resourceGain).map(([id, qty]) => (
+                        <span key={id} style={{ fontSize:'0.54rem', color:'var(--color-gold)', fontWeight:500 }}>
+                          +{qty} {RESOURCES[id]?.name ?? id}
+                        </span>
+                      ))}
+                      {(e.xpGain ?? 0) > 0 && (
+                        <span style={{ fontSize:'0.54rem', color:'var(--color-xp)' }}>+{e.xpGain} XP</span>
+                      )}
+                      {(e.masteryGain ?? 0) > 0 && (
+                        <span style={{ fontSize:'0.54rem', color:'var(--color-magic)' }}>+{e.masteryGain} dominio</span>
+                      )}
+                      {e.type === 'threat' && e.enemyId && ENEMIES[e.enemyId] && (
+                        <span style={{ fontSize:'0.54rem', color:'var(--color-ember)' }}>
+                          Rastro: {ENEMIES[e.enemyId].name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
+          </CollapsiblePanel>
+        )}
+        <div style={{ padding:'8px 14px 12px', textAlign:'center' }}>
+          <button
+            className="btn btn-secondary"
+            style={{ fontSize:'0.58rem', opacity:0.65 }}
+            onClick={onAbandonExpedition}
+          >
+            Abandonar expedición
+          </button>
         </div>
       </div>
     )
   }
 
-  // ── COMPLETED ─────────────────────────────────────────────────────────────
+  // ── ROUTE COMPLETED ──────────────────────────────────────────────────────
+  if (expedition?.status === 'completed' && expedition.routeRun?.completed) {
+    const rewards      = expedition.rewards ?? {}
+    const xpGain       = rewards.xp ?? 0
+    const resEntries   = Object.entries(rewards.resources ?? {})
+    const combatResults = expedition.combatResults ?? []
+
+    return (
+      <div className="screen-scroll">
+        <div className="live-march-summary">
+          <svg width="64" height="64" viewBox="0 0 64 64" style={{ display:'block', margin:'0 auto 10px' }}>
+            <circle cx="32" cy="32" r="30" fill="none" stroke="rgba(184,148,74,0.5)" strokeWidth="1"/>
+            <circle cx="32" cy="32" r="24" fill="rgba(26,18,8,0.92)" stroke="rgba(184,148,74,0.3)" strokeWidth="0.5"/>
+            <path d="M18 32 L28 42 L46 22" stroke="rgba(184,148,74,0.85)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <div className="live-march-summary-headline">Ruta completada</div>
+          <div className="live-march-summary-route">{expedition.routeName ?? '—'}</div>
+          <div className="live-march-summary-meta">
+            {expedition.routeSegmentCount ? (
+              <span>
+                {expedition.routeSegmentCount} tramo{expedition.routeSegmentCount !== 1 ? 's' : ''} recorrido{expedition.routeSegmentCount !== 1 ? 's' : ''}
+              </span>
+            ) : null}
+            <span>{expedition.currentSteps} pasos</span>
+          </div>
+          <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'10px 0' }}/>
+          {xpGain > 0 && (
+            <div className="live-march-summary-reward-row" style={{ color:'var(--color-xp)' }}>
+              +{xpGain} XP
+            </div>
+          )}
+          {resEntries.map(([id, qty]) => (
+            <div key={id} className="live-march-summary-reward-row">
+              <ResourceNode resourceId={id} size={16} />
+              <span style={{ color:'var(--color-gold)' }}>{RESOURCES[id]?.name ?? id} ×{qty}</span>
+            </div>
+          ))}
+          {combatResults.length > 0 && (
+            <div className="live-march-summary-reward-row" style={{ color:'var(--color-ember)' }}>
+              {combatResults.length} combate{combatResults.length !== 1 ? 's' : ''} superado{combatResults.length !== 1 ? 's' : ''}
+            </div>
+          )}
+          {lastDiscovery && (
+            <div className="live-march-summary-reward-row" style={{ color:'var(--color-teal)', marginTop:4 }}>
+              Nuevo sector: {lastDiscovery.sectorName}
+            </div>
+          )}
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:8, padding:'0 14px 14px' }}>
+          {onGoToMap && (
+            <button className="btn btn-primary" onClick={onGoToMap}>
+              Ver en mapa
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={onPrepareNext}>
+            Volver a la caravana
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── COMPLETED (tramo) ─────────────────────────────────────────────────────
   if (expedition?.status === 'completed') {
     const rewards     = expedition.rewards ?? {}
     const xpGain      = rewards.xp ?? 0
