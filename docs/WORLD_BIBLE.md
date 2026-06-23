@@ -1077,6 +1077,10 @@ La ruta Senda de los Faroles Bajos tiene ahora 12 tramos dibujados como puntos e
 
 La expedición se percibe como viaje continuo. Cada tramo tiene atmósfera visual, pequeños sucesos y señales del bioma, aunque todavía no haya assets finales. El jugador ve la caravana moverse, el camino extenderse y los eventos aparecer como señales del entorno, no como listas de texto. El mapa de capa muestra la red completa de caminos del estrato con un token de caravana animado que sigue el progreso real de la expedición; el botón "Seguir caravana" permite volver a la pantalla de marcha sin perder el estado del mapa.
 
+## Identidad de los tramos
+
+Los tramos no son simples segmentos técnicos. Cada tramo puede tener nombre, atmósfera, terreno, riesgo, microeventos, hitos, recursos probables y texto propio de finalización. El jugador debe sentir que atraviesa lugares concretos del Abismo, no números en una lista. Los campos `visual` (mood, terrain, landmark, colorHint), `gameplay` (likelyEvents, resourceHints, threatHints, discoveryChance, restChance) y `completion` (title, text) están definidos para todos los tramos de `route_aethel_to_mist` y sirven de patrón para futuras rutas.
+
 *Este documento es la base de diseño del mundo de Aethermarch. Se actualiza conforme el juego avanza.*
 *Para estado de implementación técnica, ver `docs/ABYSS_DESIGN.md`.*
 *Para roadmap de bloques, ver `docs/PROJECT_BRIEF.md`.*

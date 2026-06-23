@@ -699,6 +699,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'Farolillos de hueso enterrados en el suelo. Camino de tierra firme, el más concurrido del primer descenso.',
     type: 'approach', danger: 'low', stepMin: 250, stepMax: 380,
     eventBias: { resource: 0.4, exploration: 0.3, creature: 0.1, threat: 0.05, microevent: 0.15 },
+    visual:    { mood: 'calm',         terrain: 'earth',          landmark: 'bone_lanterns',  colorHint: '#8B7355' },
+    gameplay:  { likelyEvents: ['resource','exploration','microevent'], resourceHints: ['wood','bone'],       threatHints: [],                         discoveryChance: 0.1,  restChance: 0.05 },
+    completion: { title: 'Los faroles quedan atrás',   text: 'El último farol queda atrás. La senda sigue respirando bajo las raíces.' },
   },
   {
     id: 'seg_afm_02', routeId: 'route_aethel_to_mist', order: 2,
@@ -706,6 +709,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'Red de raíces que forma un puente natural sobre la grieta de niebla.',
     type: 'crossing', danger: 'low', stepMin: 300, stepMax: 450,
     eventBias: { resource: 0.2, exploration: 0.4, creature: 0.2, threat: 0.1, microevent: 0.1 },
+    visual:    { mood: 'ancient',      terrain: 'roots',          landmark: 'root_bridge',    colorHint: '#4A3728' },
+    gameplay:  { likelyEvents: ['exploration','creature','resource'],  resourceHints: ['root','moss'],      threatHints: ['root_beast'],              discoveryChance: 0.15, restChance: 0.05 },
+    completion: { title: 'El puente raíz cruzado',     text: 'Las raíces se abren lo justo para dejar cruzar a la caravana.' },
   },
   {
     id: 'seg_afm_04', routeId: 'route_aethel_to_mist', order: 3,
@@ -713,6 +719,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'Una corteza de árbol milenario atraviesa el vacío. Cruje, pero ha aguantado a todos los que han pasado antes.',
     type: 'crossing', danger: 'low', stepMin: 350, stepMax: 500,
     eventBias: { resource: 0.15, exploration: 0.4, creature: 0.2, threat: 0.1, microevent: 0.15 },
+    visual:    { mood: 'tense',        terrain: 'bark',           landmark: 'bark_bridge',    colorHint: '#3D2B1F' },
+    gameplay:  { likelyEvents: ['exploration','microevent','creature'], resourceHints: ['bark','resin'],    threatHints: ['hollow_lurker'],           discoveryChance: 0.1,  restChance: 0.1  },
+    completion: { title: 'La corteza aguantó',          text: 'La corteza cruje bajo el peso del grupo, pero aguanta.' },
   },
   {
     id: 'seg_afm_05', routeId: 'route_aethel_to_mist', order: 4,
@@ -720,6 +729,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'La niebla se espesa a la altura de los tobillos. Las pisadas se oyen amplificadas.',
     type: 'approach', danger: 'low', stepMin: 300, stepMax: 480,
     eventBias: { resource: 0.3, exploration: 0.35, creature: 0.15, threat: 0.1, microevent: 0.1 },
+    visual:    { mood: 'eerie',        terrain: 'mist_floor',     landmark: 'low_mist',       colorHint: '#5A7070' },
+    gameplay:  { likelyEvents: ['exploration','resource','microevent'], resourceHints: ['damp_moss','mist_crystal'], threatHints: ['mist_wisp'],   discoveryChance: 0.2,  restChance: 0.05 },
+    completion: { title: 'La bruma cede',               text: 'La niebla se repliega entre las piedras como si hubiese algo debajo.' },
   },
   {
     id: 'seg_afm_06', routeId: 'route_aethel_to_mist', order: 5,
@@ -727,6 +739,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'Un tronco caído de dimensiones enormes sirve de pasarela. En su interior se han encontrado marcas de criatura.',
     type: 'crossing', danger: 'medium', stepMin: 380, stepMax: 560,
     eventBias: { resource: 0.1, exploration: 0.45, creature: 0.25, threat: 0.15, microevent: 0.05 },
+    visual:    { mood: 'dark',         terrain: 'hollow_log',     landmark: 'creature_marks', colorHint: '#2A1F15' },
+    gameplay:  { likelyEvents: ['creature','exploration','threat'],    resourceHints: ['dark_wood','bone_shard'], threatHints: ['hollow_beast','cave_spider'], discoveryChance: 0.25, restChance: 0 },
+    completion: { title: 'El tronco cruzado',           text: 'El tronco hueco devuelve el eco de los pasos.' },
   },
   {
     id: 'seg_afm_07', routeId: 'route_aethel_to_mist', order: 6,
@@ -734,6 +749,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'Cornisa abierta al vacío del Abismo. El musgo negro amortigua el sonido y la roca brilla levemente.',
     type: 'landmark', danger: 'medium', stepMin: 420, stepMax: 600,
     eventBias: { resource: 0.2, exploration: 0.4, creature: 0.2, threat: 0.15, microevent: 0.05 },
+    visual:    { mood: 'vast',         terrain: 'open_ledge',     landmark: 'abyss_view',     colorHint: '#1A2A2A' },
+    gameplay:  { likelyEvents: ['exploration','resource','creature'],  resourceHints: ['black_moss','glowing_stone'], threatHints: ['ledge_crawler'], discoveryChance: 0.35, restChance: 0.15 },
+    completion: { title: 'El abismo a la vista',        text: 'Desde el balcón se ve un nivel inferior del Abismo respirando en silencio.' },
   },
   {
     id: 'seg_afm_08', routeId: 'route_aethel_to_mist', order: 7,
@@ -741,6 +759,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'Un pasillo estrecho donde cristales de cuarzo producen un tintineo constante con las corrientes de aire.',
     type: 'crossing', danger: 'medium', stepMin: 450, stepMax: 650,
     eventBias: { resource: 0.15, exploration: 0.5, creature: 0.15, threat: 0.1, microevent: 0.1 },
+    visual:    { mood: 'mystical',     terrain: 'crystal_corridor', landmark: 'singing_quartz', colorHint: '#3A4A6A' },
+    gameplay:  { likelyEvents: ['exploration','microevent','resource'], resourceHints: ['quartz_shard','echo_crystal'], threatHints: ['sound_beast'], discoveryChance: 0.3, restChance: 0.05 },
+    completion: { title: 'Las campanas silenciadas',    text: 'Un tintineo débil acompaña la marcha hasta desaparecer.' },
   },
   {
     id: 'seg_afm_09', routeId: 'route_aethel_to_mist', order: 8,
@@ -748,6 +769,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'Las raíces se tensan desde las paredes como cuerdas de arpa. Hay que agacharse en varios puntos.',
     type: 'approach', danger: 'medium', stepMin: 500, stepMax: 720,
     eventBias: { resource: 0.1, exploration: 0.4, creature: 0.3, threat: 0.15, microevent: 0.05 },
+    visual:    { mood: 'oppressive',   terrain: 'taut_roots',     landmark: 'arching_roots',  colorHint: '#3B2A18' },
+    gameplay:  { likelyEvents: ['creature','exploration','threat'],    resourceHints: ['root_fiber','ancient_resin'], threatHints: ['root_lurker','vine_spider'], discoveryChance: 0.15, restChance: 0 },
+    completion: { title: 'Las raíces detrás',           text: 'Las raíces vibran bajo el suelo, tensas como cuerdas antiguas.' },
   },
   {
     id: 'seg_afm_10', routeId: 'route_aethel_to_mist', order: 9,
@@ -755,6 +779,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'Un claro en la roca donde la sima se abre. El primer vistazo real al Abismo profundo.',
     type: 'landmark', danger: 'medium', stepMin: 550, stepMax: 780,
     eventBias: { resource: 0.05, exploration: 0.6, creature: 0.15, threat: 0.1, microevent: 0.1 },
+    visual:    { mood: 'revelatory',   terrain: 'open_chasm',     landmark: 'first_view',     colorHint: '#0D1520' },
+    gameplay:  { likelyEvents: ['exploration','microevent','creature'], resourceHints: ['depth_stone','void_crystal'], threatHints: ['depth_flyer'], discoveryChance: 0.5, restChance: 0.2 },
+    completion: { title: 'El primer abismo visto',      text: 'La caravana alcanza un punto donde el Abismo deja ver su profundidad.' },
   },
   {
     id: 'seg_afm_03', routeId: 'route_aethel_to_mist', order: 10,
@@ -762,6 +789,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'La bruma sube hasta la cintura y el camino se bifurca. Solo queda seguir el hilo de faroles.',
     type: 'landmark', danger: 'medium', stepMin: 400, stepMax: 600,
     eventBias: { resource: 0.1, exploration: 0.5, creature: 0.2, threat: 0.1, microevent: 0.1 },
+    visual:    { mood: 'disorienting', terrain: 'waist_mist',     landmark: 'mist_fork',      colorHint: '#2A3B3B' },
+    gameplay:  { likelyEvents: ['exploration','creature','microevent'], resourceHints: ['mist_essence','lantern_oil'], threatHints: ['mist_crawler'], discoveryChance: 0.25, restChance: 0.05 },
+    completion: { title: 'La niebla cruzada',           text: 'La niebla cubre las botas y borra durante unos segundos el camino anterior.' },
   },
   {
     id: 'seg_afm_11', routeId: 'route_aethel_to_mist', order: 11,
@@ -769,6 +799,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'Arco de raíz fosilizada que marca el límite del territorio conocido. Los faroles terminan aquí.',
     type: 'descent', danger: 'medium', stepMin: 600, stepMax: 900,
     eventBias: { resource: 0.05, exploration: 0.45, creature: 0.3, threat: 0.15, microevent: 0.05 },
+    visual:    { mood: 'threshold',    terrain: 'fossilized_arch', landmark: 'last_lantern',   colorHint: '#1E1408' },
+    gameplay:  { likelyEvents: ['creature','exploration','threat'],    resourceHints: ['fossil_resin','ancient_bark'], threatHints: ['threshold_guardian','bone_crawler'], discoveryChance: 0.4, restChance: 0.1 },
+    completion: { title: 'El umbral cruzado',           text: 'El olor a madera húmeda anuncia una zona habitada.' },
   },
   {
     id: 'seg_afm_12', routeId: 'route_aethel_to_mist', order: 12,
@@ -776,6 +809,9 @@ export const WORLD_ROUTE_SEGMENTS = [
     description: 'El Sector Raíz de Niebla. El suelo cambia, la niebla es constante, y los faroles de Aethel ya no se ven.',
     type: 'landmark', danger: 'high', stepMin: 700, stepMax: 1000,
     eventBias: { resource: 0.05, exploration: 0.5, creature: 0.25, threat: 0.15, microevent: 0.05 },
+    visual:    { mood: 'arrival',      terrain: 'sector_entrance', landmark: 'mist_gate',      colorHint: '#1A2A1A' },
+    gameplay:  { likelyEvents: ['exploration','creature','threat'],    resourceHints: ['sector_resource','void_root'], threatHints: ['mist_guardian','sector_beast'], discoveryChance: 0.6, restChance: 0.1 },
+    completion: { title: 'Ruta cartografiada',          text: 'La ruta queda cartografiada. Más allá, las raíces forman una nueva frontera.' },
   },
 
   // route_aethel_to_salt — Bajada a la Cornisa

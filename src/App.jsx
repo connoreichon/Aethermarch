@@ -28,7 +28,8 @@ import {
   createInitialContractState, sanitizeContractState,
   canStartContract, startContract, resolveContract, getContractSuccessChance,
 } from './systems/contractSystem.js'
-import AppShell        from './components/AppShell.jsx'
+import AppShell              from './components/AppShell.jsx'
+import ExpeditionNoticeDock  from './components/ExpeditionNoticeDock.jsx'
 import StartScreen     from './screens/StartScreen.jsx'
 import CaravanScreen   from './screens/CaravanScreen.jsx'
 import MapScreen       from './screens/MapScreen.jsx'
@@ -149,9 +150,11 @@ export default function App() {
   const [lastContractResult,        setLastContractResult]        = useState(null)
   const [discoveredSegmentIds,      setDiscoveredSegmentIds]      = useState([])
   const [mapCameraState,            setMapCameraState]            = useState(loadMapCamera)
+  const [expeditionNotices,         setExpeditionNotices]         = useState([])
 
   const completionDone      = useRef(false)
   const combatTriggered     = useRef(new Set())
+  const segNoticeFiredRef   = useRef(new Set())
   const combatAutoResumeRef = useRef(false)
   const pedStateRef         = useRef(createPedometerState())
   const motionHandlerRef    = useRef(null)
@@ -827,6 +830,41 @@ export default function App() {
     )
   }, [expedition.status, expedition.segmentTransition?.completedSegmentId])
 
+  // ── Aviso global de tramo completado ────────────────────────────────────────
+  useEffect(() => {
+    if (expedition.status !== 'segment_transition') return
+    const st = expedition.segmentTransition
+    if (!st?.completedSegmentId) return
+    const key = `${expedition.routeId ?? 'free'}_${st.completedSegmentId}`
+    if (segNoticeFiredRef.current.has(key)) return
+    segNoticeFiredRef.current.add(key)
+    const completedSeg = WORLD_ROUTE_SEGMENTS.find(s => s.id === st.completedSegmentId)
+    const route        = WORLD_ROUTES.find(r => r.id === expedition.routeId)
+    const body         = completedSeg?.completion?.text
+      ?? `La caravana dejó atrás ${st.completedSegmentName}.`
+    setExpeditionNotices(prev => {
+      const filtered = prev.filter(n => n.type !== 'segment_complete')
+      return [...filtered, {
+        id:              `notice-seg-${Date.now()}`,
+        type:            'segment_complete',
+        title:           'Tramo completado',
+        subtitle:        st.completedSegmentName,
+        body,
+        routeId:         expedition.routeId ?? null,
+        routeName:       route?.name ?? null,
+        segmentId:       st.completedSegmentId,
+        segmentName:     st.completedSegmentName,
+        nextSegmentId:   st.nextSegmentId,
+        nextSegmentName: st.nextSegmentName,
+        rewards:         null,
+        autoDismiss:     true,
+        expiresAt:       Date.now() + 7000,
+        createdAt:       Date.now(),
+        minimized:       false,
+      }]
+    })
+  }, [expedition.status, expedition.segmentTransition?.completedSegmentId])
+
   // ── Efectos de completado ────────────────────────────────────────────────────
   useEffect(() => {
     if (expedition.status !== 'completed' || completionDone.current || !player) return
@@ -888,6 +926,35 @@ export default function App() {
         }
       : rawEntry
     setDiary(prev => [...prev, entry])
+
+    // Aviso global de ruta completada
+    if (expedition.routeRun?.completed) {
+      const noticeRoute    = WORLD_ROUTES.find(r => r.id === expedition.routeRun?.routeId)
+      const noticeDest     = INITIAL_SECTORS.find(s => s.id === expedition.sectorId)
+      const noticeCount    = expedition.routeRun.completedSegmentIds?.length ?? 0
+      const noticePlural   = noticeCount !== 1
+      setExpeditionNotices(prev => {
+        const filtered = prev.filter(n => n.type !== 'route_complete' && n.type !== 'segment_complete')
+        return [...filtered, {
+          id:          `notice-route-${Date.now()}`,
+          type:        'route_complete',
+          title:       'Ruta completada',
+          subtitle:    noticeRoute?.name ?? expedition.routeId ?? '—',
+          body:        `La caravana alcanzó ${noticeDest?.name ?? '—'}. ${noticeCount} tramo${noticePlural ? 's' : ''} cartografiado${noticePlural ? 's' : ''}.`,
+          routeId:     expedition.routeRun?.routeId ?? null,
+          routeName:   noticeRoute?.name ?? null,
+          segmentId:   null,
+          segmentName: null,
+          nextSegmentId:   null,
+          nextSegmentName: null,
+          rewards:     expedition.rewards ?? null,
+          autoDismiss: false,
+          expiresAt:   null,
+          createdAt:   Date.now(),
+          minimized:   false,
+        }]
+      })
+    }
 
     if (expedition.rewards?.resources) {
       setInventory(prev => addResources(prev, expedition.rewards.resources))
@@ -1047,6 +1114,16 @@ export default function App() {
           onGoToCaravan={() => setCurrentTab('caravana')}
         />
       )}
+      <ExpeditionNoticeDock
+        notices={expeditionNotices}
+        combat={combat}
+        currentTab={currentTab}
+        onDismiss={id => setExpeditionNotices(prev => prev.filter(n => n.id !== id))}
+        onMinimize={id => setExpeditionNotices(prev => prev.map(n => n.id === id ? { ...n, minimized: !n.minimized } : n))}
+        onGoToMap={() => setCurrentTab('mapa')}
+        onGoToCaravan={() => setCurrentTab('caravana')}
+        onGoToInventory={() => setCurrentTab('inventario')}
+      />
     </AppShell>
   )
 }
