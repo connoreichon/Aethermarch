@@ -4,6 +4,7 @@ export const SAVE_VERSION = 1
 // Statuses that indicate an active session (march / combat in progress)
 const ACTIVE_STATUSES = ['marching', 'combat']
 // Statuses that must be sanitized to 'resting' before writing
+// branch_choice is intentionally excluded — it must survive a reload
 const UNSAFE_STATUSES = ['marching', 'combat', 'awaiting_choice', 'resolved', 'completed', 'segment_transition']
 
 // ── Acceso a localStorage ─────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ export function createSaveSnapshot({
   contractState,
   discoveredSegmentIds,
   currentLocation,
+  branchKnowledge,
 }) {
   // Track whether the save was created while a run was active
   const wasActive = ACTIVE_STATUSES.includes(expedition?.status)
@@ -71,6 +73,7 @@ export function createSaveSnapshot({
     contractState:         contractState ?? null,
     discoveredSegmentIds:  Array.isArray(discoveredSegmentIds) ? discoveredSegmentIds : [],
     currentLocation:       currentLocation ?? null,
+    branchKnowledge:       branchKnowledge ?? {},
     meta: {
       recoveredFromInterruptedRun: wasActive,
     },
@@ -112,6 +115,15 @@ export function sanitizeLoadedSave(rawSave) {
   save.discoveredSegmentIds = Array.isArray(save.discoveredSegmentIds)
     ? save.discoveredSegmentIds
     : []
+
+  // If branch_choice was saved but pendingBranchChoice is missing, reset safely
+  if (save.expedition?.status === 'branch_choice' && !save.expedition?.pendingBranchChoice) {
+    save.expedition = { ...save.expedition, status: 'resting', pendingBranchChoice: null }
+  }
+
+  save.branchKnowledge = (save.branchKnowledge && typeof save.branchKnowledge === 'object')
+    ? save.branchKnowledge
+    : {}
 
   return save
 }

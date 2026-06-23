@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 
 const NOTICE_PRIORITY = {
   route_complete: 0, route_discovery: 1, segment_complete: 2,
-  major_reward: 3, rest_stop: 4, danger_passed: 5,
+  major_reward: 3, rest_stop: 4, danger_passed: 5, branch_chosen: 6,
 }
 
 function getTopNotice(notices) {
@@ -46,6 +46,7 @@ export default function ExpeditionNoticeDock({
   notices,
   combat,
   currentTab,
+  branchChoiceActive,
   onDismiss,
   onMinimize,
   onGoToMap,
@@ -70,9 +71,12 @@ export default function ExpeditionNoticeDock({
 
   // Suppress segment_complete entirely when caravan handles it visually
   // or when combat is demanding full attention
+  // Suppress when branch choice is pending (RouteChoiceDock takes visual priority)
+  // Exception: route_complete and branch_chosen still show
   const suppress =
     (inCaravan && active.type === 'segment_complete') ||
-    (combatActive && active.type !== 'route_complete')
+    (combatActive && active.type !== 'route_complete') ||
+    (branchChoiceActive && active.type !== 'route_complete' && active.type !== 'branch_chosen')
 
   if (suppress) return null
 

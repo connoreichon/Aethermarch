@@ -959,6 +959,19 @@ export default function CaravanScreen({
     )
   }
 
+  // ── BRANCH CHOICE ─────────────────────────────────────────────────────────
+  if (expedition?.status === 'branch_choice') {
+    return (
+      <LiveMarchScene
+        expedition={expedition}
+        player={player}
+        onContinueToNextSegment={onContinueToNextSegment}
+        onAbandonExpedition={onAbandonExpedition}
+        onGoToMap={onGoToMap}
+      />
+    )
+  }
+
   // ── SEGMENT TRANSITION ────────────────────────────────────────────────────
   if (expedition?.status === 'segment_transition' && expedition.segmentTransition) {
     return (

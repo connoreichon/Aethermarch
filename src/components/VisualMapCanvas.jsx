@@ -359,6 +359,8 @@ export default function VisualMapCanvas({
   discoveredSegmentIds,
   expedition,
   currentLocation,
+  routeBranches = [],
+  branchKnowledge = {},
   onSelectLayer,
   onSelectSettlement,
   onSelectRoute,
@@ -660,7 +662,9 @@ export default function VisualMapCanvas({
     }
 
     const layerSettlements   = settlements.filter(s => s.stratumId === selectedLayerId)
-    const isExpeditionActive = expedition?.status === 'marching' || expedition?.status === 'segment_transition'
+    const isExpeditionActive = expedition?.status === 'marching'
+                             || expedition?.status === 'segment_transition'
+                             || expedition?.status === 'branch_choice'
     const marchPos           = isExpeditionActive
       ? getMarchPositionOnNetwork(networks, expedition, routeSegments)
       : null
@@ -1016,9 +1020,103 @@ export default function VisualMapCanvas({
                 fill="var(--color-stone-light)">Sin tramos conocidos</text>
         )}
 
-        {/* Token de caravana en ruta */}
+        {/* ── Bifurcaciones de ruta ── */}
+        {(routeBranches ?? [])
+          .filter(branch => segs.some(s => s.id === branch.afterSegmentId))
+          .flatMap(branch => {
+            const afterIdx = segs.findIndex(s => s.id === branch.afterSegmentId)
+            if (afterIdx < 0 || afterIdx >= positions.length - 1) return []
+            const p0 = positions[afterIdx]
+            const p1 = positions[afterIdx + 1]
+            const dx = p1.x - p0.x
+            const dy = p1.y - p0.y
+            const len = Math.sqrt(dx * dx + dy * dy) || 1
+            const perpX = -dy / len
+            const perpY =  dx / len
+            const arcOff = Math.max(18, len * 0.28)
+            const forkX  = (p0.x + p1.x) / 2
+            const forkY  = (p0.y + p1.y) / 2
+            const isPending = expedition?.pendingBranchChoice?.afterSegmentId === branch.afterSegmentId
+
+            const elements = []
+
+            ;(branch.options ?? []).forEach(option => {
+              const isLeft = option.side !== 'right'
+              const sign   = isLeft ? -1 : 1
+              const cpX    = forkX + perpX * sign * arcOff
+              const cpY    = forkY + perpY * sign * arcOff
+              const visits  = (branchKnowledge ?? {})[option.id]?.visits ?? 0
+              const known   = visits >= 1
+              const mastered = visits >= 5
+              const chosen  = (expedition?.routeRun?.chosenBranches ?? [])
+                                .some(cb => cb.optionId === option.id)
+
+              const strokeColor = mastered ? 'rgba(184,148,74,0.85)'
+                                : chosen   ? 'rgba(79,143,149,0.9)'
+                                : known    ? 'rgba(79,143,149,0.6)'
+                                : 'rgba(98,107,111,0.28)'
+              const strokeDash  = known || mastered || chosen ? undefined : '3 5'
+              const arcPath     = `M ${p0.x} ${p0.y} Q ${cpX} ${cpY} ${p1.x} ${p1.y}`
+
+              elements.push(
+                <path key={`bs-${option.id}`} d={arcPath} fill="none"
+                      stroke="rgba(0,0,0,0.4)" strokeWidth={4}
+                      strokeLinecap="round" style={{ pointerEvents:'none' }}/>
+              )
+              elements.push(
+                <path key={`bp-${option.id}`} d={arcPath} fill="none"
+                      stroke={strokeColor} strokeWidth={1.8}
+                      strokeDasharray={strokeDash} strokeLinecap="round"
+                      className={['map-branch-path',
+                        mastered ? 'mastered' : chosen ? 'chosen' : known ? 'known' : 'unknown',
+                      ].join(' ')}
+                      style={{ pointerEvents:'none' }}/>
+              )
+              if (known || mastered) {
+                const lx = (p0.x + cpX * 2 + p1.x) / 4 + perpX * sign * 10
+                const ly = (p0.y + cpY * 2 + p1.y) / 4 + perpY * sign * 10
+                elements.push(
+                  <text key={`bl-${option.id}`} x={lx} y={ly}
+                        textAnchor="middle" fontSize={6.5} fontFamily="Georgia,serif"
+                        fill={mastered ? 'rgba(184,148,74,0.65)' : 'rgba(79,143,149,0.55)'}
+                        style={{ pointerEvents:'none' }}>
+                    {option.name.length > 12 ? option.name.slice(0, 11) + '…' : option.name}
+                  </text>
+                )
+              }
+            })
+
+            elements.push(
+              <g key={`fork-${branch.id}`}>
+                {isPending && (
+                  <circle cx={forkX} cy={forkY} r={14}
+                          fill="none" stroke="rgba(79,143,149,0.2)" strokeWidth={5}
+                          className="map-branch-node-ring"
+                          style={{ pointerEvents:'none' }}/>
+                )}
+                <circle cx={forkX} cy={forkY} r={isPending ? 9 : 7}
+                        fill="rgba(9,7,4,0.94)"
+                        stroke={isPending ? 'var(--color-mist)' : 'rgba(98,107,111,0.5)'}
+                        strokeWidth={isPending ? 1.8 : 1}
+                        className="map-branch-node"
+                        style={{ pointerEvents:'none' }}/>
+                <text x={forkX} y={forkY + 3.5} textAnchor="middle"
+                      fontSize={isPending ? 8 : 7}
+                      fill={isPending ? 'var(--color-mist)' : 'rgba(140,130,100,0.55)'}
+                      style={{ pointerEvents:'none' }}>
+                  ⑂
+                </text>
+              </g>
+            )
+
+            return elements
+          })
+        }
+
+        {/* Token de caravana en ruta — normal march */}
         {segs.map((seg, idx) => {
           if (seg.id !== currentId) return null
+          if (expedition?.status === 'branch_choice') return null
           const cPos = positions[idx]
           if (!cPos) return null
           const nPos = positions[idx + 1]
@@ -1033,6 +1131,23 @@ export default function VisualMapCanvas({
               paused={expedition?.status === 'segment_transition'}/>
           )
         })}
+
+        {/* Token de caravana en bifurcación pendiente */}
+        {expedition?.status === 'branch_choice' && (() => {
+          const pendingAfter = expedition?.pendingBranchChoice?.afterSegmentId
+          if (!pendingAfter) return null
+          const branch = (routeBranches ?? []).find(b => b.afterSegmentId === pendingAfter)
+          if (!branch) return null
+          const afterIdx = segs.findIndex(s => s.id === branch.afterSegmentId)
+          if (afterIdx < 0 || afterIdx >= positions.length - 1) return null
+          const p0 = positions[afterIdx]
+          const p1 = positions[afterIdx + 1]
+          return (
+            <MarchPositionMarker key="march-branch-choice"
+              x={(p0.x + p1.x) / 2} y={(p0.y + p1.y) / 2}
+              paused={true}/>
+          )
+        })()}
       </>
     )
   }

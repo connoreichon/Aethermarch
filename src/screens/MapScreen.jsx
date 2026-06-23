@@ -26,9 +26,12 @@ export default function MapScreen({
   expedition,
   discoveredSegmentIds = [],
   currentLocation,
+  routeBranches = [],
+  branchKnowledge = {},
   cameraState,
   onCameraChange,
   onGoToCaravan,
+  onGoToCaravanForChoice,
 }) {
   // centerTrigger is purely local — only fires on explicit "Centrar" press
   const [centerTrigger, setCenterTrigger] = useState(0)
@@ -118,6 +121,8 @@ export default function MapScreen({
           discoveredSegmentIds={discoveredSegmentIds}
           expedition={expedition}
           currentLocation={currentLocation}
+          routeBranches={routeBranches}
+          branchKnowledge={branchKnowledge}
           onSelectLayer={handleSelectLayer}
           onSelectSettlement={() => {}}
           onSelectRoute={handleSelectRoute}
@@ -126,6 +131,18 @@ export default function MapScreen({
           onPanChange={handlePanChange}
         />
       </div>
+
+      {/* Decisión de ruta pendiente */}
+      {expedition?.status === 'branch_choice' && (
+        <div className="map-branch-pending-chip">
+          <span>⑂ Bifurcación pendiente — elige camino</span>
+          {onGoToCaravanForChoice && (
+            <button className="btn btn-primary map-branch-decide-btn" onClick={onGoToCaravanForChoice}>
+              Decidir →
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Seguir caravana — solo si expedición activa */}
       {(expedition?.status === 'marching' || expedition?.status === 'segment_transition') && onGoToCaravan && (

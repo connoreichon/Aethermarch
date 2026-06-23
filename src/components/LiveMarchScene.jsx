@@ -349,10 +349,37 @@ export default function LiveMarchScene({
   player,
   onContinueToNextSegment,
   onAbandonExpedition,
+  onGoToMap,
 }) {
-  const isTransition = expedition.status === 'segment_transition'
-  const t            = expedition.segmentTransition ?? null
-  const latestEvt    = expedition.events?.[expedition.events.length - 1] ?? null
+  const isTransition   = expedition.status === 'segment_transition'
+  const isBranchChoice = expedition.status === 'branch_choice'
+  const t              = expedition.segmentTransition ?? null
+  const latestEvt      = expedition.events?.[expedition.events.length - 1] ?? null
+
+  // ── Branch choice waiting state ───────────────────────────────────────────
+  if (isBranchChoice) {
+    const bc = expedition.pendingBranchChoice
+    return (
+      <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:'var(--color-bg)' }}>
+        <MarchSceneCore expedition={expedition} player={player} isTransition />
+        <div className="live-march-branch-waiting">
+          <div className="live-march-segment-label">Bifurcación en el camino</div>
+          {bc?.name && (
+            <div className="live-march-segment-name">{bc.name}</div>
+          )}
+          <div style={{ height:1, background:'rgba(184,148,74,0.18)', margin:'8px 0' }}/>
+          <div style={{ fontSize:'0.68rem', color:'var(--color-stone-light)', marginBottom:14, fontStyle:'italic', lineHeight:1.45 }}>
+            La caravana espera una decisión de camino.
+          </div>
+          {onGoToMap && (
+            <button className="btn btn-primary" onClick={onGoToMap}>
+              Ver opciones en el mapa →
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   // ── Segment transition ────────────────────────────────────────────────────
   if (isTransition && t) {

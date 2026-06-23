@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ARCHETYPES, BIOMES, ENEMIES, INITIAL_SECTORS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS } from './data/gameData.js'
+import { ARCHETYPES, BIOMES, ENEMIES, INITIAL_SECTORS, WORLD_ROUTES, WORLD_ROUTE_SEGMENTS, WORLD_ROUTE_BRANCHES } from './data/gameData.js'
 import CombatAlertModal from './components/CombatAlertModal.jsx'
 import { emptyInventory, addResources } from './systems/inventorySystem.js'
 import { generateEvent, calculateRewards, buildDiaryEntry } from './systems/expeditionSystem.js'
@@ -28,6 +28,11 @@ import {
   createInitialLocation, sanitizeLocation,
   buildLocationFromSector, buildLocationFromRouteDestination,
 } from './systems/locationSystem.js'
+import {
+  createInitialBranchKnowledge, sanitizeBranchKnowledge,
+  applyBranchChoice, getFamiliarityThreatReduction,
+} from './systems/routeBranchSystem.js'
+import RouteChoiceDock from './components/RouteChoiceDock.jsx'
 import {
   createInitialContractState, sanitizeContractState,
   canStartContract, startContract, resolveContract, getContractSuccessChance,
@@ -156,6 +161,7 @@ export default function App() {
   const [mapCameraState,            setMapCameraState]            = useState(loadMapCamera)
   const [expeditionNotices,         setExpeditionNotices]         = useState([])
   const [currentLocation,           setCurrentLocation]           = useState(createInitialLocation)
+  const [branchKnowledge,           setBranchKnowledge]           = useState(createInitialBranchKnowledge)
 
   const completionDone      = useRef(false)
   const combatTriggered     = useRef(new Set())
@@ -212,6 +218,7 @@ export default function App() {
       sanitizeLocation(save.currentLocation, mergedSectors) ??
       buildLocationFromSector(mergedSectors.find(s => s.id === (save.expedition?.sectorId ?? 'sector_aethel_edge')))
     )
+    setBranchKnowledge(sanitizeBranchKnowledge(save.branchKnowledge ?? {}))
     setPedometer(createPedometerState())  // pedometer always starts idle after reload
 
     completionDone.current  = false
@@ -247,6 +254,7 @@ export default function App() {
     setLastContractResult(null)
     setDiscoveredSegmentIds([])
     setCurrentLocation(createInitialLocation())
+    setBranchKnowledge(createInitialBranchKnowledge())
     setMapCameraState(DEFAULT_MAP_CAMERA)
     setStepSource(createInitialStepSource())
     setPedometer(createPedometerState())
@@ -463,10 +471,71 @@ export default function App() {
     setExpedition(prev => ({ ...prev, status: 'marching' }))
   }
 
+  function advanceFromSegmentTransition(prev) {
+    const t = prev.segmentTransition
+    if (!t) return prev
+
+    const branch = WORLD_ROUTE_BRANCHES.find(
+      b => b.routeId === prev.routeId && b.afterSegmentId === t.completedSegmentId
+    )
+
+    if (branch && t.nextSegmentId) {
+      return {
+        ...prev,
+        status:            'branch_choice',
+        pendingBranchChoice: {
+          branchId:         branch.id,
+          routeId:          branch.routeId,
+          afterSegmentId:   branch.afterSegmentId,
+          name:             branch.name,
+          description:      branch.description,
+          options:          branch.options,
+          nextSegmentId:    t.nextSegmentId,
+          nextSegmentName:  t.nextSegmentName,
+          nextSegmentOrder: t.nextSegmentOrder,
+          nextTargetSteps:  t.nextTargetSteps,
+          createdAt:        Date.now(),
+        },
+        segmentTransition: null,
+      }
+    }
+
+    return {
+      ...prev,
+      status:            'marching',
+      currentSteps:      0,
+      progress:          0,
+      events:            [],
+      rewards:           {},
+      combatResults:     [],
+      routeSegmentId:    t.nextSegmentId,
+      routeSegmentName:  t.nextSegmentName,
+      routeSegmentOrder: t.nextSegmentOrder,
+      targetSteps:       t.nextTargetSteps,
+      segmentTransition: null,
+    }
+  }
+
   function handleContinueToNextSegment() {
+    setExpedition(prev => advanceFromSegmentTransition(prev))
+    combatTriggered.current = new Set()
+  }
+
+  function handleChooseRouteBranch(optionId) {
+    if (expedition.status !== 'branch_choice' || !expedition.pendingBranchChoice) return
+    const choice = expedition.pendingBranchChoice
+    const option = choice.options.find(o => o.id === optionId)
+    if (!option) return
+
+    const now              = Date.now()
+    const existingKnow     = branchKnowledge[optionId] ?? null
+    const familiarReduct   = getFamiliarityThreatReduction(existingKnow)
+    const effectiveThreat  = (option.threatModifier ?? 0) + familiarReduct
+    const baseSteps        = choice.nextTargetSteps ?? 800
+    const newTargetSteps   = Math.max(200, Math.round(baseSteps * (1 + (option.stepModifier ?? 0))))
+
     setExpedition(prev => {
-      const t = prev.segmentTransition
-      if (!t) return prev
+      if (prev.status !== 'branch_choice') return prev
       return {
         ...prev,
         status:            'marching',
@@ -475,14 +544,61 @@ export default function App() {
         events:            [],
         rewards:           {},
         combatResults:     [],
-        routeSegmentId:    t.nextSegmentId,
-        routeSegmentName:  t.nextSegmentName,
-        routeSegmentOrder: t.nextSegmentOrder,
-        targetSteps:       t.nextTargetSteps,
-        segmentTransition: null,
+        routeSegmentId:    choice.nextSegmentId,
+        routeSegmentName:  choice.nextSegmentName,
+        routeSegmentOrder: choice.nextSegmentOrder,
+        targetSteps:       newTargetSteps,
+        routeRun: {
+          ...prev.routeRun,
+          chosenBranches: [
+            ...(prev.routeRun?.chosenBranches ?? []),
+            { branchId: choice.branchId, optionId, chosenAt: now, afterSegmentId: choice.afterSegmentId },
+          ],
+        },
+        pendingBranchChoice:    null,
+        activeBranchModifiers: {
+          optionId,
+          branchId:              choice.branchId,
+          threatModifier:        effectiveThreat,
+          resourceModifier:      option.resourceModifier  ?? 0,
+          discoveryModifier:     option.discoveryModifier ?? 0,
+          restChanceModifier:    option.restChanceModifier ?? 0,
+          secretChanceModifier:  option.secretChanceModifier ?? 0,
+        },
       }
     })
+
+    setBranchKnowledge(prev => applyBranchChoice({
+      branchKnowledge: prev,
+      branchId:        choice.branchId,
+      optionId,
+      option,
+      now,
+    }))
+
     combatTriggered.current = new Set()
+
+    setExpeditionNotices(prev => {
+      const riskText = option.risk === 'high'
+        ? 'La amenaza aumenta en el camino elegido.'
+        : option.risk === 'low'
+          ? 'Un paso más seguro. La caravana avanza.'
+          : 'La caravana avanza por la senda elegida.'
+      return [
+        ...prev.filter(n => n.type !== 'branch_chosen'),
+        {
+          id:          `notice-branch-${now}`,
+          type:        'branch_chosen',
+          title:       'Rama elegida',
+          subtitle:    option.name,
+          body:        riskText,
+          autoDismiss: true,
+          expiresAt:   now + 5000,
+          createdAt:   now,
+          minimized:   false,
+        },
+      ]
+    })
   }
 
   function handleAbandonExpedition() {
@@ -711,7 +827,7 @@ export default function App() {
         const newEvents     = [...prev.events]
         const currentSector = sectors.find(s => s.id === prev.sectorId)
         for (const t of triggered) {
-          newEvents.push(generateEvent(prev.modeId, player.creatureId, t, prev.biomeId, currentSector))
+          newEvents.push(generateEvent(prev.modeId, player.creatureId, t, prev.biomeId, currentSector, prev.activeBranchModifiers ?? null))
         }
 
         if (newSteps >= prev.targetSteps) {
@@ -807,22 +923,7 @@ export default function App() {
         if (prev.status !== 'segment_transition' || !prev.segmentTransition) return prev
         const next = prev.segmentTransition.secondsRemaining - 1
         if (next <= 0) {
-          // Auto-advance to next segment
-          const t = prev.segmentTransition
-          return {
-            ...prev,
-            status:            'marching',
-            currentSteps:      0,
-            progress:          0,
-            events:            [],
-            rewards:           {},
-            combatResults:     [],
-            routeSegmentId:    t.nextSegmentId,
-            routeSegmentName:  t.nextSegmentName,
-            routeSegmentOrder: t.nextSegmentOrder,
-            targetSteps:       t.nextTargetSteps,
-            segmentTransition: null,
-          }
+          return advanceFromSegmentTransition(prev)
         }
         return { ...prev, segmentTransition: { ...prev.segmentTransition, secondsRemaining: next } }
       })
@@ -1012,6 +1113,7 @@ export default function App() {
       contractState,
       discoveredSegmentIds,
       currentLocation,
+      branchKnowledge,
     })
     writeSave(snapshot)
     setLastSaved(new Date())
@@ -1051,6 +1153,7 @@ export default function App() {
             sectors={sectors}
             combat={combat}
             currentLocation={currentLocation}
+            branchKnowledge={branchKnowledge}
             lastSaved={lastSaved}
             recoveredFromInterruption={recoveredFromInterruption}
             onAlzar={handleAlzar}
@@ -1063,6 +1166,7 @@ export default function App() {
             onPrepareNext={handlePrepareNext}
             onResetGame={resetGame}
             onGoToMap={() => setCurrentTab('mapa')}
+            onChooseBranch={handleChooseRouteBranch}
             onClaimEcho={handleClaimMarchEcho}
             echoMessage={echoMessage}
             lastEchoResult={lastEchoResult}
@@ -1086,9 +1190,12 @@ export default function App() {
           expedition={expedition}
           discoveredSegmentIds={discoveredSegmentIds}
           currentLocation={currentLocation}
+          routeBranches={WORLD_ROUTE_BRANCHES}
+          branchKnowledge={branchKnowledge}
           cameraState={mapCameraState}
           onCameraChange={setMapCameraState}
           onGoToCaravan={() => setCurrentTab('caravana')}
+          onGoToCaravanForChoice={() => setCurrentTab('caravana')}
         />
       )
       case 'diario':     return <DiaryScreen      diary={diary} />
@@ -1136,10 +1243,19 @@ export default function App() {
           onGoToCaravan={() => setCurrentTab('caravana')}
         />
       )}
+      {expedition.status === 'branch_choice' && expedition.pendingBranchChoice && (
+        <RouteChoiceDock
+          pendingBranchChoice={expedition.pendingBranchChoice}
+          branchKnowledge={branchKnowledge}
+          onChooseBranch={handleChooseRouteBranch}
+          onGoToMap={() => setCurrentTab('mapa')}
+        />
+      )}
       <ExpeditionNoticeDock
         notices={expeditionNotices}
         combat={combat}
         currentTab={currentTab}
+        branchChoiceActive={expedition.status === 'branch_choice'}
         onDismiss={id => setExpeditionNotices(prev => prev.filter(n => n.id !== id))}
         onMinimize={id => setExpeditionNotices(prev => prev.map(n => n.id === id ? { ...n, minimized: !n.minimized } : n))}
         onGoToMap={() => setCurrentTab('mapa')}

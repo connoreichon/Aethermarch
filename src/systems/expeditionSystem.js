@@ -108,11 +108,19 @@ const EVENT_TITLES = {
 }
 
 // ── Auxiliares ────────────────────────────────────────────────────────────────
-function pickEventType(modeId) {
-  const weights = MODE_WEIGHTS[modeId] ?? MODE_WEIGHTS.free_march
-  const total   = Object.values(weights).reduce((a, b) => a + b, 0)
+function pickEventType(modeId, weightModifiers) {
+  const base = { ...(MODE_WEIGHTS[modeId] ?? MODE_WEIGHTS.free_march) }
+  if (weightModifiers) {
+    if (typeof weightModifiers.threatModifier   === 'number')
+      base.threat      = Math.max(1, Math.round(base.threat      * (1 + weightModifiers.threatModifier)))
+    if (typeof weightModifiers.resourceModifier === 'number')
+      base.resource    = Math.max(1, Math.round(base.resource    * (1 + weightModifiers.resourceModifier)))
+    if (typeof weightModifiers.discoveryModifier === 'number')
+      base.exploration = Math.max(1, Math.round(base.exploration * (1 + weightModifiers.discoveryModifier)))
+  }
+  const total = Object.values(base).reduce((a, b) => a + b, 0)
   let r = Math.random() * total
-  for (const [type, w] of Object.entries(weights)) {
+  for (const [type, w] of Object.entries(base)) {
     r -= w
     if (r <= 0) return type
   }
@@ -130,8 +138,8 @@ function pickFromList(list) {
 
 // ── Generador de eventos ──────────────────────────────────────────────────────
 // sector es opcional — si se pasa, se usa su enemyPool y resources para mayor coherencia
-export function generateEvent(modeId, creatureId, threshold, biomeId, sector) {
-  const type  = pickEventType(modeId)
+export function generateEvent(modeId, creatureId, threshold, biomeId, sector, weightModifiers = null) {
+  const type  = pickEventType(modeId, weightModifiers)
   const id    = `evt-${threshold}-${Date.now()}`
   const title = EVENT_TITLES[type] ?? type
 
