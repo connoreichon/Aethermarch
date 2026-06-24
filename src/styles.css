@@ -1,7 +1,7 @@
 /* ── RESET ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
-body { background: #070807; color: #C8B88A; font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+body { background: #070807; color: #C8B88A; font-family: var(--font-lore); -webkit-font-smoothing: antialiased; }
 
 /* ── PALETTE ── */
 :root {
@@ -116,31 +116,37 @@ body { background: #070807; color: #C8B88A; font-family: var(--font-body); -webk
   line-height: 1.55;
 }
 
-/* ── TIPOGRAFÍA GÓTICA (Pirata One) — títulos grandes y nombres ── */
+/* ── TIPOGRAFÍA GÓTICA (Pirata One) — títulos, paneles, botones de acción ── */
 .app-header h1,
+h2, h3,
+.panel-title,
+.collapsible-panel-title,
+.start-section-title,
+.shop-section-title,
+.route-stop-section-title,
+.poi-panel-header,
+.screen-title,
 .creature-hero-name,
 .choice-card-name,
 .combat-alert-title,
 .settlement-name,
 .route-stop-name,
+.route-sector-name,
+.live-march-route-stop-name,
 .branch-dock-title,
-.screen-title,
 .codex-entry-name,
-.diary-entry-title {
+.diary-entry-title,
+.expedition-notice-title,
+button,
+.btn {
   font-family: var(--font-gothic);
 }
 
-/* ── TIPOGRAFÍA DISPLAY (Cinzel) — labels, botones, nav, subtítulos ── */
-h2, h3,
-.bottom-nav-item span,
-.panel-title,
+/* ── TIPOGRAFÍA MEDIEVAL (MedievalSharp) — contenido de paneles y resto ── */
 .creature-hero-role,
 .choice-card-role,
-.expedition-notice-title,
-button,
-.btn,
 .stat-label {
-  font-family: var(--font-display);
+  font-family: var(--font-lore);
 }
 
 .app-header h1 {
@@ -3296,7 +3302,7 @@ button,
   font-size: 0.56rem;
   color: var(--color-stone-light);
   opacity: 0.8;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3393,12 +3399,12 @@ button,
 
 .abyss-layer-label {
   fill: rgba(180,162,110,0.7);
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
 }
 
 .abyss-layer-depth {
   fill: rgba(140,125,90,0.4);
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
 }
 
 .abyss-cornice {
@@ -3416,7 +3422,7 @@ button,
 
 .abyss-scroll-hint {
   fill: rgba(98,107,111,0.35);
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   letter-spacing: 0.04em;
 }
 
@@ -3549,7 +3555,7 @@ button,
 .segment-transition-name {
   font-size: 0.88rem;
   color: var(--color-parchment);
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   margin-bottom: 8px;
 }
 .segment-transition-next {
@@ -3702,7 +3708,7 @@ button,
 .live-march-segment-name {
   font-size: 0.92rem;
   color: var(--color-parchment);
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   font-weight: 600;
   margin-bottom: 4px;
 }
@@ -3738,7 +3744,7 @@ button,
 .live-march-summary-route {
   font-size: 0.78rem;
   color: var(--color-parchment);
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   margin-bottom: 4px;
 }
 .live-march-summary-meta {
@@ -3892,7 +3898,7 @@ button,
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--color-gold);
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   letter-spacing: 0.03em;
 }
 
@@ -3955,7 +3961,7 @@ button,
 .expedition-notice-action {
   flex: 1;
   font-size: 0.68rem;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   padding: 5px 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -4005,7 +4011,7 @@ button,
 
 .expedition-notice-minimized-title {
   font-size: 0.68rem;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   color: var(--color-gold);
   font-weight: 600;
 }
@@ -4076,7 +4082,7 @@ button,
 
 .route-choice-title {
   font-size: 0.72rem;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   color: var(--color-gold);
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -4157,7 +4163,7 @@ button,
 
 .route-choice-option-name {
   font-size: 0.72rem;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   color: var(--color-parchment);
   font-weight: 600;
   flex: 1;
@@ -4204,7 +4210,7 @@ button,
   background: rgba(98,107,111,0.12);
   color: var(--color-parchment);
   font-size: 0.65rem;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   letter-spacing: 0.03em;
@@ -4241,7 +4247,7 @@ button,
 
 .route-choice-minimized-title {
   font-size: 0.68rem;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   color: var(--color-gold);
   font-weight: 600;
   flex: 1;
@@ -4298,7 +4304,7 @@ button,
   border-top: 1px solid rgba(79,143,149,0.25);
   font-size: 0.62rem;
   color: var(--color-mist);
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
 }
 
 .map-branch-decide-btn {
@@ -4407,7 +4413,7 @@ html, body, #root {
 .settlement-header-content { flex: 1; min-width: 0; }
 
 .settlement-name {
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   font-size: 1rem;
   color: var(--color-parchment);
   letter-spacing: 0.01em;
@@ -4687,7 +4693,7 @@ html, body, #root {
 .route-stop-header-icon { font-size: 1.1rem; flex-shrink: 0; }
 .route-stop-title {
   font-size: 0.75rem;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   color: var(--color-gold);
   font-weight: 600;
   white-space: nowrap;
@@ -4849,7 +4855,7 @@ html, body, #root {
 .route-stop-minimized-name {
   flex: 1;
   font-size: 0.65rem;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   color: var(--color-gold);
   white-space: nowrap;
   overflow: hidden;
@@ -4871,7 +4877,7 @@ html, body, #root {
 .live-march-route-stop-icon { font-size: 0.85rem; flex-shrink: 0; }
 .live-march-route-stop-name {
   font-size: 0.65rem;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
   color: var(--color-gold);
   font-style: italic;
 }
