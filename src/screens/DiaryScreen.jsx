@@ -18,37 +18,28 @@ export default function DiaryScreen({ diary }) {
 
   if (!hasEntries) {
     return (
-      <div className="screen-scroll">
-        <div className="panel">
-          <div className="panel-title">Crónica de marcha</div>
-          <div className="diary-empty">
-            <div className="diary-empty-icon">📜</div>
-            <div className="diary-empty-title">La caravana aún no ha registrado ningún tramo.</div>
-            <div className="diary-empty-desc">
-              Cuando completes tu primera jornada, aquí quedará el rastro de todo lo vivido.
-            </div>
-            <ul className="diary-coming-list">
-              <li>Tramos completados y pasos recorridos</li>
-              <li>Hallazgos y sendas reveladas</li>
-              <li>Rastros hostiles detectados</li>
-              <li>Recursos recolectados</li>
-              <li>Palabras de tu criatura compañera</li>
-            </ul>
+      <div className="screen-scroll diary-screen">
+        <div className="diary-panel-content">
+          <div className="diary-empty-title">Crónica de marcha</div>
+          <div className="diary-empty-icon">📜</div>
+          <div className="diary-empty-desc">
+            La caravana aún no ha registrado ningún tramo.<br/>
+            Cuando completes tu primera jornada, aquí quedará el rastro de todo lo vivido.
           </div>
-        </div>
-        <div className="panel">
-          <div className="panel-title">Próximas crónicas</div>
-          <p style={{ fontSize:'0.72rem', color:'var(--color-stone-light)', lineHeight:1.6, fontStyle:'italic' }}>
-            Cada tramo dejará una entrada. La crónica recordará los caminos recorridos,
-            los rastros cruzados y los materiales encontrados.
-          </p>
+          <ul className="diary-coming-list">
+            <li>Tramos completados y pasos recorridos</li>
+            <li>Hallazgos y sendas reveladas</li>
+            <li>Rastros hostiles detectados</li>
+            <li>Recursos recolectados</li>
+            <li>Palabras de tu criatura compañera</li>
+          </ul>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="screen-scroll">
+    <div className="screen-scroll diary-screen">
       <div className="panel">
         <div className="panel-title">Crónica de marcha</div>
         <div className="diary-chronicle-list">

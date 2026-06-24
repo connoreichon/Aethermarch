@@ -5011,3 +5011,78 @@ html, body, #root {
   color: var(--color-stone-light);
   display: block;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PANEL ART — ComfyUI · flat illustration anime style
+   UN solo panel morado cubre la pantalla completa del Diario
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.diary-screen {
+  background-image: url('/assets/generated/panel_purple.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: top center;
+  /* Una pantalla exacta: header ~72px + nav ~58px = 130px */
+  height: calc(100dvh - 130px);
+  min-height: unset !important;
+  overflow-y: auto;
+  /* Padding proporcional al alto del panel:
+     - Vertical: ~24% arriba/abajo empuja el contenido al pergamino central
+     - Horizontal: ~13% para dejar ver la filigrana lateral */
+  padding: calc((100dvh - 130px) * 0.24) 13% calc((100dvh - 130px) * 0.22);
+  gap: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Contenedor único del contenido vacío del diario */
+.diary-panel-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  width: 100%;
+}
+
+/* Textos sobre el pergamino: tonos oscuros cálidos para contraste */
+.diary-screen .diary-empty-title {
+  font-family: var(--font-gothic);
+  font-size: 1.05rem;
+  color: #3D1F0C;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.diary-screen .diary-empty-icon {
+  font-size: 1.8rem;
+  opacity: 0.7;
+}
+.diary-screen .diary-empty-desc,
+.diary-screen .diary-coming-list li,
+.diary-screen p {
+  color: #5A3420;
+  font-style: normal;
+}
+.diary-screen .diary-coming-list {
+  text-align: left;
+  margin-top: 6px;
+}
+.diary-screen .diary-coming-list li::before {
+  color: #8B5A2B;
+}
+
+/* Entradas de crónica sobre pergamino (estado poblado) */
+.diary-screen .diary-entry-title    { color: #3D1F0C; }
+.diary-screen .diary-entry-summary  { color: #4A2C18; }
+.diary-screen .diary-entry-meta     { color: #6B4030; }
+.diary-screen .diary-entry-date     { color: #7A5038; opacity: 0.8; }
+
+/* Panel card: transparente, el pergamino ya es el fondo */
+.diary-screen .panel {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
+}
