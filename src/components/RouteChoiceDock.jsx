@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { getBranchChoiceSummary, getFamiliarityThreatReduction } from '../systems/routeBranchSystem.js'
 import { chooseRecommendedBranchOption, getRecommendationReason } from '../systems/routeDecisionSystem.js'
 
-export const BRANCH_CHOICE_SECONDS = 15
+export const BRANCH_CHOICE_SECONDS = 20
 
 const RISK_LABEL = { low: 'bajo', medium: 'medio', high: 'alto' }
 const RISK_COLOR = {
