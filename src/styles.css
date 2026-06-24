@@ -62,9 +62,10 @@ body { background: #070807; color: #C8B88A; font-family: var(--font-body); -webk
   --border-iron: 1px solid var(--color-iron-dark);
 
   /* ── Tipografía ──────────────────────────────────────────────────────────── */
-  --font-gothic:  'Pirata One', 'Georgia', serif;
-  --font-display: 'Cinzel',     'Georgia', serif;
-  --font-body:    'Lora',       'Georgia', serif;
+  --font-gothic:  'Pirata One',    'Georgia', serif;
+  --font-display: 'Cinzel',        'Georgia', serif;
+  --font-body:    'Lora',          'Georgia', serif;
+  --font-lore:    'MedievalSharp', 'Georgia', serif;
 
   /* Efecto 3D dorado para títulos góticos grandes */
   --text-shadow-gothic:
@@ -94,7 +95,7 @@ body { background: #070807; color: #C8B88A; font-family: var(--font-body); -webk
   padding: 10px 16px 8px;
   text-align: center;
 }
-/* ── TIPOGRAFÍA LORE (Lora Italic) — descripciones, habilidades, lore ── */
+/* ── TIPOGRAFÍA LORE (MedievalSharp) — descripciones, habilidades, lore ── */
 .choice-card-passive-desc,
 .choice-card-desc,
 .creature-hero-desc,
@@ -109,8 +110,8 @@ body { background: #070807; color: #C8B88A; font-family: var(--font-body); -webk
 .panel p,
 .lore-text,
 .passive-desc {
-  font-family: var(--font-body);
-  font-style: italic;
+  font-family: var(--font-lore);
+  font-style: normal;
   color: var(--color-parchment);
   line-height: 1.55;
 }
@@ -607,7 +608,6 @@ button,
 .creature-hero-desc {
   font-size: 0.75rem;
   color: var(--color-parchment);
-  font-style: italic;
   line-height: 1.5;
   max-width: 260px;
   margin: 0 auto;
@@ -3924,9 +3924,8 @@ button,
   padding: 7px 12px 5px;
   font-size: 0.65rem;
   color: var(--color-stone-light);
-  font-style: italic;
   line-height: 1.45;
-  font-family: var(--font-body);
+  font-family: var(--font-lore);
 }
 
 .expedition-notice-next {
@@ -4510,7 +4509,7 @@ html, body, #root {
   color: var(--color-parchment);
   line-height: 1.55;
   margin: 0 0 8px;
-  font-style: italic;
+  font-family: var(--font-lore);
 }
 .settlement-population {
   font-size: 0.62rem;
@@ -4749,7 +4748,7 @@ html, body, #root {
   color: var(--color-parchment);
   line-height: 1.55;
   margin: 0 0 6px;
-  font-style: italic;
+  font-family: var(--font-lore);
 }
 .route-stop-note {
   font-size: 0.62rem;
