@@ -25,7 +25,19 @@ export default function CreatureToken({ creatureId, size = 72 }) {
     )
   }
 
-  // lumora
+  if (creatureId === 'lumora') {
+    return (
+      <img
+        src={`${import.meta.env.BASE_URL}assets/generated/lumora.png`}
+        alt="Lúmora"
+        width={s}
+        height={Math.round(s * 1.1)}
+        style={{ objectFit: 'contain', imageRendering: 'auto' }}
+      />
+    )
+  }
+
+  // fallback lumora svg
   return (
     <svg width={s} height={s} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="36" cy="67" rx="10" ry="3" fill="rgba(0,0,0,0.25)" />
