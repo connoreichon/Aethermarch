@@ -3264,7 +3264,7 @@ button,
   font-size: 0.56rem;
   color: var(--color-stone-light);
   opacity: 0.8;
-  font-family: Georgia,serif;
+  font-family: var(--font-body);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3361,12 +3361,12 @@ button,
 
 .abyss-layer-label {
   fill: rgba(180,162,110,0.7);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
 }
 
 .abyss-layer-depth {
   fill: rgba(140,125,90,0.4);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
 }
 
 .abyss-cornice {
@@ -3384,7 +3384,7 @@ button,
 
 .abyss-scroll-hint {
   fill: rgba(98,107,111,0.35);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   letter-spacing: 0.04em;
 }
 
@@ -3517,7 +3517,7 @@ button,
 .segment-transition-name {
   font-size: 0.88rem;
   color: var(--color-parchment);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   margin-bottom: 8px;
 }
 .segment-transition-next {
@@ -3670,7 +3670,7 @@ button,
 .live-march-segment-name {
   font-size: 0.92rem;
   color: var(--color-parchment);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   font-weight: 600;
   margin-bottom: 4px;
 }
@@ -3706,7 +3706,7 @@ button,
 .live-march-summary-route {
   font-size: 0.78rem;
   color: var(--color-parchment);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   margin-bottom: 4px;
 }
 .live-march-summary-meta {
@@ -3860,7 +3860,7 @@ button,
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--color-gold);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   letter-spacing: 0.03em;
 }
 
@@ -3894,7 +3894,7 @@ button,
   color: var(--color-stone-light);
   font-style: italic;
   line-height: 1.45;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
 }
 
 .expedition-notice-next {
@@ -3924,7 +3924,7 @@ button,
 .expedition-notice-action {
   flex: 1;
   font-size: 0.68rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   padding: 5px 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -3974,7 +3974,7 @@ button,
 
 .expedition-notice-minimized-title {
   font-size: 0.68rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   font-weight: 600;
 }
@@ -4045,7 +4045,7 @@ button,
 
 .route-choice-title {
   font-size: 0.72rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -4126,7 +4126,7 @@ button,
 
 .route-choice-option-name {
   font-size: 0.72rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-parchment);
   font-weight: 600;
   flex: 1;
@@ -4173,7 +4173,7 @@ button,
   background: rgba(98,107,111,0.12);
   color: var(--color-parchment);
   font-size: 0.65rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   letter-spacing: 0.03em;
@@ -4210,7 +4210,7 @@ button,
 
 .route-choice-minimized-title {
   font-size: 0.68rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   font-weight: 600;
   flex: 1;
@@ -4267,7 +4267,7 @@ button,
   border-top: 1px solid rgba(79,143,149,0.25);
   font-size: 0.62rem;
   color: var(--color-mist);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
 }
 
 .map-branch-decide-btn {
@@ -4376,7 +4376,7 @@ html, body, #root {
 .settlement-header-content { flex: 1; min-width: 0; }
 
 .settlement-name {
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   font-size: 1rem;
   color: var(--color-parchment);
   letter-spacing: 0.01em;
@@ -4656,7 +4656,7 @@ html, body, #root {
 .route-stop-header-icon { font-size: 1.1rem; flex-shrink: 0; }
 .route-stop-title {
   font-size: 0.75rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   font-weight: 600;
   white-space: nowrap;
@@ -4818,7 +4818,7 @@ html, body, #root {
 .route-stop-minimized-name {
   flex: 1;
   font-size: 0.65rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   white-space: nowrap;
   overflow: hidden;
@@ -4840,7 +4840,7 @@ html, body, #root {
 .live-march-route-stop-icon { font-size: 0.85rem; flex-shrink: 0; }
 .live-march-route-stop-name {
   font-size: 0.65rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   font-style: italic;
 }
