@@ -125,7 +125,25 @@ public/assets/generated/ciervo_velthar_v7_3141.png
 public/assets/generated/ciervo_velthar_v7_8888.png
 public/assets/generated/ciervo_velthar_v7_9999.png
 public/assets/generated/ciervo_velthar.png
+public/assets/generated/lumora_v1_s1234.png
+public/assets/generated/lumora_v1_s3636.png
+public/assets/generated/lumora_v1_s5678.png
+public/assets/generated/lumora_v1_s7171.png
+public/assets/generated/lumora_v2_s1357.png
+public/assets/generated/lumora_v2_s2468.png
+public/assets/generated/lumora_v2_s4321.png
+public/assets/generated/lumora_v2_s8642.png
+public/assets/generated/lumora_v3_s1919.png
+public/assets/generated/lumora_v3_s2727.png
+public/assets/generated/lumora_v3_s5151.png
+public/assets/generated/lumora_v3_s6363.png
+public/assets/generated/lumora_v4_s5050.png
+public/assets/generated/lumora_v4_s5151.png
+public/assets/generated/lumora_v4_s5252.png
+public/assets/generated/lumora_v4_s5353.png
+public/assets/generated/lumora.png
 public/assets/generated/test_estilo.png
+scripts/characters/brontik.json
 scripts/characters/ciervo_velthar.json
 scripts/generate_asset.ps1
 src/App.jsx
@@ -1556,6 +1574,31 @@ Color de texto: `--color-hp`, sin fondo, solo texto.
 - ❌ Degradados multicolor en un mismo elemento
 - ❌ Sombras de colores muy saturados salvo en botones CTA
 - ❌ Más de 3 colores distintos en un mismo panel/card
+</file>
+
+<file path="scripts/characters/brontik.json">
+{
+  "name": "Brontik",
+  "approved_version": "clean_s9001",
+  "master_seed": 9001,
+  "model": "flux1-krea-dev_fp8_scaled.safetensors",
+  "loras": [
+    { "file": "flat_illustration_flux.safetensors",    "strength": 0.90 },
+    { "file": "2d_flat_illustrations_flux.safetensors","strength": 0.75 }
+  ],
+  "settings": {
+    "steps": 35,
+    "guidance": 4.0,
+    "sampler": "euler",
+    "scheduler": "simple",
+    "width": 512,
+    "height": 640
+  },
+  "clip_l": "armored boar creature anime flat illustration dark brown armor plates amber glow orange eyes full body white background",
+  "t5xxl": "Brontik, armored road beast, anime flat 2D illustration, flat color, clean lineart, Genshin Impact character art style, stocky low body, smooth dark brown fur, clean geometric stone armor plates on back arranged in neat rows like armadillo shell, soft orange amber light glowing between armor plates, two white tusks, bright orange eyes, four thick sturdy legs, short thick tail, calm standing pose 3 quarter view facing left, full body visible, pure white background, simple clean design, no extra details, game character sprite, professional 2D game art",
+  "povs_generated": ["3quarter_left"],
+  "notes": "Seed 9001 es intocable. Siempre mismas placas de roca, mismo glow ámbar entre ellas, mismos colmillos blancos, ojos naranjas. Guidance 4.0 (más alto que Velthar) para mantener coherencia en las placas."
+}
 </file>
 
 <file path="scripts/characters/ciervo_velthar.json">
@@ -7109,7 +7152,19 @@ export default function CreatureToken({ creatureId, size = 72 }) {
     )
   }
 
-  // lumora
+  if (creatureId === 'lumora') {
+    return (
+      <img
+        src={`${import.meta.env.BASE_URL}assets/generated/lumora.png`}
+        alt="Lúmora"
+        width={s}
+        height={Math.round(s * 1.1)}
+        style={{ objectFit: 'contain', imageRendering: 'auto' }}
+      />
+    )
+  }
+
+  // fallback lumora svg
   return (
     <svg width={s} height={s} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="36" cy="67" rx="10" ry="3" fill="rgba(0,0,0,0.25)" />
