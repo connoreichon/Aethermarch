@@ -94,6 +94,27 @@ body { background: #070807; color: #C8B88A; font-family: var(--font-body); -webk
   padding: 10px 16px 8px;
   text-align: center;
 }
+/* ── TIPOGRAFÍA LORE (Lora Italic) — descripciones, habilidades, lore ── */
+.choice-card-passive-desc,
+.choice-card-desc,
+.creature-hero-desc,
+.diary-entry-summary,
+.diary-empty-desc,
+.diary-coming-list li,
+.codex-entry-desc,
+.codex-entry-lore,
+.route-stop-desc,
+.settlement-desc,
+.expedition-notice-body,
+.panel p,
+.lore-text,
+.passive-desc {
+  font-family: var(--font-body);
+  font-style: italic;
+  color: var(--color-parchment);
+  line-height: 1.55;
+}
+
 /* ── TIPOGRAFÍA GÓTICA (Pirata One) — títulos grandes y nombres ── */
 .app-header h1,
 .creature-hero-name,
