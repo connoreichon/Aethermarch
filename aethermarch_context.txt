@@ -4003,25 +4003,6 @@ export function formatDate(date) {
 </html>
 </file>
 
-<file path="src/components/AppShell.jsx">
-import BottomNav from './BottomNav.jsx'
-
-export default function AppShell({ currentTab, onChangeTab, children, flowClass }) {
-  return (
-    <div className={['app-root', flowClass].filter(Boolean).join(' ')}>
-      <header className="app-header">
-        <h1>Aethermarch</h1>
-        <p>El camino te espera</p>
-      </header>
-      <main className="app-content">
-        {children}
-      </main>
-      <BottomNav currentTab={currentTab} onChangeTab={onChangeTab} />
-    </div>
-  )
-}
-</file>
-
 <file path="src/components/BottomNav.jsx">
 function CodexIcon() {
   return (
@@ -4213,24 +4194,6 @@ export default function CombatAlertModal({
     </div>
   )
 }
-</file>
-
-<file path="src/main.jsx">
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.jsx'
-import '@fontsource/cinzel/400.css'
-import '@fontsource/cinzel/600.css'
-import '@fontsource/cinzel/700.css'
-import '@fontsource/lora/400.css'
-import '@fontsource/lora/500.css'
-import './styles.css'
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
 </file>
 
 <file path="src/screens/InventoryScreen.jsx">
@@ -5451,36 +5414,22 @@ export function completeCurrentRouteSegment({ routeRun, route, segments }) {
 }
 </file>
 
-<file path="package.json">
-{
-  "name": "aethermarch",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "android:build": "vite build --base ./ && npx cap sync android",
-    "android:open": "npx cap open android",
-    "android:copy": "vite build --base ./ && npx cap copy android",
-    "android:sync": "vite build --base ./ && npx cap sync android"
-  },
-  "dependencies": {
-    "@capacitor/android": "^8.4.1",
-    "@capacitor/cli": "^8.4.1",
-    "@capacitor/core": "^8.4.1",
-    "@fontsource/cinzel": "^5.2.8",
-    "@fontsource/lora": "^5.2.8",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^6.3.5"
-  }
+<file path="src/components/AppShell.jsx">
+import BottomNav from './BottomNav.jsx'
+
+export default function AppShell({ currentTab, onChangeTab, children, flowClass }) {
+  return (
+    <div className={['app-root', flowClass].filter(Boolean).join(' ')}>
+      <header className="app-header">
+        <h1 style={{ fontFamily: "'Pirata One', serif" }}>Aethermarch</h1>
+        <p>El camino te espera</p>
+      </header>
+      <main className="app-content">
+        {children}
+      </main>
+      <BottomNav currentTab={currentTab} onChangeTab={onChangeTab} />
+    </div>
+  )
 }
 </file>
 
@@ -6326,6 +6275,41 @@ export default defineConfig({
 })
 </file>
 
+<file path="package.json">
+{
+  "name": "aethermarch",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "android:build": "vite build --base ./ && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:copy": "vite build --base ./ && npx cap copy android",
+    "android:sync": "vite build --base ./ && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@fontsource/cinzel": "^5.2.8",
+    "@fontsource/lora": "^5.2.8",
+    "@fontsource/medievalsharp": "^5.2.8",
+    "@fontsource/pirata-one": "^5.2.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.3.5"
+  }
+}
+</file>
+
 <file path="src/components/ExpeditionNoticeDock.jsx">
 import { useEffect, useState } from 'react'
 
@@ -7129,6 +7113,26 @@ export default function LiveMarchScene({
     </>
   )
 }
+</file>
+
+<file path="src/main.jsx">
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+import '@fontsource/pirata-one'
+import '@fontsource/cinzel/400.css'
+import '@fontsource/cinzel/600.css'
+import '@fontsource/cinzel/700.css'
+import '@fontsource/lora/400.css'
+import '@fontsource/lora/400-italic.css'
+import '@fontsource/lora/500.css'
+import './styles.css'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
 </file>
 
 <file path="src/components/tokens/CreatureToken.jsx">
@@ -15923,8 +15927,16 @@ body { background: #070807; color: #C8B88A; font-family: var(--font-body); -webk
   --border-iron: 1px solid var(--color-iron-dark);
 
   /* ── Tipografía ──────────────────────────────────────────────────────────── */
-  --font-display: 'Cinzel', 'Georgia', serif;
-  --font-body:    'Lora',   'Georgia', serif;
+  --font-gothic:  'Pirata One', 'Georgia', serif;
+  --font-display: 'Cinzel',     'Georgia', serif;
+  --font-body:    'Lora',       'Georgia', serif;
+
+  /* Efecto 3D dorado para títulos góticos grandes */
+  --text-shadow-gothic:
+    1px 1px 0 #7A5F2A,
+    2px 2px 0 #6A500A,
+    3px 3px 0 #5A4010,
+    4px 4px 0 rgba(0,0,0,0.5);
 }
 
 /* ── LAYOUT MOBILE ── */
@@ -15947,35 +15959,59 @@ body { background: #070807; color: #C8B88A; font-family: var(--font-body); -webk
   padding: 10px 16px 8px;
   text-align: center;
 }
-/* ── TIPOGRAFÍA DISPLAY (Cinzel) ── */
-h1, h2, h3,
+/* ── TIPOGRAFÍA LORE (Lora Italic) — descripciones, habilidades, lore ── */
+.choice-card-passive-desc,
+.choice-card-desc,
+.creature-hero-desc,
+.diary-entry-summary,
+.diary-empty-desc,
+.diary-coming-list li,
+.codex-entry-desc,
+.codex-entry-lore,
+.route-stop-desc,
+.settlement-desc,
+.expedition-notice-body,
+.panel p,
+.lore-text,
+.passive-desc {
+  font-family: var(--font-body);
+  font-style: italic;
+  color: var(--color-parchment);
+  line-height: 1.55;
+}
+
+/* ── TIPOGRAFÍA GÓTICA (Pirata One) — títulos grandes y nombres ── */
 .app-header h1,
-.bottom-nav-item span,
-.panel-title,
 .creature-hero-name,
-.creature-hero-role,
 .choice-card-name,
-.choice-card-role,
+.combat-alert-title,
 .settlement-name,
 .route-stop-name,
-.combat-alert-title,
-.expedition-notice-title,
 .branch-dock-title,
 .screen-title,
-button,
-.btn,
-.stat-label,
 .codex-entry-name,
 .diary-entry-title {
+  font-family: var(--font-gothic);
+}
+
+/* ── TIPOGRAFÍA DISPLAY (Cinzel) — labels, botones, nav, subtítulos ── */
+h2, h3,
+.bottom-nav-item span,
+.panel-title,
+.creature-hero-role,
+.choice-card-role,
+.expedition-notice-title,
+button,
+.btn,
+.stat-label {
   font-family: var(--font-display);
 }
 
 .app-header h1 {
-  font-size: 1.35rem;
-  letter-spacing: 0.12em;
-  color: var(--color-gold);
-  text-transform: uppercase;
-  text-shadow: 0 0 12px rgba(184,148,74,0.35);
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
+  color: var(--color-parchment-bright);
+  text-shadow: var(--text-shadow-gothic);
 }
 .app-header p {
   font-size: 0.65rem;
@@ -19125,7 +19161,7 @@ button,
   font-size: 0.56rem;
   color: var(--color-stone-light);
   opacity: 0.8;
-  font-family: Georgia,serif;
+  font-family: var(--font-body);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -19222,12 +19258,12 @@ button,
 
 .abyss-layer-label {
   fill: rgba(180,162,110,0.7);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
 }
 
 .abyss-layer-depth {
   fill: rgba(140,125,90,0.4);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
 }
 
 .abyss-cornice {
@@ -19245,7 +19281,7 @@ button,
 
 .abyss-scroll-hint {
   fill: rgba(98,107,111,0.35);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   letter-spacing: 0.04em;
 }
 
@@ -19378,7 +19414,7 @@ button,
 .segment-transition-name {
   font-size: 0.88rem;
   color: var(--color-parchment);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   margin-bottom: 8px;
 }
 .segment-transition-next {
@@ -19531,7 +19567,7 @@ button,
 .live-march-segment-name {
   font-size: 0.92rem;
   color: var(--color-parchment);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   font-weight: 600;
   margin-bottom: 4px;
 }
@@ -19567,7 +19603,7 @@ button,
 .live-march-summary-route {
   font-size: 0.78rem;
   color: var(--color-parchment);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   margin-bottom: 4px;
 }
 .live-march-summary-meta {
@@ -19721,7 +19757,7 @@ button,
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--color-gold);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   letter-spacing: 0.03em;
 }
 
@@ -19755,7 +19791,7 @@ button,
   color: var(--color-stone-light);
   font-style: italic;
   line-height: 1.45;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
 }
 
 .expedition-notice-next {
@@ -19785,7 +19821,7 @@ button,
 .expedition-notice-action {
   flex: 1;
   font-size: 0.68rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   padding: 5px 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -19835,7 +19871,7 @@ button,
 
 .expedition-notice-minimized-title {
   font-size: 0.68rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   font-weight: 600;
 }
@@ -19906,7 +19942,7 @@ button,
 
 .route-choice-title {
   font-size: 0.72rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -19987,7 +20023,7 @@ button,
 
 .route-choice-option-name {
   font-size: 0.72rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-parchment);
   font-weight: 600;
   flex: 1;
@@ -20034,7 +20070,7 @@ button,
   background: rgba(98,107,111,0.12);
   color: var(--color-parchment);
   font-size: 0.65rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   letter-spacing: 0.03em;
@@ -20071,7 +20107,7 @@ button,
 
 .route-choice-minimized-title {
   font-size: 0.68rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   font-weight: 600;
   flex: 1;
@@ -20128,7 +20164,7 @@ button,
   border-top: 1px solid rgba(79,143,149,0.25);
   font-size: 0.62rem;
   color: var(--color-mist);
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
 }
 
 .map-branch-decide-btn {
@@ -20237,7 +20273,7 @@ html, body, #root {
 .settlement-header-content { flex: 1; min-width: 0; }
 
 .settlement-name {
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   font-size: 1rem;
   color: var(--color-parchment);
   letter-spacing: 0.01em;
@@ -20517,7 +20553,7 @@ html, body, #root {
 .route-stop-header-icon { font-size: 1.1rem; flex-shrink: 0; }
 .route-stop-title {
   font-size: 0.75rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   font-weight: 600;
   white-space: nowrap;
@@ -20679,7 +20715,7 @@ html, body, #root {
 .route-stop-minimized-name {
   flex: 1;
   font-size: 0.65rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   white-space: nowrap;
   overflow: hidden;
@@ -20701,7 +20737,7 @@ html, body, #root {
 .live-march-route-stop-icon { font-size: 0.85rem; flex-shrink: 0; }
 .live-march-route-stop-name {
   font-size: 0.65rem;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   color: var(--color-gold);
   font-style: italic;
 }
