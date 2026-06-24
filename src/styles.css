@@ -5017,26 +5017,26 @@ html, body, #root {
    UN solo panel morado cubre la pantalla completa del Diario
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.diary-screen {
+/* ── Panel ocupa EXACTAMENTE el área de contenido (sin cálculo de px) ──── */
+.app-content:has(.diary-screen) {
   background-image: url('/assets/generated/panel_purple.png');
   background-size: 100% 100%;
   background-repeat: no-repeat;
   background-position: top center;
-  /* Una pantalla exacta: header ~72px + nav ~58px = 130px */
-  height: calc(100dvh - 130px);
-  min-height: unset !important;
-  overflow-y: auto;
-  /* Padding proporcional al alto del panel:
-     - Vertical: ~24% arriba/abajo empuja el contenido al pergamino central
-     - Horizontal: ~13% para dejar ver la filigrana lateral */
-  padding: calc((100dvh - 130px) * 0.24) 13% calc((100dvh - 130px) * 0.22);
+}
+
+.diary-screen {
+  background: transparent;
+  min-height: 100%;
+  /* 21dvh vertical ≈ zona de gemas; 18% horizontal ≈ borde del pergamino */
+  padding: 21dvh 18% 19dvh;
   gap: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-/* Contenedor único del contenido vacío del diario */
+/* Contenedor único del contenido del diario */
 .diary-panel-content {
   display: flex;
   flex-direction: column;
@@ -5079,10 +5079,42 @@ html, body, #root {
 .diary-screen .diary-entry-meta     { color: #6B4030; }
 .diary-screen .diary-entry-date     { color: #7A5038; opacity: 0.8; }
 
+/* Título de sección dentro del pergamino */
+.diary-screen .panel-title {
+  font-family: var(--font-gothic);
+  color: #3D1F0C;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 1.0rem;
+  margin-bottom: 8px;
+}
+
 /* Panel card: transparente, el pergamino ya es el fondo */
 .diary-screen .panel {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   padding: 0;
+  width: 100%;
+}
+
+/* Cards de entrada: fondo transparente, texto en tinta cálida */
+.diary-screen .diary-entry-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid rgba(93, 60, 30, 0.3) !important;
+  padding: 8px 0;
+}
+.diary-screen .diary-entry-card.latest {
+  border-bottom-color: rgba(93, 60, 30, 0.5) !important;
+}
+
+/* Badges sobre pergamino */
+.diary-screen .diary-echo-badge,
+.diary-screen .diary-poi-badge,
+.diary-screen .diary-contract-badge {
+  background: rgba(93, 60, 30, 0.18) !important;
+  color: #3D1F0C !important;
+  border-color: rgba(93, 60, 30, 0.35) !important;
 }
