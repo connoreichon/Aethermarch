@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import '@fontsource/pirata-one'
 import '@fontsource/cinzel/400.css'
 import '@fontsource/cinzel/600.css'
 import '@fontsource/cinzel/700.css'

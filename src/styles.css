@@ -62,8 +62,16 @@ body { background: #070807; color: #C8B88A; font-family: var(--font-body); -webk
   --border-iron: 1px solid var(--color-iron-dark);
 
   /* ── Tipografía ──────────────────────────────────────────────────────────── */
-  --font-display: 'Cinzel', 'Georgia', serif;
-  --font-body:    'Lora',   'Georgia', serif;
+  --font-gothic:  'Pirata One', 'Georgia', serif;
+  --font-display: 'Cinzel',     'Georgia', serif;
+  --font-body:    'Lora',       'Georgia', serif;
+
+  /* Efecto 3D dorado para títulos góticos grandes */
+  --text-shadow-gothic:
+    1px 1px 0 #7A5F2A,
+    2px 2px 0 #6A500A,
+    3px 3px 0 #5A4010,
+    4px 4px 0 rgba(0,0,0,0.5);
 }
 
 /* ── LAYOUT MOBILE ── */
@@ -86,35 +94,38 @@ body { background: #070807; color: #C8B88A; font-family: var(--font-body); -webk
   padding: 10px 16px 8px;
   text-align: center;
 }
-/* ── TIPOGRAFÍA DISPLAY (Cinzel) ── */
-h1, h2, h3,
+/* ── TIPOGRAFÍA GÓTICA (Pirata One) — títulos grandes y nombres ── */
 .app-header h1,
-.bottom-nav-item span,
-.panel-title,
 .creature-hero-name,
-.creature-hero-role,
 .choice-card-name,
-.choice-card-role,
+.combat-alert-title,
 .settlement-name,
 .route-stop-name,
-.combat-alert-title,
-.expedition-notice-title,
 .branch-dock-title,
 .screen-title,
-button,
-.btn,
-.stat-label,
 .codex-entry-name,
 .diary-entry-title {
+  font-family: var(--font-gothic);
+}
+
+/* ── TIPOGRAFÍA DISPLAY (Cinzel) — labels, botones, nav, subtítulos ── */
+h2, h3,
+.bottom-nav-item span,
+.panel-title,
+.creature-hero-role,
+.choice-card-role,
+.expedition-notice-title,
+button,
+.btn,
+.stat-label {
   font-family: var(--font-display);
 }
 
 .app-header h1 {
-  font-size: 1.35rem;
-  letter-spacing: 0.12em;
-  color: var(--color-gold);
-  text-transform: uppercase;
-  text-shadow: 0 0 12px rgba(184,148,74,0.35);
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
+  color: var(--color-parchment-bright);
+  text-shadow: var(--text-shadow-gothic);
 }
 .app-header p {
   font-size: 0.65rem;
