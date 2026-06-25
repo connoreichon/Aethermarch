@@ -2,6 +2,32 @@ export default function ArchetypeToken({ archetypeId, size = 72 }) {
   const s = size
   const half = s / 2
 
+  if (archetypeId === 'heraldo') {
+    return (
+      <div style={{
+        width: s, height: s,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        border: '2px solid rgba(184,148,74,0.45)',
+        boxShadow: '0 0 8px rgba(139,30,30,0.35)',
+        flexShrink: 0,
+        background: '#0a0404',
+      }}>
+        <img
+          src={`${import.meta.env.BASE_URL}assets/generated/heraldo_botharms_s2014.png`}
+          alt="Heraldo"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center 8%',
+            display: 'block',
+          }}
+        />
+      </div>
+    )
+  }
+
   if (archetypeId === 'guardian') {
     return (
       <svg width={s} height={s} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">

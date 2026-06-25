@@ -1,6 +1,15 @@
 // ── ARQUETIPOS ──────────────────────────────────────────────────────────────
 export const ARCHETYPES = [
   {
+    id: 'heraldo',
+    name: 'Heraldo',
+    role: 'Guerrero y guardián',
+    passiveName: 'Guardia de Hierro',
+    passiveDescription: 'Aguanta mejor los golpes y protege a la caravana en el camino.',
+    visualSummary: 'Armadura gris acero, manto carmesí, espada al cinto.',
+    hpBonus: 8,
+  },
+  {
     id: 'guardian',
     name: 'Guardián del Camino',
     role: 'Defensa y resistencia',
