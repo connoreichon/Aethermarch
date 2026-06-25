@@ -1,28 +1,23 @@
 import { useState } from 'react'
-import { ARCHETYPES, CREATURES } from '../data/gameData.js'
-import ChoiceCard     from '../components/ChoiceCard.jsx'
-import ArchetypeToken from '../components/tokens/ArchetypeToken.jsx'
-import CreatureToken  from '../components/tokens/CreatureToken.jsx'
+import { CREATURES } from '../data/gameData.js'
+import ChoiceCard    from '../components/ChoiceCard.jsx'
+import CreatureToken from '../components/tokens/CreatureToken.jsx'
+import ClassSelectScreen from './ClassSelectScreen.jsx'
 
-// ── Vista cuando existe partida guardada ──────────────────────────────────────
+// ── Partida guardada ──────────────────────────────────────────────────────────
 
 function SavedGameScreen({ onContinue, onNewGame }) {
   function handleNewGame() {
-    const confirmed = window.confirm(
-      'Esto borrará la caravana guardada y empezará una nueva partida. ¿Continuar?'
-    )
-    if (confirmed) onNewGame()
+    if (window.confirm('Esto borrará la caravana guardada y empezará una nueva partida. ¿Continuar?'))
+      onNewGame()
   }
 
   return (
     <div className="start-screen">
       <div className="start-hero">
         <h1>Aethermarch</h1>
-        <p className="tagline">
-          Cada paseo real hace avanzar tu caravana por un mundo medieval misterioso.
-        </p>
+        <p className="tagline">Cada paseo real hace avanzar tu caravana por un mundo medieval misterioso.</p>
       </div>
-
       <div className="start-body" style={{ maxWidth: 360, margin: '0 auto' }}>
         <div className="panel" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '0.7rem', color: 'var(--color-stone-light)',
@@ -36,28 +31,15 @@ function SavedGameScreen({ onContinue, onNewGame }) {
             <rect x="24" y="28" width="8" height="8" fill="none" stroke="rgba(184,148,74,0.45)" strokeWidth="1"/>
             <path d="M28 18 L28 22" stroke="rgba(184,148,74,0.4)" strokeWidth="1" strokeLinecap="round"/>
           </svg>
-          <button
-            className="btn btn-primary"
-            onClick={onContinue}
-            style={{ width: '100%', marginBottom: 10 }}
-          >
+          <button className="btn btn-primary" onClick={onContinue} style={{ width: '100%', marginBottom: 10 }}>
             Continuar partida
           </button>
-          <button
-            onClick={handleNewGame}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--color-iron-dark)',
-              color: 'var(--color-stone-light)',
-              fontFamily: 'inherit',
-              fontSize: '0.75rem',
-              padding: '8px 20px',
-              borderRadius: 'var(--radius-sm)',
-              cursor: 'pointer',
-              width: '100%',
-              letterSpacing: '0.04em',
-            }}
-          >
+          <button onClick={handleNewGame} style={{
+            background: 'transparent', border: '1px solid var(--color-iron-dark)',
+            color: 'var(--color-stone-light)', fontFamily: 'inherit', fontSize: '0.75rem',
+            padding: '8px 20px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+            width: '100%', letterSpacing: '0.04em',
+          }}>
             Nueva partida
           </button>
         </div>
@@ -66,57 +48,19 @@ function SavedGameScreen({ onContinue, onNewGame }) {
   )
 }
 
-// ── Vista de selección inicial ────────────────────────────────────────────────
+// ── Selección de criatura ─────────────────────────────────────────────────────
 
-export default function StartScreen({ onStart, hasSave, onContinue, onNewGame }) {
-  const [archetypeId, setArchetypeId] = useState(null)
-  const [creatureId,  setCreatureId]  = useState(null)
-
-  // Show save-continue screen if a save exists
-  if (hasSave) {
-    return <SavedGameScreen onContinue={onContinue} onNewGame={onNewGame} />
-  }
-
-  const canStart = archetypeId !== null && creatureId !== null
-
-  function handleStart() {
-    if (!canStart) return
-    onStart({ archetypeId, creatureId })
-  }
+function CreatureSelectScreen({ archetypeId, onStart, onBack }) {
+  const [creatureId, setCreatureId] = useState(null)
 
   return (
     <div className="start-screen">
-      <div className="start-hero">
+      <div className="start-hero" style={{ paddingBottom: 8 }}>
         <h1>Aethermarch</h1>
-        <p className="tagline">
-          Cada paseo real hace avanzar tu caravana por un mundo medieval misterioso.
-        </p>
+        <p className="tagline">Elige a tu compañero de ruta.</p>
       </div>
 
       <div className="start-body">
-
-        {/* ARQUETIPO */}
-        <div>
-          <div className="start-section-title">Elige tu arquetipo</div>
-          <div className="choice-grid">
-            {ARCHETYPES.map(a => (
-              <ChoiceCard
-                key={a.id}
-                selected={archetypeId === a.id}
-                onClick={() => setArchetypeId(a.id)}
-                tokenSlot={<ArchetypeToken archetypeId={a.id} size={72} />}
-                name={a.name}
-                role={a.role}
-                passiveName={a.passiveName}
-                passiveDescription={a.passiveDescription}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="rune-divider">· · ᚢ · ·</div>
-
-        {/* CRIATURA */}
         <div>
           <div className="start-section-title">Elige tu criatura</div>
           <div className="choice-grid">
@@ -135,27 +79,56 @@ export default function StartScreen({ onStart, hasSave, onContinue, onNewGame })
             ))}
           </div>
         </div>
-
       </div>
 
       <div className="start-actions">
         <button
           className="btn btn-primary"
-          onClick={handleStart}
-          disabled={!canStart}
+          onClick={() => onStart({ archetypeId, creatureId })}
+          disabled={!creatureId}
         >
           Entrar a la caravana
         </button>
-        {!canStart && (
-          <p className="start-hint">
-            {!archetypeId && !creatureId
-              ? 'Elige un arquetipo y una criatura para continuar.'
-              : !archetypeId
-              ? 'Elige un arquetipo para continuar.'
-              : 'Elige una criatura para continuar.'}
-          </p>
+        <button
+          onClick={onBack}
+          style={{
+            background: 'transparent', border: 'none',
+            color: 'var(--color-stone-light)', fontSize: '0.75rem',
+            cursor: 'pointer', padding: '8px', marginTop: 4,
+            letterSpacing: '0.04em',
+          }}
+        >
+          ← Cambiar aventurero
+        </button>
+        {!creatureId && (
+          <p className="start-hint">Elige una criatura para continuar.</p>
         )}
       </div>
     </div>
+  )
+}
+
+// ── Pantalla principal ────────────────────────────────────────────────────────
+
+export default function StartScreen({ onStart, hasSave, onContinue, onNewGame }) {
+  const [step,        setStep]        = useState('class')
+  const [archetypeId, setArchetypeId] = useState(null)
+
+  if (hasSave) return <SavedGameScreen onContinue={onContinue} onNewGame={onNewGame} />
+
+  if (step === 'class') {
+    return (
+      <ClassSelectScreen
+        onSelect={(id) => { setArchetypeId(id); setStep('creature') }}
+      />
+    )
+  }
+
+  return (
+    <CreatureSelectScreen
+      archetypeId={archetypeId}
+      onStart={onStart}
+      onBack={() => setStep('class')}
+    />
   )
 }
