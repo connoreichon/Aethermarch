@@ -79,8 +79,10 @@ function ClassCard({ arch, animClass }) {
 
       {/* Ficha de personaje */}
       <div className="cs-info">
-        <div className="cs-role">{arch.role}</div>
-        <div className="cs-name">{arch.name}</div>
+        <div className="cs-info-header">
+          <div className="cs-role">{arch.role}</div>
+          <div className="cs-name">{arch.name}</div>
+        </div>
         <div className="cs-sep" />
         <span className="cs-passive-name">— {arch.passiveName} —</span>
         <p className="cs-passive-desc">{arch.passiveDescription}</p>

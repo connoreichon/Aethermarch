@@ -475,69 +475,84 @@ button,
   opacity: 0.2;
 }
 
-/* Info overlay en la parte inferior */
+/* Info overlay — zona inferior de la ficha */
 .cs-info {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 3;
-  padding: 30px 18px 16px;
+  /* Degradado que deja ver la cuadricula del panel en la transicion */
   background: linear-gradient(
     to bottom,
-    transparent 0%,
-    rgba(3, 1, 1, 0.82) 16%,
-    rgba(3, 1, 1, 0.97) 36%
+    transparent           0%,
+    rgba(4, 2, 2, 0.70)  10%,
+    rgba(4, 2, 2, 0.88)  24%,
+    rgba(4, 2, 2, 0.94)  100%
   );
   text-align: center;
+  padding: 0 16px 14px;
+}
+
+/* Cabecera de la ficha: rol + nombre */
+.cs-info-header {
+  padding: 22px 0 8px;
+  border-bottom: 1px solid rgba(148,110,28,0.28);
+  margin-bottom: 8px;
 }
 .cs-role {
   font-family: var(--font-gothic);
-  font-size: 0.52rem;
-  color: rgba(210,70,70,0.85);
+  font-size: 0.48rem;
+  color: rgba(200,60,60,0.82);
   text-transform: uppercase;
-  letter-spacing: 0.28em;
-  margin-bottom: 3px;
+  letter-spacing: 0.3em;
+  margin-bottom: 2px;
 }
 .cs-name {
   font-family: var(--font-gothic);
-  font-size: 1.35rem;
+  font-size: 1.28rem;
   color: var(--color-gold);
-  letter-spacing: 0.08em;
-  margin-bottom: 6px;
+  letter-spacing: 0.07em;
+  line-height: 1.1;
 }
+
+/* Separador fino dorado */
 .cs-sep {
-  width: 44px;
+  width: 40px;
   height: 1px;
-  background: linear-gradient(to right, transparent, rgba(184,148,74,0.5), transparent);
-  margin: 0 auto 8px;
+  background: linear-gradient(to right, transparent, rgba(184,148,74,0.45), transparent);
+  margin: 0 auto 7px;
 }
+
+/* Pasiva */
 .cs-passive-name {
   display: block;
   font-family: var(--font-gothic);
-  font-size: 0.58rem;
+  font-size: 0.56rem;
   color: var(--color-ember);
   letter-spacing: 0.1em;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 .cs-passive-desc {
-  font-size: 0.67rem;
-  color: rgba(178,155,125,0.8);
-  line-height: 1.5;
+  font-size: 0.63rem;
+  color: rgba(178,155,125,0.78);
+  line-height: 1.45;
   margin: 0;
 }
+
+/* Fila de stats */
 .cs-stat-row {
   display: flex;
   justify-content: center;
-  margin-top: 9px;
+  margin-top: 8px;
   padding-top: 7px;
-  border-top: 1px solid rgba(140,105,25,0.2);
+  border-top: 1px solid rgba(140,105,25,0.18);
 }
 .cs-stat-badge {
   font-family: var(--font-gothic);
-  font-size: 0.53rem;
-  color: rgba(184,148,74,0.55);
-  letter-spacing: 0.16em;
+  font-size: 0.5rem;
+  color: rgba(184,148,74,0.52);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
