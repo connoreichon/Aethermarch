@@ -415,12 +415,13 @@ button,
 }
 .cs-viewport:active { cursor: grabbing; }
 
-/* Card — llena todo el espacio disponible sin aspect-ratio fijo */
+/* Card — llena todo el espacio disponible */
 .cs-card {
   position: relative;
   width: calc(100% - 16px);
   max-width: 440px;
-  height: calc(100% - 8px);
+  height: 100%;
+  background: #060204;
   border-radius: 10px;
   overflow: hidden;
   box-shadow:
@@ -440,29 +441,32 @@ button,
   z-index: 4;
 }
 
-/* Panel background decorativo */
+/* Panel background decorativo — contain para no recortar el marco lateral */
 .cs-panel {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center top;
   display: block;
+  z-index: 0;
 }
 .cs-panel--default {
   background: linear-gradient(170deg, #0d0408 0%, #110609 55%, #0a0305 100%);
 }
 
-/* Imagen del personaje — PNG con fondo transparente, sin blend mode */
+/* Personaje — confinado al interior del arco, deja visible torres y rejilla */
 .cs-character {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  top: 65px;
+  left: 44px;
+  width: calc(100% - 88px);
+  height: calc(70% - 65px);
+  object-fit: contain;
   object-position: center top;
   display: block;
+  z-index: 1;
 }
 .cs-character-empty {
   position: absolute;
@@ -485,9 +489,9 @@ button,
   background: linear-gradient(
     to bottom,
     transparent           0%,
-    rgba(4, 2, 2, 0.70)  10%,
-    rgba(4, 2, 2, 0.88)  24%,
-    rgba(4, 2, 2, 0.94)  100%
+    rgba(4, 2, 2, 0.12)  18%,
+    rgba(4, 2, 2, 0.72)  42%,
+    rgba(4, 2, 2, 0.93)  100%
   );
   text-align: center;
   padding: 0 16px 14px;

@@ -7,56 +7,9 @@ const ARCHETYPE_ART = {
   heraldo: `${BASE}assets/generated/heraldo_s2014_nobg.png`,
 }
 const ARCHETYPE_PANELS = {
-  heraldo: `${BASE}assets/generated/heraldo_panel.png`,
+  heraldo: `${BASE}assets/generated/panel_v3_raw_s4402.png`,
 }
 
-// Marco SVG: esquinas en L doradas, borde fino, separador con diamante
-function CardFrame() {
-  return (
-    <svg
-      className="cs-frame"
-      viewBox="0 0 200 300"
-      preserveAspectRatio="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      {/* Borde exterior fino */}
-      <rect x="2" y="2" width="196" height="296" fill="none"
-            stroke="rgba(155,115,38,0.48)" strokeWidth="0.8"/>
-      {/* Borde interior offset */}
-      <rect x="6" y="6" width="188" height="288" fill="none"
-            stroke="rgba(155,115,38,0.15)" strokeWidth="0.4"/>
-
-      {/* Esquinas en L — top-left */}
-      <path d="M2 34 L2 2 L34 2" fill="none"
-            stroke="rgba(165,125,45,0.82)" strokeWidth="1.6" strokeLinecap="round"/>
-      {/* top-right */}
-      <path d="M166 2 L198 2 L198 34" fill="none"
-            stroke="rgba(165,125,45,0.82)" strokeWidth="1.6" strokeLinecap="round"/>
-      {/* bottom-left */}
-      <path d="M2 266 L2 298 L34 298" fill="none"
-            stroke="rgba(165,125,45,0.82)" strokeWidth="1.6" strokeLinecap="round"/>
-      {/* bottom-right */}
-      <path d="M166 298 L198 298 L198 266" fill="none"
-            stroke="rgba(165,125,45,0.82)" strokeWidth="1.6" strokeLinecap="round"/>
-
-      {/* Puntos en las cuatro esquinas */}
-      <circle cx="2"   cy="2"   r="2.2" fill="rgba(148,108,25,0.75)"/>
-      <circle cx="198" cy="2"   r="2.2" fill="rgba(148,108,25,0.75)"/>
-      <circle cx="2"   cy="298" r="2.2" fill="rgba(148,108,25,0.75)"/>
-      <circle cx="198" cy="298" r="2.2" fill="rgba(148,108,25,0.75)"/>
-
-      {/* Separador a ~68% de altura (204/300) */}
-      <line x1="8"   y1="204" x2="88"  y2="204"
-            stroke="rgba(140,105,25,0.5)" strokeWidth="0.7"/>
-      <line x1="112" y1="204" x2="192" y2="204"
-            stroke="rgba(140,105,25,0.5)" strokeWidth="0.7"/>
-      {/* Diamante central en el separador */}
-      <polygon points="100,200.5 104.5,204 100,207.5 95.5,204"
-               fill="rgba(155,115,38,0.7)"/>
-    </svg>
-  )
-}
 
 function ClassCard({ arch, animClass }) {
   const art   = ARCHETYPE_ART[arch.id]
@@ -73,9 +26,6 @@ function ClassCard({ arch, animClass }) {
       {art
         ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
         : <div className="cs-character-empty"><span>⚔</span></div>}
-
-      {/* Marco decorativo encima de todo */}
-      <CardFrame />
 
       {/* Ficha de personaje */}
       <div className="cs-info">
