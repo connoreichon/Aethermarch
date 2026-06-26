@@ -406,7 +406,7 @@ button,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 0;
+  padding: 2px 0;
   touch-action: pan-y;
   cursor: grab;
   overflow: hidden;
@@ -421,8 +421,8 @@ button,
   width: calc(100% - 16px);
   max-width: 440px;
   height: 100%;
-  background: #060204;
-  border-radius: 10px;
+  background: radial-gradient(ellipse at 50% 35%, #1e0f0f 0%, #0e0707 55%, #090505 100%);
+  border-radius: 6px;
   overflow: hidden;
   box-shadow:
     0 0 0 1px rgba(120,88,22,0.35),
@@ -431,14 +431,14 @@ button,
   flex-shrink: 0;
 }
 
-/* Marco SVG superpuesto (esquinas + divisor) */
+/* Marco SVG superpuesto — encima de todo (excepto del texto de info) */
 .cs-frame {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 4;
+  z-index: 5;
 }
 
 /* Panel background decorativo — contain para no recortar el marco lateral */
@@ -453,20 +453,20 @@ button,
   z-index: 0;
 }
 .cs-panel--default {
-  background: linear-gradient(170deg, #0d0408 0%, #110609 55%, #0a0305 100%);
+  background: radial-gradient(ellipse at 50% 30%, #1a0c0c 0%, #0d0607 55%, #070404 100%);
 }
 
-/* Personaje — confinado al interior del arco, deja visible torres y rejilla */
+/* Personaje — debajo de la cruz, dentro de las columnas SVG */
 .cs-character {
   position: absolute;
-  top: 65px;
-  left: 44px;
-  width: calc(100% - 88px);
-  height: calc(70% - 65px);
+  top: 94px;
+  left: 50px;
+  width: calc(100% - 100px);
+  height: calc(72% - 94px);
   object-fit: contain;
   object-position: center top;
   display: block;
-  z-index: 1;
+  z-index: 2;
 }
 .cs-character-empty {
   position: absolute;
@@ -478,30 +478,36 @@ button,
   opacity: 0.2;
 }
 
-/* Info overlay — zona inferior de la ficha */
+/* Info — zona inferior con fondo sólido y retícula de diamantes */
 .cs-info {
   position: absolute;
+  top: 72%;
   bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 3;
-  /* Degradado que deja ver la cuadricula del panel en la transicion */
-  background: linear-gradient(
-    to bottom,
-    transparent           0%,
-    rgba(4, 2, 2, 0.12)  18%,
-    rgba(4, 2, 2, 0.72)  42%,
-    rgba(4, 2, 2, 0.93)  100%
-  );
+  left: 3px;
+  right: 3px;
+  z-index: 6;
+  background-color: #130909;
+  background-image:
+    repeating-linear-gradient(
+       45deg,
+       rgba(145,110,32,0.2) 0px, rgba(145,110,32,0.2) 1px,
+       transparent 0px, transparent 50%
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(145,110,32,0.2) 0px, rgba(145,110,32,0.2) 1px,
+      transparent 0px, transparent 50%
+    );
+  background-size: 14px 14px;
   text-align: center;
-  padding: 0 16px 14px;
+  padding: 0 16px 12px;
 }
 
 /* Cabecera de la ficha: rol + nombre */
 .cs-info-header {
-  padding: 22px 0 8px;
+  padding: 10px 0 8px;
   border-bottom: 1px solid rgba(148,110,28,0.28);
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 .cs-role {
   font-family: var(--font-gothic);
