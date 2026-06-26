@@ -4,7 +4,7 @@ import { ARCHETYPES } from '../data/gameData.js'
 const BASE = import.meta.env.BASE_URL
 
 const ARCHETYPE_ART = {
-  heraldo: `${BASE}assets/generated/heraldo_botharms_s2014.png`,
+  heraldo: `${BASE}assets/generated/heraldo_s2014_nobg.png`,
 }
 const ARCHETYPE_PANELS = {
   heraldo: `${BASE}assets/generated/heraldo_panel.png`,
