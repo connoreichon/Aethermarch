@@ -3,6 +3,7 @@ export const ARCHETYPES = [
   {
     id: 'heraldo',
     name: 'Heraldo',
+    color: '#a01e1e',
     role: 'Guerrero y guardián',
     passiveName: 'Guardia de Hierro',
     passiveDescription: 'Veterano endurecido. Tu presencia disuade a los enemigos y ancla la moral de la caravana.',
@@ -26,6 +27,7 @@ export const ARCHETYPES = [
   {
     id: 'guardian',
     name: 'Guardián del Camino',
+    color: '#3a6e96',
     role: 'Defensa y resistencia',
     passiveName: 'Paso Firme',
     passiveDescription: 'Tu constitución de hierro te permite aguantar lo que a otros rompe.',
@@ -49,6 +51,7 @@ export const ARCHETYPES = [
   {
     id: 'runario',
     name: 'Runario Errante',
+    color: '#6a3a9a',
     role: 'Magia antigua y secretos',
     passiveName: 'Lectura de Sellos',
     passiveDescription: 'El mundo te habla en un idioma que pocos recuerdan. Percibes lo que está escondido.',
@@ -72,6 +75,7 @@ export const ARCHETYPES = [
   {
     id: 'rastreador',
     name: 'Rastreador de Bruma',
+    color: '#2d7048',
     role: 'Exploración y rutas',
     passiveName: 'Senda Oculta',
     passiveDescription: 'Lees el terreno como otros leen mapas. La bruma no te ciega, te guía.',

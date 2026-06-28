@@ -357,14 +357,12 @@ button,
 /* ── CLASS SELECT SCREEN ────────────────────────────────────────────────── */
 
 .cs-screen {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   height: 100%;
   background: var(--color-bg);
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-  position: relative;
 }
 
 /* Header intro */
@@ -401,28 +399,19 @@ button,
 
 /* Card viewport */
 .cs-viewport {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: 6px 0 0;
+  position: absolute;
+  inset: 0;
   touch-action: pan-y;
   cursor: grab;
   overflow: hidden;
-  position: relative;
-  animation: cs-fade-up 0.6s ease-out 1.0s both;
 }
 .cs-viewport:active { cursor: grabbing; }
 
 /* Card — ocupa toda la pantalla sin márgenes */
 .cs-card {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border-radius: 0;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
-  flex-shrink: 0;
   background: #08030a;
 }
 
@@ -538,103 +527,177 @@ button,
   opacity: 0.2;
 }
 
-/* Indicador de panel desplegable — visible solo cuando el panel está cerrado */
-.cs-panel-trigger {
-  position: absolute;
-  bottom: 18px;
-  left: 0;
-  right: 0;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  cursor: pointer;
-  padding: 8px 0;
-}
-.cs-panel-trigger::before,
-.cs-panel-trigger::after {
-  content: '';
-  display: block;
-  height: 1px;
-  width: 60px;
-  background: rgba(160, 30, 30, 0.55);
-}
-.cs-panel-trigger-icon {
-  font-size: 0.42rem;
-  color: rgba(175, 35, 35, 0.85);
-  line-height: 1;
-}
+/* ── SCROLL ENROLLADO ────────────────────────────────────── */
 
-/* Panel de habilidades — pergamino completamente oculto por defecto */
-.cs-info {
+.cs-scroll {
   position: absolute;
-  top: 60%;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 5;
   overflow: hidden;
-  transform: translateY(100%);
-  transition: transform 0.40s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-.cs-info--open {
-  transform: translateY(0);
+  /* height set by GSAP — starts at 84px */
 }
 
-/* Imagen de pergamino como fondo del panel */
-.cs-parchment-bg {
+/* Varillas doradas (cilindros superior e inferior) */
+.cs-cap {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
-  display: block;
-  z-index: 0;
+  left: 3%;
+  right: 3%;
+  height: 22px;
+  z-index: 9;
+  border-radius: 50% / 100%;
+  background: linear-gradient(
+    180deg,
+    #f8e898 0%,
+    #d8b040 16%,
+    #8a6012 52%,
+    #b08832 78%,
+    #ecd060 100%
+  );
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.70),
+    inset 0 1px 3px rgba(255, 235, 130, 0.30);
 }
+.cs-cap--top    { top: 0; }
+.cs-cap--bottom { bottom: 0; }
 
-/* Asa superior — siempre visible, contiene el nombre */
-.cs-info-handle {
-  position: relative;
-  z-index: 2;
-  height: 50px;
+/* Cuerpo enrollado (con lazo, visible cuando cerrado) */
+.cs-scroll-rolled {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 3%;
+  right: 3%;
+  z-index: 5;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   cursor: pointer;
-  touch-action: manipulation;
-  user-select: none;
-}
-.cs-info-drag-bar {
-  width: 34px;
-  height: 3px;
-  background: rgba(80, 45, 8, 0.50);
-  border-radius: 2px;
-}
-.cs-card-name-text {
-  font-family: var(--font-gothic);
-  font-size: 1.20rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #2e1604;
-  text-shadow: 0 1px 2px rgba(255, 210, 120, 0.25);
+  background-color: #c8a850;
+  background-size: cover;
+  background-position: center;
+  box-shadow:
+    inset 0  8px 16px rgba(0, 0, 0, 0.32),
+    inset 0 -8px 16px rgba(0, 0, 0, 0.24);
 }
 
-.cs-info-content {
-  position: relative;
-  z-index: 1;
-  padding: 6px 18px 8px;
+/* Pergamino desplegado (visible cuando abierto) */
+.cs-scroll-paper {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 3%;
+  right: 3%;
+  z-index: 6;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: #d4b068;
+  background-size: cover;
+  background-position: center top;
+  box-shadow: inset 0 0 24px rgba(100, 60, 0, 0.10);
 }
+/* Marco interior estilo anime/JRPG */
+.cs-scroll-paper::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(110, 65, 10, 0.36);
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Asa de cierre */
+.cs-scroll-handle {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0 6px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  background: linear-gradient(
+    to bottom,
+    rgba(215, 185, 88, 0.94) 0%,
+    rgba(215, 185, 88, 0.55) 65%,
+    transparent 100%
+  );
+}
+.cs-scroll-drag-bar {
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  opacity: 0.55;
+}
+
+/* Cuerpo del contenido */
+.cs-scroll-body {
+  padding: 0 18px 18px;
+}
+
+/* Nombre del personaje */
+.cs-scroll-name {
+  font-family: var(--font-gothic);
+  font-size: 1.55rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-align: center;
+  margin: 0 0 4px;
+  line-height: 1.1;
+  text-shadow:
+    1px 2px 6px rgba(50, 20, 0, 0.35),
+    0 0 30px rgba(0, 0, 0, 0.06);
+}
+
+/* Divisor ornamental con gema */
+.cs-scroll-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 6px 8px;
+}
+.cs-scroll-divider::before,
+.cs-scroll-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(110, 62, 10, 0.40);
+}
+.cs-scroll-gem {
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+
+/* Botón Elegir dentro del pergamino */
+.cs-scroll-cta {
+  display: block;
+  width: calc(100% - 16px);
+  margin: 12px auto 2px;
+  padding: 10px 0;
+  font-family: var(--font-gothic);
+  font-size: 0.70rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  background: rgba(12, 5, 2, 0.82);
+  border: 1.5px solid;
+  border-radius: 1px;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+.cs-scroll-cta:active { background: rgba(28, 8, 3, 0.93); }
 
 /* Fila pasiva */
 .cs-passive-row {
   text-align: center;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(90, 50, 8, 0.28);
-  margin-bottom: 6px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(100, 55, 10, 0.26);
+  margin-bottom: 7px;
 }
 
 /* Fila de habilidad funcional */
@@ -642,81 +705,82 @@ button,
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(90, 50, 8, 0.16);
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(100, 55, 10, 0.18);
 }
-.cs-ability-row:last-of-type {
-  border-bottom: none;
-}
+.cs-ability-row:last-of-type { border-bottom: none; }
+
 .cs-ability-tag {
   flex-shrink: 0;
   font-family: var(--font-gothic);
-  font-size: 0.37rem;
-  letter-spacing: 0.14em;
+  font-size: 0.38rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(140, 25, 25, 0.90);
-  background: rgba(160, 30, 30, 0.10);
-  border: 1px solid rgba(140, 25, 25, 0.32);
+  border: 1px solid;
   padding: 2px 5px;
   line-height: 1.5;
   margin-top: 1px;
+  text-shadow: 0 1px 1px rgba(60, 10, 0, 0.15);
 }
 .cs-ability-body {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 .cs-ability-name {
   font-family: var(--font-gothic);
-  font-size: 0.52rem;
-  color: rgba(130, 20, 20, 0.92);
+  font-size: 0.54rem;
   letter-spacing: 0.06em;
   line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(55, 15, 0, 0.20);
 }
 .cs-ability-desc {
-  font-size: 0.56rem;
-  color: rgba(18, 8, 2, 0.85);
-  line-height: 1.38;
+  font-size: 0.57rem;
+  color: rgba(20, 8, 2, 0.83);
+  line-height: 1.42;
+  text-shadow: 0 1px 1px rgba(40, 12, 0, 0.13);
 }
 
 /* Pasiva */
 .cs-passive-name {
   display: block;
   font-family: var(--font-gothic);
-  font-size: 0.50rem;
-  color: rgba(130, 20, 20, 0.92);
-  letter-spacing: 0.12em;
-  margin-bottom: 2px;
+  font-size: 0.52rem;
+  color: rgba(125, 18, 18, 0.92);
+  letter-spacing: 0.13em;
+  margin-bottom: 3px;
   text-align: center;
+  text-shadow: 0 1px 2px rgba(60, 10, 0, 0.20);
 }
 .cs-passive-desc {
-  font-size: 0.56rem;
-  color: rgba(18, 8, 2, 0.85);
-  line-height: 1.38;
+  font-size: 0.57rem;
+  color: rgba(20, 8, 2, 0.83);
+  line-height: 1.42;
   margin: 0;
   text-align: center;
+  text-shadow: 0 1px 1px rgba(40, 12, 0, 0.13);
 }
 
 /* Fila de stats */
 .cs-stat-row {
   display: flex;
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 2px;
   padding-top: 7px;
-  border-top: 1px solid rgba(90, 50, 8, 0.22);
+  border-top: 1px solid rgba(100, 55, 10, 0.22);
 }
 .cs-stat-badge {
   font-family: var(--font-gothic);
-  font-size: 0.5rem;
-  color: rgba(130, 20, 20, 0.85);
-  letter-spacing: 0.18em;
+  font-size: 0.52rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
+  text-shadow: 0 1px 1px rgba(55, 15, 0, 0.18);
 }
 
 /* Flechas de navegación */
 .cs-arrow {
   position: absolute;
-  top: 50%;
+  top: 38%;
   transform: translateY(-50%);
   width: 34px;
   height: 34px;
@@ -737,14 +801,17 @@ button,
 .cs-arrow--l { left:  6px; }
 .cs-arrow--r { right: 6px; }
 
-/* Dots */
+/* Dots — superpuestos sobre la carta, por encima del scroll */
 .cs-dots {
+  position: absolute;
+  bottom: 92px;
+  left: 0;
+  right: 0;
+  z-index: 6;
   display: flex;
   justify-content: center;
   gap: 10px;
   padding: 5px 0;
-  flex-shrink: 0;
-  animation: cs-fade-up 0.5s ease-out 1.7s both;
 }
 .cs-dot {
   width: 7px;
@@ -760,13 +827,6 @@ button,
   background: var(--color-gold);
   border-color: var(--color-gold);
   box-shadow: 0 0 8px rgba(184,148,74,0.45);
-}
-
-/* CTA */
-.cs-cta {
-  margin: 0 16px 12px;
-  flex-shrink: 0;
-  animation: cs-fade-up 0.5s ease-out 1.4s both;
 }
 
 /* Transiciones entre cartas */
