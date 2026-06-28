@@ -8,31 +8,30 @@ import requests, time, uuid, os
 COMFY_URL  = "http://127.0.0.1:8000"
 OUTPUT_DIR = r"C:\Users\Usuario\Desktop\Aethermarch_Clean\public\assets\generated"
 
-POSITIVE = """flat 2d illustration, ancient medieval parchment scroll texture, RPG UI panel asset, 512x384 landscape,
+POSITIVE = """flat 2d illustration, parchment material texture closeup, RPG UI panel asset, 512x384 landscape,
 
-MATERIAL: old aged vellum parchment unfurled scroll, authentic medieval manuscript material:
-- base tone: warm amber sepia #C8A458 to #B89040, fills the whole image
-- natural linen fiber grain texture clearly visible across the surface
-- very slightly uneven surface, hand-crafted artisan quality
-- subtle aged water stains scattered across: pale circular marks, very faint
-- light age spots and foxing marks, authentic yellowing from centuries
-- center zone: slightly lighter warm cream for readability, organic not geometric
-- edges all four sides: naturally darker brown-amber border, worn and feathered, NOT a hard line
+THE ENTIRE IMAGE IS PARCHMENT SURFACE — no scene, no object, no context, just material:
+- warm cream-amber tone filling edge to edge, base color #D4B870 to #C4A458
+- natural linen and vellum fiber grain visible across the whole surface
+- subtle directional texture from the material fibers, very fine
+- very slight tonal variation across the surface: warmer in center, fractionally darker at edges
+- MINIMAL aging: just a tiny amount of natural yellowing, almost clean and smooth
+- edges: softly darker amber-brown rim, organic feathered fade, NOT a geometric border
 
-TOP EDGE: slightly darker amber-brown, like the top of a scroll rolled out, with visible grain
-BOTTOM EDGE: same natural darkening, slight curl/shadow suggestion
-SIDES: natural feathered darker edges
+QUALITY: premium clean parchment, mostly smooth and even, like a freshly prepared manuscript sheet
+CLEAN: barely any stains — at most one or two extremely faint marks, nearly invisible
+COLOR: warm honey-amber cream, uniform and inviting, readable
 
-ATMOSPHERE: real old map parchment, ancient tome page, medieval manuscript leaf
-QUALITY: premium material texture, warm and organic, genuinely aged
+NO water stains, NO foxing spots, NO blotches, NO dirty marks, NO heavy aging
+NO table, NO desk, NO wood surface, NO shadow underneath, NO scene, NO objects
+NO text, NO symbols, NO borders, NO decorative elements
+PURE FLAT PARCHMENT TEXTURE — fills the whole frame edge to edge"""
 
-NO text, NO letters, NO writing, NO symbols, NO runes, NO decorative borders, NO ornaments
-PURE PARCHMENT MATERIAL TEXTURE ONLY — the entire image is material surface"""
-
-NEGATIVE = """text, letters, writing, runes, symbols, border, frame, decorative line, ornament,
-modern, clean, white, bright, cold, blue, grey, purple, futuristic,
-photorealistic, 3d render, dramatic lighting, bokeh, character, scene,
-smooth plastic, digital look, metallic, stone, fabric other than parchment"""
+NEGATIVE = """table, desk, wood, surface, scene, background, object, shadow underneath,
+stains, blotches, foxing spots, heavy aging, dirty, dark patches,
+text, letters, writing, runes, symbols, border, frame, decorative ornament,
+modern, white paper, bright white, cold, blue, grey, purple, futuristic,
+photorealistic, 3d render, dramatic lighting, bokeh, character"""
 
 W, H = 512, 384
 
@@ -112,6 +111,6 @@ def run(seed):
 if __name__ == "__main__":
     print("=== Pergamino medieval (512x384) ===")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    for seed in [8801, 8802, 8803]:
+    for seed in [8901, 8902, 8903]:
         run(seed)
     print("\n=== Listo ===")
