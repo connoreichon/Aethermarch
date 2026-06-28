@@ -9,9 +9,31 @@ const ARCHETYPE_ART = {
 const ARCHETYPE_BG = {
   heraldo: `${BASE}assets/generated/fondo_heraldo_s5501.png`,
 }
+const ARCHETYPE_PANEL = {
+  heraldo: `${BASE}assets/generated/pergamino_s8802.png`,
+}
+
 function ClassCard({ arch, animClass }) {
-  const art = ARCHETYPE_ART[arch.id]
-  const bg  = ARCHETYPE_BG[arch.id]
+  const [panelOpen, setPanelOpen] = useState(false)
+  const handleDragY = useRef(null)
+  const art   = ARCHETYPE_ART[arch.id]
+  const bg    = ARCHETYPE_BG[arch.id]
+  const panel = ARCHETYPE_PANEL[arch.id]
+
+  function onHandleTouchStart(e) {
+    e.stopPropagation()
+    handleDragY.current = e.touches[0].clientY
+  }
+  function onHandleTouchEnd(e) {
+    e.stopPropagation()
+    if (handleDragY.current === null) return
+    const dy = e.changedTouches[0].clientY - handleDragY.current
+    handleDragY.current = null
+    if (dy < -30) setPanelOpen(true)
+    else if (dy > 30) setPanelOpen(false)
+    else setPanelOpen(p => !p)
+  }
+  function onHandleClick() { setPanelOpen(p => !p) }
 
   return (
     <div className={`cs-card ${animClass}`}>
@@ -22,11 +44,24 @@ function ClassCard({ arch, animClass }) {
         ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
         : <div className="cs-character-empty"><span>⚔</span></div>}
 
-      <div className="cs-info">
+      <div
+        className={`cs-info${panelOpen ? ' cs-info--open' : ''}`}
+        onTouchStart={e => panelOpen && e.stopPropagation()}
+        onTouchEnd={e => panelOpen && e.stopPropagation()}
+        onMouseDown={e => panelOpen && e.stopPropagation()}
+        onMouseUp={e => panelOpen && e.stopPropagation()}
+      >
+        {panel && <img className="cs-parchment-bg" src={panel} alt="" aria-hidden="true" draggable="false" />}
+        <div
+          className="cs-info-handle"
+          onClick={onHandleClick}
+          onTouchStart={onHandleTouchStart}
+          onTouchEnd={onHandleTouchEnd}
+        >
+          <div className="cs-info-drag-bar" />
+          <span className="cs-card-name-text">{arch.name}</span>
+        </div>
         <div className="cs-info-content">
-          <div className="cs-card-name">
-            <span className="cs-card-name-text">{arch.name}</span>
-          </div>
           {/* Pasiva */}
           <div className="cs-passive-row">
             <span className="cs-passive-name">— {arch.passiveName} —</span>
