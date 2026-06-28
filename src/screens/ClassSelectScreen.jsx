@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { ARCHETYPES } from '../data/gameData.js'
+// Rive instalado: úsalo así cuando tengas un .riv:
+//   import { useRive } from '@rive-app/react-canvas'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -10,8 +12,7 @@ const ARCHETYPE_ART = {
 const ARCHETYPE_BG = {
   heraldo: `${BASE}assets/generated/fondo_heraldo_s5501.png`,
 }
-const PARCHMENT = `${BASE}assets/generated/pergamino_s9102.png`
-const RIBBON    = `${BASE}assets/generated/scroll_ribbon_s7002.png`
+const PARCHMENT = `${BASE}assets/generated/parch_anime_s8103.png`
 
 // ── Sonido sintetizado de pergamino ───────────────────────────────────────────
 function playScrollSound(opening) {
@@ -27,7 +28,7 @@ function playScrollSound(opening) {
       const t   = i / sr
       const env = opening
         ? Math.pow(t / dur, 0.06) * Math.pow(1 - t / dur, 1.8)
-        : Math.pow(1 - t / dur, 2.5) * (1 - Math.pow(t / dur, 0.1) * 0.3)
+        : Math.pow(1 - t / dur, 2.5)
       dat[i] = (Math.random() * 2 - 1) * env * 0.22
     }
     const src = ctx.createBufferSource()
@@ -39,30 +40,99 @@ function playScrollSound(opening) {
     const lpf = ctx.createBiquadFilter()
     lpf.type = 'lowpass'
     lpf.frequency.value = 8000
-    src.connect(bpf)
-    bpf.connect(lpf)
-    lpf.connect(ctx.destination)
+    src.connect(bpf); bpf.connect(lpf); lpf.connect(ctx.destination)
     src.start()
     setTimeout(() => { try { ctx.close() } catch {} }, 1500)
   } catch {}
 }
 
-// Calcula el filtro hue-rotate para el lazo según el color del personaje.
-// El lazo base es carmesí (~0° de matiz). Para otros personajes se rota.
-function ribbonFilter(hexColor) {
-  if (!hexColor || hexColor.length < 7) return ''
-  const r = parseInt(hexColor.slice(1, 3), 16) / 255
-  const g = parseInt(hexColor.slice(3, 5), 16) / 255
-  const b = parseInt(hexColor.slice(5, 7), 16) / 255
-  const max = Math.max(r, g, b), min = Math.min(r, g, b)
-  if (max === min) return ''
-  const d = max - min
-  let h = max === r ? (g - b) / d + (g < b ? 6 : 0)
-         : max === g ? (b - r) / d + 2
-                     : (r - g) / d + 4
-  const hue = Math.round(h * 60) % 360
-  if (hue < 15) return '' // ya es carmesí, sin filtro
-  return `hue-rotate(${hue}deg) saturate(1.45)`
+// ── Lazo SVG ilustración 2D anime ────────────────────────────────────────────
+// Cel-shading: fill plano + highlight blanco semitransparente + sombra oscura.
+// El color viene del personaje. Pintado como arte de game UI JRPG.
+function RibbonBow({ color }) {
+  const hi  = 'rgba(255,255,255,0.30)'  // highlight (luz)
+  const sh  = 'rgba(0,0,0,0.20)'        // shadow (sombra inferior)
+  const ink = 'rgba(20,6,0,0.55)'       // contorno tipo tinta
+
+  return (
+    <svg
+      viewBox="0 0 200 88"
+      aria-hidden="true"
+      style={{
+        display: 'block',
+        width: '90%',
+        maxWidth: 240,
+        filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.55))',
+      }}
+    >
+      {/* ── Colas del lazo (detrás de todo) ──────────── */}
+      {/* contorno */}
+      <line x1="93" y1="51" x2="69" y2="87" stroke={ink}   strokeWidth="13" strokeLinecap="round"/>
+      <line x1="107" y1="51" x2="131" y2="87" stroke={ink} strokeWidth="13" strokeLinecap="round"/>
+      {/* color */}
+      <line x1="93" y1="51" x2="69" y2="87" stroke={color}   strokeWidth="10" strokeLinecap="round"/>
+      <line x1="107" y1="51" x2="131" y2="87" stroke={color} strokeWidth="10" strokeLinecap="round"/>
+      {/* highlight cola */}
+      <line x1="91" y1="51" x2="67" y2="87" stroke={hi}   strokeWidth="3" strokeLinecap="round"/>
+      <line x1="109" y1="51" x2="133" y2="87" stroke={hi} strokeWidth="3" strokeLinecap="round"/>
+
+      {/* ── Banda horizontal ──────────────────────────── */}
+      <rect x="0" y="37" width="200" height="13" rx="6.5"
+        fill={color} stroke={ink} strokeWidth="1.6"
+        style={{ paintOrder: 'stroke fill' }}
+      />
+      {/* highlight banda */}
+      <rect x="5" y="37" width="190" height="4.5" rx="2.25" fill={hi}/>
+      {/* sombra inferior banda */}
+      <rect x="5" y="46" width="190" height="3.5" rx="1.75" fill={sh}/>
+
+      {/* ── Lazo izquierdo (forma almendra) ──────────── */}
+      <path
+        d="M 97 44 C 82 27, 7 11, 7 39 C 7 60, 79 62, 97 48 Z"
+        fill={color} stroke={ink} strokeWidth="1.6"
+        style={{ paintOrder: 'stroke fill' }}
+      />
+      {/* highlight superior izquierdo */}
+      <path
+        d="M 97 44 C 84 29, 24 15, 16 36 C 23 25, 83 23, 97 40 Z"
+        fill={hi}
+      />
+      {/* sombra inferior izquierdo */}
+      <path
+        d="M 7 39 C 7 60, 79 62, 97 48 C 79 57, 9 55, 7 39 Z"
+        fill={sh}
+      />
+
+      {/* ── Lazo derecho (espejo) ─────────────────────── */}
+      <path
+        d="M 103 44 C 118 27, 193 11, 193 39 C 193 60, 121 62, 103 48 Z"
+        fill={color} stroke={ink} strokeWidth="1.6"
+        style={{ paintOrder: 'stroke fill' }}
+      />
+      {/* highlight superior derecho */}
+      <path
+        d="M 103 44 C 116 29, 176 15, 184 36 C 177 25, 117 23, 103 40 Z"
+        fill={hi}
+      />
+      {/* sombra inferior derecho */}
+      <path
+        d="M 193 39 C 193 60, 121 62, 103 48 C 121 57, 191 55, 193 39 Z"
+        fill={sh}
+      />
+
+      {/* ── Nudo central ──────────────────────────────── */}
+      <ellipse cx="100" cy="45" rx="12" ry="10"
+        fill={color} stroke={ink} strokeWidth="1.6"
+        style={{ paintOrder: 'stroke fill' }}
+      />
+      {/* líneas de pliegue en el nudo (look de tela recogida) */}
+      <line x1="92" y1="40" x2="108" y2="40" stroke={ink} strokeWidth="0.8" opacity="0.4"/>
+      <line x1="90" y1="45" x2="110" y2="45" stroke={ink} strokeWidth="0.8" opacity="0.4"/>
+      <line x1="92" y1="50" x2="108" y2="50" stroke={ink} strokeWidth="0.8" opacity="0.4"/>
+      {/* highlight nudo */}
+      <ellipse cx="98" cy="41" rx="7" ry="4.5" fill={hi}/>
+    </svg>
+  )
 }
 
 // ── ClassCard ─────────────────────────────────────────────────────────────────
@@ -71,7 +141,7 @@ function ClassCard({ arch, animClass, onSelect }) {
 
   const scrollRef  = useRef(null)
   const rolledRef  = useRef(null)
-  const ribbonRef  = useRef(null)
+  const ribbonRef  = useRef(null)   // wrapper del lazo SVG
   const paperRef   = useRef(null)
   const nameRef    = useRef(null)
   const divRef     = useRef(null)
@@ -79,18 +149,15 @@ function ClassCard({ arch, animClass, onSelect }) {
   const ctaRef     = useRef(null)
   const tlRef      = useRef(null)
 
-  const art    = ARCHETYPE_ART[arch.id]
-  const bg     = ARCHETYPE_BG[arch.id]
-  const color  = arch.color || '#a01e1e'
-  const rbFilt = ribbonFilter(color)
+  const art   = ARCHETYPE_ART[arch.id]
+  const bg    = ARCHETYPE_BG[arch.id]
+  const color = arch.color || '#a01e1e'
 
-  // Estado inicial: todo cerrado, paper invisible con clip-path y perspectiva listos
   useEffect(() => {
     if (!scrollRef.current || !paperRef.current || !rolledRef.current || !ribbonRef.current) return
     gsap.set(scrollRef.current, { height: 84 })
     gsap.set(paperRef.current, {
-      opacity: 0,
-      pointerEvents: 'none',
+      opacity: 0, pointerEvents: 'none',
       clipPath: 'inset(100% 0% 0% 0%)',
       rotateX: 0,
       transformPerspective: 900,
@@ -112,59 +179,53 @@ function ClassCard({ arch, animClass, onSelect }) {
 
     if (opening) {
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
-
       tl
-        // ① Lazo se desata y sale volando (0-280ms)
+        // ① Lazo se desata: sale disparado con giro
         .to(ribbonRef.current, {
-          y: -42, rotation: 22, scale: 0.40, opacity: 0,
-          duration: 0.28, ease: 'power2.in',
+          y: -45, rotation: 24, scale: 0.38, opacity: 0,
+          duration: 0.30, ease: 'power2.in',
         })
-        // ② Container empieza a expandirse (100ms)
+        // ② Container se expande
         .to(scrollRef.current, {
           height: '55%', duration: 0.65, ease: 'expo.out',
         }, 0.10)
-        // ③ Estado enrollado se disuelve (200-350ms)
+        // ③ Estado enrollado se disuelve
         .to(rolledRef.current, {
           opacity: 0, duration: 0.15, ease: 'power2.in',
-        }, 0.20)
-        // ④ Papel arranca con clip-path + perspectiva 3D (280ms)
+        }, 0.22)
+        // ④ Papel emerge con clipPath + perspectiva 3D
         .set(paperRef.current, {
           clipPath: 'inset(100% 0% 0% 0%)',
           rotateX: -14,
           opacity: 1,
           pointerEvents: 'auto',
-        }, 0.28)
+        }, 0.30)
         .to(paperRef.current, {
           clipPath: 'inset(0% 0% 0% 0%)',
           rotateX: 0,
-          duration: 0.60, ease: 'power3.out',
-        }, 0.28)
-        // ⑤ Contenido entra en cascada (530ms+)
+          duration: 0.62, ease: 'power3.out',
+        }, 0.30)
+        // ⑤ Contenido en cascada
         .fromTo(nameRef.current,
-          { opacity: 0, y: 14 },
-          { opacity: 1, y: 0, duration: 0.28, ease: 'power2.out' },
-          0.54)
+          { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.28, ease: 'power2.out' },
+          0.56)
         .fromTo(divRef.current,
-          { opacity: 0, scaleX: 0 },
-          { opacity: 1, scaleX: 1, duration: 0.22, ease: 'power2.out' },
-          0.70)
+          { opacity: 0, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.22, ease: 'power2.out' },
+          0.72)
         .fromTo(rows,
-          { opacity: 0, y: 9 },
-          { opacity: 1, y: 0, stagger: 0.07, duration: 0.26, ease: 'power2.out' },
-          0.80)
+          { opacity: 0, y: 9 }, { opacity: 1, y: 0, stagger: 0.07, duration: 0.26, ease: 'power2.out' },
+          0.82)
         .fromTo(ctaRef.current,
-          { opacity: 0, y: 6 },
-          { opacity: 1, y: 0, duration: 0.22, ease: 'power2.out' },
+          { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.22, ease: 'power2.out' },
           '-=0.06')
     } else {
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
-
       tl
-        // ① Contenido desaparece rápido
+        // ① Contenido desaparece
         .to([nameRef.current, divRef.current, ...rows, ctaRef.current], {
           opacity: 0, duration: 0.12, ease: 'power2.in',
         })
-        // ② Papel se enrolla hacia arriba (clip desde abajo)
+        // ② Papel se enrolla hacia arriba
         .to(paperRef.current, {
           clipPath: 'inset(0% 0% 100% 0%)',
           rotateX: -12,
@@ -178,10 +239,10 @@ function ClassCard({ arch, animClass, onSelect }) {
         // ④ Estado enrollado reaparece
         .set(rolledRef.current, { opacity: 0 }, 0.08)
         .to(rolledRef.current, { opacity: 1, duration: 0.12 }, 0.38)
-        // ⑤ Lazo vuelve de un golpe con muelle
+        // ⑤ Lazo vuelve disparado con muelle
         .fromTo(ribbonRef.current,
-          { y: -42, rotation: -14, scale: 0.40, opacity: 0 },
-          { y: 0, rotation: 0, scale: 1, opacity: 1, duration: 0.38, ease: 'back.out(3.2)' },
+          { y: -45, rotation: -16, scale: 0.38, opacity: 0 },
+          { y: 0, rotation: 0, scale: 1, opacity: 1, duration: 0.40, ease: 'back.out(3.2)' },
           0.36)
     }
   }
@@ -195,7 +256,7 @@ function ClassCard({ arch, animClass, onSelect }) {
         ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
         : <div className="cs-character-empty"><span>⚔</span></div>}
 
-      {/* ── SCROLL ───────────────────────────────────────── */}
+      {/* ── SCROLL ───────────────────────────────── */}
       <div
         className="cs-scroll"
         ref={scrollRef}
@@ -204,25 +265,19 @@ function ClassCard({ arch, animClass, onSelect }) {
         onMouseDown={e => e.stopPropagation()}
         onMouseUp={e => e.stopPropagation()}
       >
-        {/* Estado enrollado: pergamino con lazo */}
+        {/* Estado enrollado: pergamino + lazo SVG */}
         <div
           className="cs-scroll-rolled"
           ref={rolledRef}
           onClick={toggle}
           style={{ backgroundImage: `url(${PARCHMENT})` }}
         >
-          <img
-            ref={ribbonRef}
-            className="cs-ribbon-img"
-            src={RIBBON}
-            alt=""
-            aria-hidden="true"
-            draggable="false"
-            style={rbFilt ? { filter: rbFilt } : undefined}
-          />
+          <div ref={ribbonRef} className="cs-ribbon-wrap">
+            <RibbonBow color={color} />
+          </div>
         </div>
 
-        {/* Estado desplegado: pergamino con contenido */}
+        {/* Estado desplegado */}
         <div
           className="cs-scroll-paper"
           ref={paperRef}

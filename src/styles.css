@@ -550,7 +550,7 @@ button,
   cursor: pointer;
   overflow: hidden;
   isolation: isolate;
-  background-color: #c8a850;
+  background-color: #e8c878;
   background-size: cover;
   background-position: center;
   /* sombras suaves que insinúan el grosor cilíndrico */
@@ -562,16 +562,14 @@ button,
     0  2px  8px rgba(0, 0, 0, 0.35);
 }
 
-/* Lazo del pergamino (imagen ComfyUI, fondo blanco + mix-blend darken) */
-.cs-ribbon-img {
+/* Contenedor del lazo SVG */
+.cs-ribbon-wrap {
   position: absolute;
   width: 100%;
-  height: auto;
-  top: 50%;
-  transform: translateY(-50%);
-  mix-blend-mode: darken;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
-  display: block;
   z-index: 2;
 }
 

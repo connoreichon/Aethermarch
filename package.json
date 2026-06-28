@@ -20,6 +20,8 @@
     "@fontsource/lora": "^5.2.8",
     "@fontsource/medievalsharp": "^5.2.8",
     "@fontsource/pirata-one": "^5.2.8",
+    "@rive-app/react-canvas": "^4.29.3",
+    "gsap": "^3.15.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
