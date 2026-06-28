@@ -6,7 +6,10 @@ const BASE = import.meta.env.BASE_URL
 const ARCHETYPE_ART = {
   heraldo: `${BASE}assets/generated/heraldo_s2014_nobg.png`,
 }
-const ARCHETYPE_PANELS = {}   // fondo puro CSS — el marco lo da CardFrame en SVG
+const ARCHETYPE_PANELS = {}
+const ARCHETYPE_FRAMES = {
+  heraldo: `${BASE}assets/generated/marco_heraldo_s7701.png`,
+}
 
 
 /* Marco SVG — perfectamente simétrico, construido en código */
@@ -114,7 +117,7 @@ function CardFrame() {
 
 function ClassCard({ arch, animClass }) {
   const art   = ARCHETYPE_ART[arch.id]
-  const panel = ARCHETYPE_PANELS[arch.id]
+  const frame = ARCHETYPE_FRAMES[arch.id]
 
   return (
     <div className={`cs-card ${animClass}`}>
@@ -122,6 +125,11 @@ function ClassCard({ arch, animClass }) {
       {art
         ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
         : <div className="cs-character-empty"><span>⚔</span></div>}
+
+      {/* Marco decorativo sobre el fondo */}
+      {frame && (
+        <img className="cs-frame-img" src={frame} alt="" aria-hidden="true" draggable="false" />
+      )}
 
       {/* Ficha de personaje */}
       <div className="cs-info">

@@ -444,7 +444,7 @@ button,
     );
 }
 
-/* Marco SVG superpuesto — encima de todo (excepto del texto de info) */
+/* Marco SVG (reservado) */
 .cs-frame {
   position: absolute;
   inset: 0;
@@ -452,6 +452,18 @@ button,
   height: 100%;
   pointer-events: none;
   z-index: 5;
+}
+
+/* Marco IA — overlay con lighten: negro=invisible, dorado=visible */
+.cs-frame-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  mix-blend-mode: lighten;
+  pointer-events: none;
+  z-index: 3;
 }
 
 /* Panel background decorativo — contain para no recortar el marco lateral */
