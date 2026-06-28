@@ -22,13 +22,11 @@ function ClassCard({ arch, animClass }) {
         ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
         : <div className="cs-character-empty"><span>⚔</span></div>}
 
-      <div className="cs-class-banner">
-        <span className="cs-banner-role">{arch.role}</span>
-        <span className="cs-banner-name">{arch.name}</span>
-      </div>
-
       <div className="cs-info">
         <div className="cs-info-content">
+          <div className="cs-card-name">
+            <span className="cs-card-name-text">{arch.name}</span>
+          </div>
           {/* Pasiva */}
           <div className="cs-passive-row">
             <span className="cs-passive-name">— {arch.passiveName} —</span>
