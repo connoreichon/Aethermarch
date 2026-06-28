@@ -404,14 +404,14 @@ button,
   flex: 1;
   min-height: 0;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  padding: 2px 0;
+  padding: 6px 0 0;
   touch-action: pan-y;
   cursor: grab;
   overflow: hidden;
   position: relative;
-  animation: cs-fade-up 0.6s ease-out 1.4s both;
+  animation: cs-fade-up 0.6s ease-out 1.0s both;
 }
 .cs-viewport:active { cursor: grabbing; }
 
@@ -471,9 +471,9 @@ button,
 .cs-character {
   position: absolute;
   top: 82px;
-  left: 30px;
-  width: calc(100% - 60px);
-  height: calc(63% - 82px);
+  left: 28px;
+  width: calc(100% - 56px);
+  height: calc(74% - 82px);
   object-fit: contain;
   object-position: center top;
   display: block;
@@ -492,19 +492,20 @@ button,
 /* Info — dentro del marco: top al 65%, bottom respeta franja inferior */
 .cs-info {
   position: absolute;
-  top: 63%;
-  bottom: 30px;
-  left: 30px;
-  right: 30px;
+  top: 74%;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 2;
   background: linear-gradient(
     to bottom,
-    transparent              0%,
-    rgba(8,  3,  3, 0.88)  24%,
-    rgba(10, 4,  3, 0.97)  100%
+    transparent             0%,
+    rgba(8,  3, 3, 0.85)  16%,
+    rgba(6,  2, 2, 0.97)  55%,
+    rgba(4,  1, 1, 1.00) 100%
   );
   text-align: center;
-  padding: 24px 12px 8px;
+  padding: 14px 28px 0;
   overflow: hidden;
 }
 
@@ -609,7 +610,7 @@ button,
   display: flex;
   justify-content: center;
   gap: 10px;
-  padding: 10px 0;
+  padding: 5px 0;
   flex-shrink: 0;
   animation: cs-fade-up 0.5s ease-out 1.7s both;
 }
@@ -631,9 +632,9 @@ button,
 
 /* CTA */
 .cs-cta {
-  margin: 2px 24px 22px;
+  margin: 0 16px 12px;
   flex-shrink: 0;
-  animation: cs-fade-up 0.5s ease-out 1.9s both;
+  animation: cs-fade-up 0.5s ease-out 1.4s both;
 }
 
 /* Transiciones entre cartas */

@@ -197,17 +197,6 @@ export default function ClassSelectScreen({ onSelect }) {
   return (
     <div className="cs-screen">
 
-      <div className="cs-header">
-        <span className="cs-eyebrow">· Aethermarch ·</span>
-        <h2 className="cs-title">
-          <span className="cs-word" style={{ animationDelay: '0.4s'  }}>Elige</span>
-          {' '}
-          <span className="cs-word" style={{ animationDelay: '0.75s' }}>a tu</span>
-          {' '}
-          <span className="cs-word" style={{ animationDelay: '1.1s'  }}>Aventurero</span>
-        </h2>
-      </div>
-
       <div
         className="cs-viewport"
         onTouchStart={onTouchStart}
