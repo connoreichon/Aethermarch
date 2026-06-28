@@ -1,75 +1,39 @@
 """
-Panel ficha de personaje v2.
-Estrategia:
-  1. ComfyUI genera un borde/marco medieval decorativo
-  2. PIL oscurece el interior (zona del personaje) a negro puro
-     => con mix-blend-mode:lighten en el juego el personaje sale limpio sin tinte
+Panel de habilidad v2 — textura oscura de alta calidad para la zona de descripcion.
+512x256 landscape. Sin bordes IA — el borde dorado preciso va en CSS (box-shadow inset).
+Estrategia: basalto/hierro oscuro con grano sutil y ligero calor medieval.
 """
-import requests, time, uuid, os, io
-from PIL import Image, ImageFilter, ImageDraw
+import requests, time, uuid, os
 
 COMFY_URL  = "http://127.0.0.1:8000"
 OUTPUT_DIR = r"C:\Users\Usuario\Desktop\Aethermarch_Clean\public\assets\generated"
 
-POSITIVE = """flat 2d digital illustration, professional medieval fantasy RPG character card border frame, 512x768 portrait,
+POSITIVE = """flat 2d digital illustration, dark fantasy RPG UI texture panel, 512x256 landscape, game asset,
 
-OUTER FRAME: ornate medieval engraved border running along all four edges, 40 to 50 pixel wide decorative strip, aged dark bronze and antique gold tones, intricate Gothic knotwork and scrollwork pattern engraved into the frame, thin vine motifs, very detailed medieval craftsmanship, slightly worn and aged,
+MATERIAL SURFACE: a wide horizontal slab of aged dark basalt stone or cold hammered iron, ancient and worn:
+- extremely dark surface, deep near-black warm tone (#0c0a07), fills the entire image
+- subtle horizontal micro-grain texture, barely visible directional lines going left-to-right like hammered metal
+- slight natural vignette: the four edges are marginally darker than the center zone
+- center zone: barely perceptible lighter dark warm core (#131008), creates natural reading focal area
+- very occasional faint veins of slightly warmer dark material, like ancient stone variation
+- bottom edge: fractionally lighter dark tone to hint at depth, like a thick stone slab viewed from above
 
-CORNER ORNAMENTS: four elaborate corner medallions, cross-hatched diamond filigree, intertwined vines, dark aged bronze gold color #8B6914, each corner is a distinctive ornamental piece,
+QUALITY: smooth and worn, cold and heavy, like ancient iron plate or polished dark granite, permanent and grounded
+NO border, NO frame, NO decorative ornaments, NO symbols, NO runes, NO text, NO light streaks, NO glowing effects
+PURE MATERIAL TEXTURE ONLY — the whole image is material surface
 
-TOP HEADER: elaborate ornamental Gothic header at very top, pointed arch motif within the frame top strip, small central medallion with cross or diamond, dark bronze ornamental peaks at top corners,
+LIGHTING: flat even ambient, minimal depth from material grain only, NOT dramatic chiaroscuro, NOT rim-lit
+COLOR PALETTE: deep near-black cold-warm mix (#0a0806 to #181008), no other colors whatsoever
+ART STYLE: precise flat 2d texture art, professional game UI panel asset, dark fantasy RPG, minimal and clean"""
 
-BOTTOM FOOTER: matching ornamental footer at very bottom, medieval decorative band, mirrored symmetry with header,
+NEGATIVE = """border, frame, decorative line, ornament, symbol, rune, text, character, scene, landscape,
+bright, white, grey, gradient, cluttered, photorealistic, 3d render, dramatic lighting, colorful,
+glowing, neon, blue, green, purple, red, orange, fire, sparks, bokeh, vignette ring, circular glow"""
 
-VERTICAL SIDE BARS: thin decorated side strips left and right edges, knotwork pattern repeating vertically, aged bronze gold tone,
-
-DIVIDER LINE: thin elegant horizontal dividing line at 68 percent height from top, dark aged gold color, very thin 1-2 pixel line, small diamond or cross ornament centered on divider, barely visible but present,
-
-BACKGROUND: the interior center field beyond the frame strips is deep dark background #060204, very dark atmospheric void,
-
-LOWER PANEL: bottom 30 percent interior has slightly warmer very dark background #0E0709, subtle barely-visible aged stone or parchment micro-texture, dark and moody,
-
-STYLE: flat 2d, Darkest Dungeon UI aesthetic, old-school fantasy trading card border, hand-crafted medieval engraving feel, warm aged metal tones, NOT modern, NOT photorealistic, crisp 2d art, Fire Emblem character card frame style"""
-
-NEGATIVE = """character, person, face, body, red neon, modern, sci-fi, futuristic, cyberpunk, bright red, saturated red border, thick red arch, photorealistic, 3d, blurry, gradient, anime character inside, white, bright, light interior, text, watermark, buildings in center, arch in center area, architectural elements inside card, blue, green, purple"""
-
-W, H = 512, 768
-
-
-def post_process(raw_bytes):
-    """
-    Oscurece el interior de la zona del personaje (top 68% sin contar el borde del marco)
-    a negro puro (#000000), conservando el marco exterior y el panel inferior.
-    """
-    img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
-    img = img.resize((W, H), Image.LANCZOS)
-
-    frame_px      = 50          # ancho del marco a preservar en los lados
-    char_bottom   = int(H * 0.68)   # fin de la zona del personaje
-    fade_radius   = 20          # radio del suavizado en el borde máscara
-
-    # Máscara: 255 = conservar original, 0 = negro puro
-    mask = Image.new("L", (W, H), 255)
-    draw = ImageDraw.Draw(mask)
-
-    # Interior del área del personaje → negro
-    draw.rectangle(
-        [frame_px, frame_px, W - frame_px, char_bottom],
-        fill=0
-    )
-
-    # Suavizar la transición para que el marco no quede cortado bruscamente
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=fade_radius))
-
-    black  = Image.new("RGB", (W, H), (0, 0, 0))
-    result = Image.composite(img, black, mask)
-
-    out = io.BytesIO()
-    result.save(out, format="PNG", optimize=False)
-    return out.getvalue()
+W, H = 512, 256
 
 
-def build_workflow(seed, prefix):
+def build_workflow(seed):
     return {
         "1":  {"class_type": "UNETLoader",
                "inputs": {"unet_name": "flux1-krea-dev_fp8_scaled.safetensors",
@@ -79,11 +43,11 @@ def build_workflow(seed, prefix):
                           "clip_name2": "clip_l.safetensors", "type": "flux"}},
         "2":  {"class_type": "LoraLoader",
                "inputs": {"lora_name": "flat_illustration_flux.safetensors",
-                          "strength_model": 1.0, "strength_clip": 1.0,
+                          "strength_model": 0.75, "strength_clip": 0.75,
                           "model": ["1", 0], "clip": ["4", 0]}},
         "3":  {"class_type": "LoraLoader",
                "inputs": {"lora_name": "2d_flat_illustrations_flux.safetensors",
-                          "strength_model": 0.90, "strength_clip": 0.90,
+                          "strength_model": 0.65, "strength_clip": 0.65,
                           "model": ["2", 0], "clip": ["2", 1]}},
         "5":  {"class_type": "CLIPTextEncode",
                "inputs": {"text": POSITIVE, "clip": ["3", 1]}},
@@ -92,7 +56,7 @@ def build_workflow(seed, prefix):
         "7":  {"class_type": "EmptyLatentImage",
                "inputs": {"width": W, "height": H, "batch_size": 1}},
         "8":  {"class_type": "KSampler",
-               "inputs": {"seed": seed, "steps": 50, "cfg": 5.5,
+               "inputs": {"seed": seed, "steps": 35, "cfg": 4.0,
                           "sampler_name": "euler", "scheduler": "simple",
                           "denoise": 1.0,
                           "model": ["3", 0], "positive": ["5", 0],
@@ -102,13 +66,14 @@ def build_workflow(seed, prefix):
         "10": {"class_type": "VAEDecode",
                "inputs": {"samples": ["8", 0], "vae": ["9", 0]}},
         "11": {"class_type": "SaveImage",
-               "inputs": {"filename_prefix": prefix, "images": ["10", 0]}},
+               "inputs": {"filename_prefix": f"panel_v2_s{seed}",
+                          "images": ["10", 0]}},
     }
 
 
 def run(seed):
     print(f"\n>> seed={seed}", flush=True)
-    wf  = build_workflow(seed, f"panel_v2_raw_s{seed}")
+    wf  = build_workflow(seed)
     cid = str(uuid.uuid4())
     r   = requests.post(f"{COMFY_URL}/api/prompt",
                         json={"prompt": wf, "client_id": cid}, timeout=30)
@@ -116,7 +81,7 @@ def run(seed):
         print(f"  Error {r.status_code}: {r.text[:200]}")
         return None
     pid = r.json()["prompt_id"]
-    print(f"  prompt_id={pid}", flush=True)
+    print(f"  pid={pid}", flush=True)
 
     while True:
         h = requests.get(f"{COMFY_URL}/history/{pid}", timeout=10).json()
@@ -131,26 +96,20 @@ def run(seed):
                                     "subfolder": img_info.get("subfolder", ""),
                                     "type":     img_info.get("type", "output")},
                             timeout=30)
-                        # Guardar raw
-                        raw_path   = os.path.join(OUTPUT_DIR, f"panel_v2_raw_s{seed}.png")
-                        final_path = os.path.join(OUTPUT_DIR, f"panel_heraldo_v2_s{seed}.png")
-                        with open(raw_path, "wb") as f:
-                            f.write(r2.content)
-                        # Postprocesar y guardar final
-                        processed = post_process(r2.content)
+                        final_path = os.path.join(OUTPUT_DIR, f"panel_v2_s{seed}.png")
                         with open(final_path, "wb") as f:
-                            f.write(processed)
-                        print(f"  OK {final_path}", flush=True)
+                            f.write(r2.content)
+                        print(f"  OK -> {final_path}", flush=True)
                         return final_path
             if st.get("status_str") == "error":
-                print(f"  ERROR en seed={seed}")
+                print(f"  ERROR seed={seed}")
                 return None
         time.sleep(3)
 
 
 if __name__ == "__main__":
-    print("=== Panel Heraldo v2 ===")
+    print("=== Panel v2 (textura basalto/hierro oscuro 512x256) ===")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    for seed in [3301, 3302, 3303, 3304]:
+    for seed in [7701, 7702, 7703]:
         run(seed)
     print("\n=== Listo ===")

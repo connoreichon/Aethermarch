@@ -10,7 +10,7 @@ const ARCHETYPE_BG = {
   heraldo: `${BASE}assets/generated/fondo_heraldo_s5501.png`,
 }
 const ARCHETYPE_PANEL = {
-  heraldo: `${BASE}assets/generated/panel_habilidad_s6601.png`,
+  heraldo: `${BASE}assets/generated/panel_v2_s7702.png`,
 }
 
 
@@ -37,15 +37,29 @@ function ClassCard({ arch, animClass }) {
         <span className="cs-banner-name">{arch.name}</span>
       </div>
 
-      {/* Panel decorativo de habilidad */}
+      {/* Panel de habilidades */}
       <div className="cs-info">
         {panel && (
           <img className="cs-info-panel-img" src={panel} alt="" aria-hidden="true" draggable="false" />
         )}
         <div className="cs-info-content">
-          <span className="cs-passive-name">— {arch.passiveName} —</span>
-          <p className="cs-passive-desc">{arch.passiveDescription}</p>
-          {arch.hpBonus != null && (
+          {/* Pasiva */}
+          <div className="cs-passive-row">
+            <span className="cs-passive-name">— {arch.passiveName} —</span>
+            <p className="cs-passive-desc">{arch.passiveDescription}</p>
+          </div>
+          {/* Habilidades funcionales */}
+          {arch.abilities?.map(ab => (
+            <div key={ab.id} className="cs-ability-row">
+              <span className="cs-ability-tag">{ab.tag}</span>
+              <div className="cs-ability-body">
+                <span className="cs-ability-name">{ab.name}</span>
+                <span className="cs-ability-desc">{ab.description}</span>
+              </div>
+            </div>
+          ))}
+          {/* Stat */}
+          {arch.hpBonus > 0 && (
             <div className="cs-stat-row">
               <span className="cs-stat-badge">&#9829; +{arch.hpBonus} vitalidad</span>
             </div>

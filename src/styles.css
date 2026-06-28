@@ -538,16 +538,18 @@ button,
   opacity: 0.2;
 }
 
-/* Panel de habilidad — fondo ComfyUI, texto encima */
+/* Panel de habilidades — fondo ComfyUI + borde CSS preciso */
 .cs-info {
   position: absolute;
-  top: 79%;
+  top: 68%;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 3;
-  background: #0d0b0a;
+  background: #0a0806;
   overflow: hidden;
+  /* Borde dorado preciso generado en código */
+  box-shadow: inset 0 0 0 1px rgba(178, 138, 42, 0.55);
 }
 .cs-info-panel-img {
   position: absolute;
@@ -561,64 +563,75 @@ button,
 .cs-info-content {
   position: relative;
   z-index: 1;
+  padding: 8px 18px 4px;
+}
+
+/* Fila pasiva */
+.cs-passive-row {
   text-align: center;
-  padding: 10px 28px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(178, 138, 42, 0.22);
+  margin-bottom: 6px;
 }
 
-/* Cabecera de la ficha: rol + nombre */
-.cs-info-header {
-  padding: 0 0 8px;
-  border-bottom: 1px solid rgba(148,110,28,0.28);
-  margin-bottom: 7px;
+/* Fila de habilidad funcional */
+.cs-ability-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(178, 138, 42, 0.12);
 }
-.cs-role {
+.cs-ability-row:last-of-type {
+  border-bottom: none;
+}
+.cs-ability-tag {
+  flex-shrink: 0;
   font-family: var(--font-gothic);
-  font-size: 0.48rem;
-  color: rgba(200,60,60,0.82);
+  font-size: 0.37rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.3em;
-  margin-bottom: 2px;
+  color: rgba(178, 138, 42, 0.75);
+  background: rgba(178, 138, 42, 0.10);
+  border: 1px solid rgba(178, 138, 42, 0.28);
+  padding: 2px 5px;
+  line-height: 1.5;
+  margin-top: 1px;
 }
-.cs-name {
+.cs-ability-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cs-ability-name {
   font-family: var(--font-gothic);
-  font-size: 1.28rem;
-  color: var(--color-gold);
-  letter-spacing: 0.07em;
-  line-height: 1.1;
+  font-size: 0.52rem;
+  color: rgba(210, 185, 110, 0.90);
+  letter-spacing: 0.06em;
+  line-height: 1.2;
 }
-
-/* Separador fino dorado */
-.cs-sep {
-  width: 40px;
-  height: 1px;
-  background: linear-gradient(to right, transparent, rgba(184,148,74,0.45), transparent);
-  margin: 0 auto 7px;
+.cs-ability-desc {
+  font-size: 0.56rem;
+  color: rgba(175, 152, 108, 0.72);
+  line-height: 1.38;
 }
 
 /* Pasiva */
 .cs-passive-name {
   display: block;
   font-family: var(--font-gothic);
-  font-size: 0.56rem;
+  font-size: 0.50rem;
   color: var(--color-ember);
-  letter-spacing: 0.1em;
-  margin-bottom: 3px;
+  letter-spacing: 0.12em;
+  margin-bottom: 2px;
+  text-align: center;
 }
 .cs-passive-desc {
-  font-size: 0.63rem;
-  color: rgba(178,155,125,0.78);
-  line-height: 1.45;
+  font-size: 0.56rem;
+  color: rgba(178,155,125,0.75);
+  line-height: 1.38;
   margin: 0;
-}
-
-/* Ornamento inferior de la ficha */
-.cs-info-ornament {
-  font-size: 0.36rem;
-  color: rgba(155,120,38,0.45);
-  letter-spacing: 0.5em;
   text-align: center;
-  margin-top: 9px;
-  padding-bottom: 2px;
 }
 
 /* Fila de stats */
