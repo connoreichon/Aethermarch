@@ -118,14 +118,6 @@ function ClassCard({ arch, animClass }) {
 
   return (
     <div className={`cs-card ${animClass}`}>
-      {/* Fondo atmosférico */}
-      {panel
-        ? <img className="cs-panel" src={panel} alt="" aria-hidden="true" draggable="false" />
-        : <div className="cs-panel cs-panel--default" />}
-
-      {/* Marco SVG simétrico */}
-      <CardFrame />
-
       {/* Personaje */}
       {art
         ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
@@ -144,7 +136,6 @@ function ClassCard({ arch, animClass }) {
             <span className="cs-stat-badge">&#9829; +{arch.hpBonus} vitalidad</span>
           </div>
         )}
-        <div className="cs-info-ornament">&#9670; &nbsp; &#9670; &nbsp; &#9670;</div>
       </div>
     </div>
   )

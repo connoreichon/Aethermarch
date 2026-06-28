@@ -421,7 +421,6 @@ button,
   width: calc(100% - 16px);
   max-width: 440px;
   height: 100%;
-  background: radial-gradient(ellipse at 50% 35%, #1e0f0f 0%, #0e0707 55%, #090505 100%);
   border-radius: 6px;
   overflow: hidden;
   box-shadow:
@@ -429,6 +428,20 @@ button,
     0 12px 48px rgba(0,0,0,0.9),
     0 0  40px rgba(40,15,5,0.18);
   flex-shrink: 0;
+  /* Sala de guardia medieval: piedra oscura calida + luz de antorcha */
+  background:
+    radial-gradient(ellipse 88% 90% at 50% 48%, transparent 38%, rgba(0,0,0,0.92) 100%),
+    radial-gradient(ellipse 70% 42% at 50% 93%, rgba(195,58,12,0.60) 0%, transparent 75%),
+    radial-gradient(ellipse 55% 55% at 50% 55%, rgba(115,30,10,0.32) 0%, transparent 72%),
+    radial-gradient(ellipse 80% 28% at 50% 0%,  rgba(5,2,10,0.58)   0%, transparent 80%),
+    linear-gradient(180deg,
+      #0f0608 0%,
+      #1f0c0a 18%,
+      #2a1009 44%,
+      #230c09 70%,
+      #170708 90%,
+      #0c0405 100%
+    );
 }
 
 /* Marco SVG superpuesto — encima de todo (excepto del texto de info) */
@@ -456,17 +469,17 @@ button,
   background: radial-gradient(ellipse at 50% 30%, #1a0c0c 0%, #0d0607 55%, #070404 100%);
 }
 
-/* Personaje — debajo de la cruz, dentro de las columnas SVG */
+/* Personaje — grande, sin restricciones de marco */
 .cs-character {
   position: absolute;
-  top: 94px;
-  left: 50px;
-  width: calc(100% - 100px);
-  height: calc(75% - 94px);
+  top: 22px;
+  left: 8px;
+  width: calc(100% - 16px);
+  height: calc(74% - 22px);
   object-fit: contain;
   object-position: center top;
   display: block;
-  z-index: 2;
+  z-index: 1;
 }
 .cs-character-empty {
   position: absolute;
@@ -478,34 +491,26 @@ button,
   opacity: 0.2;
 }
 
-/* Info — zona inferior con fondo sólido y retícula de diamantes */
+/* Info — overlay inferior con degradado sobre el fondo del personaje */
 .cs-info {
   position: absolute;
-  top: 75%;
   bottom: 0;
-  left: 3px;
-  right: 3px;
-  z-index: 6;
-  background-color: #130909;
-  background-image:
-    repeating-linear-gradient(
-       45deg,
-       rgba(145,110,32,0.2) 0px, rgba(145,110,32,0.2) 1px,
-       transparent 0px, transparent 50%
-    ),
-    repeating-linear-gradient(
-      -45deg,
-      rgba(145,110,32,0.2) 0px, rgba(145,110,32,0.2) 1px,
-      transparent 0px, transparent 50%
-    );
-  background-size: 14px 14px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background: linear-gradient(
+    to bottom,
+    transparent              0%,
+    rgba(8,  3,  3, 0.84)  28%,
+    rgba(10, 4,  3, 0.97)  100%
+  );
   text-align: center;
-  padding: 0 16px 12px;
+  padding: 56px 20px 14px;
 }
 
 /* Cabecera de la ficha: rol + nombre */
 .cs-info-header {
-  padding: 10px 0 8px;
+  padding: 0 0 8px;
   border-bottom: 1px solid rgba(148,110,28,0.28);
   margin-bottom: 7px;
 }
