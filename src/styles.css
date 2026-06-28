@@ -462,7 +462,7 @@ button,
   top: 94px;
   left: 50px;
   width: calc(100% - 100px);
-  height: calc(72% - 94px);
+  height: calc(75% - 94px);
   object-fit: contain;
   object-position: center top;
   display: block;
@@ -481,7 +481,7 @@ button,
 /* Info — zona inferior con fondo sólido y retícula de diamantes */
 .cs-info {
   position: absolute;
-  top: 72%;
+  top: 75%;
   bottom: 0;
   left: 3px;
   right: 3px;
@@ -547,6 +547,16 @@ button,
   color: rgba(178,155,125,0.78);
   line-height: 1.45;
   margin: 0;
+}
+
+/* Ornamento inferior de la ficha */
+.cs-info-ornament {
+  font-size: 0.36rem;
+  color: rgba(155,120,38,0.45);
+  letter-spacing: 0.5em;
+  text-align: center;
+  margin-top: 9px;
+  padding-bottom: 2px;
 }
 
 /* Fila de stats */
