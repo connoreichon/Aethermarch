@@ -10,7 +10,7 @@ const ARCHETYPE_BG = {
   heraldo: `${BASE}assets/generated/fondo_heraldo_s5501.png`,
 }
 const ARCHETYPE_PANEL = {
-  heraldo: `${BASE}assets/generated/pergamino_s9002.png`,
+  heraldo: `${BASE}assets/generated/pergamino_s9102.png`,
 }
 
 function ClassCard({ arch, animClass }) {
