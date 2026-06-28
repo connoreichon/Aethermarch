@@ -481,13 +481,13 @@ button,
   background: radial-gradient(ellipse at 50% 30%, #1a0c0c 0%, #0d0607 55%, #070404 100%);
 }
 
-/* Personaje — grande, sin restricciones de marco */
+/* Personaje — dentro de las franjas del marco */
 .cs-character {
   position: absolute;
-  top: 22px;
-  left: 8px;
-  width: calc(100% - 16px);
-  height: calc(74% - 22px);
+  top: 55px;
+  left: 44px;
+  width: calc(100% - 88px);
+  height: calc(65% - 55px);
   object-fit: contain;
   object-position: center top;
   display: block;
@@ -503,21 +503,23 @@ button,
   opacity: 0.2;
 }
 
-/* Info — overlay inferior con degradado sobre el fondo del personaje */
+/* Info — dentro del marco: top al 65%, bottom respeta franja inferior */
 .cs-info {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  top: 65%;
+  bottom: 52px;
+  left: 44px;
+  right: 44px;
   z-index: 2;
   background: linear-gradient(
     to bottom,
     transparent              0%,
-    rgba(8,  3,  3, 0.84)  28%,
+    rgba(8,  3,  3, 0.88)  24%,
     rgba(10, 4,  3, 0.97)  100%
   );
   text-align: center;
-  padding: 56px 20px 14px;
+  padding: 24px 12px 8px;
+  overflow: hidden;
 }
 
 /* Cabecera de la ficha: rol + nombre */
