@@ -8,7 +8,7 @@ const ARCHETYPE_ART = {
 }
 const ARCHETYPE_PANELS = {}
 const ARCHETYPE_FRAMES = {
-  heraldo: `${BASE}assets/generated/marco_v2_s8802.png`,
+  heraldo: `${BASE}assets/generated/marco_v3_s9902.png`,
 }
 
 
@@ -121,22 +121,24 @@ function ClassCard({ arch, animClass }) {
 
   return (
     <div className={`cs-card ${animClass}`}>
-      {/* Personaje */}
+      {/* Personaje — z-index 1, queda bajo el marco */}
       {art
         ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
         : <div className="cs-character-empty"><span>⚔</span></div>}
 
-      {/* Marco decorativo sobre el fondo */}
+      {/* Marco IA — PNG transparente en el centro */}
       {frame && (
         <img className="cs-frame-img" src={frame} alt="" aria-hidden="true" draggable="false" />
       )}
 
-      {/* Ficha de personaje */}
+      {/* Nombre de clase superpuesto en la banda superior del marco */}
+      <div className="cs-class-banner">
+        <span className="cs-banner-role">{arch.role}</span>
+        <span className="cs-banner-name">{arch.name}</span>
+      </div>
+
+      {/* Ficha de personaje — solo habilidad pasiva y stats */}
       <div className="cs-info">
-        <div className="cs-info-header">
-          <div className="cs-role">{arch.role}</div>
-          <div className="cs-name">{arch.name}</div>
-        </div>
         <span className="cs-passive-name">— {arch.passiveName} —</span>
         <p className="cs-passive-desc">{arch.passiveDescription}</p>
         {arch.hpBonus != null && (
