@@ -538,17 +538,44 @@ button,
   opacity: 0.2;
 }
 
-/* Panel de habilidades — pergamino colapsable desde abajo */
+/* Indicador de panel desplegable — visible solo cuando el panel está cerrado */
+.cs-panel-trigger {
+  position: absolute;
+  bottom: 18px;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 8px 0;
+}
+.cs-panel-trigger::before,
+.cs-panel-trigger::after {
+  content: '';
+  display: block;
+  height: 1px;
+  width: 60px;
+  background: rgba(160, 30, 30, 0.55);
+}
+.cs-panel-trigger-icon {
+  font-size: 0.42rem;
+  color: rgba(175, 35, 35, 0.85);
+  line-height: 1;
+}
+
+/* Panel de habilidades — pergamino completamente oculto por defecto */
 .cs-info {
   position: absolute;
   top: 60%;
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 3;
+  z-index: 5;
   overflow: hidden;
-  /* Colapsado: solo el asa visible en el borde inferior */
-  transform: translateY(calc(100% - 50px));
+  transform: translateY(100%);
   transition: transform 0.40s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 .cs-info--open {
@@ -627,9 +654,9 @@ button,
   font-size: 0.37rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(80, 42, 5, 0.88);
-  background: rgba(90, 50, 8, 0.12);
-  border: 1px solid rgba(90, 50, 8, 0.35);
+  color: rgba(140, 25, 25, 0.90);
+  background: rgba(160, 30, 30, 0.10);
+  border: 1px solid rgba(140, 25, 25, 0.32);
   padding: 2px 5px;
   line-height: 1.5;
   margin-top: 1px;
@@ -642,13 +669,13 @@ button,
 .cs-ability-name {
   font-family: var(--font-gothic);
   font-size: 0.52rem;
-  color: rgba(35, 16, 2, 0.92);
+  color: rgba(130, 20, 20, 0.92);
   letter-spacing: 0.06em;
   line-height: 1.2;
 }
 .cs-ability-desc {
   font-size: 0.56rem;
-  color: rgba(55, 28, 5, 0.82);
+  color: rgba(18, 8, 2, 0.85);
   line-height: 1.38;
 }
 
@@ -657,14 +684,14 @@ button,
   display: block;
   font-family: var(--font-gothic);
   font-size: 0.50rem;
-  color: rgba(80, 42, 5, 0.90);
+  color: rgba(130, 20, 20, 0.92);
   letter-spacing: 0.12em;
   margin-bottom: 2px;
   text-align: center;
 }
 .cs-passive-desc {
   font-size: 0.56rem;
-  color: rgba(55, 28, 5, 0.80);
+  color: rgba(18, 8, 2, 0.85);
   line-height: 1.38;
   margin: 0;
   text-align: center;
@@ -681,7 +708,7 @@ button,
 .cs-stat-badge {
   font-family: var(--font-gothic);
   font-size: 0.5rem;
-  color: rgba(80, 42, 5, 0.80);
+  color: rgba(130, 20, 20, 0.85);
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }

@@ -8,30 +8,31 @@ import requests, time, uuid, os
 COMFY_URL  = "http://127.0.0.1:8000"
 OUTPUT_DIR = r"C:\Users\Usuario\Desktop\Aethermarch_Clean\public\assets\generated"
 
-POSITIVE = """flat 2d illustration, parchment material texture closeup, RPG UI panel asset, 512x384 landscape,
+POSITIVE = """flat 2d illustration, ancient parchment texture closeup, RPG UI panel asset, 512x384 landscape,
 
-THE ENTIRE IMAGE IS PARCHMENT SURFACE — no scene, no object, no context, just material:
-- warm cream-amber tone filling edge to edge, base color #D4B870 to #C4A458
-- natural linen and vellum fiber grain visible across the whole surface
-- subtle directional texture from the material fibers, very fine
-- very slight tonal variation across the surface: warmer in center, fractionally darker at edges
-- MINIMAL aging: just a tiny amount of natural yellowing, almost clean and smooth
-- edges: softly darker amber-brown rim, organic feathered fade, NOT a geometric border
+THE ENTIRE IMAGE IS PARCHMENT SURFACE — fills the whole frame edge to edge, no scene:
+- base color: warm amber-cream #CEB06A to #D4BC7A, uniform and inviting
+- WRINKLES AND CREASES: several visible fold lines crossing the surface at irregular angles,
+  natural crease marks from repeated folding and unfolding, diagonal and horizontal folds,
+  the creases create subtle shadows and tone variation — gives the material character and depth
+- natural linen fiber grain clearly visible between the creases
+- edges: softly darker amber-brown rim, organic feathered fade inward
+- minimal staining: ONLY the fold crease shadows provide tonal variation, NO water stains or spots
+- center: slightly lighter warm cream tone for readability
 
-QUALITY: premium clean parchment, mostly smooth and even, like a freshly prepared manuscript sheet
-CLEAN: barely any stains — at most one or two extremely faint marks, nearly invisible
-COLOR: warm honey-amber cream, uniform and inviting, readable
+QUALITY: old manuscript page with natural fold marks, like a letter or map that has been folded many times
+COLOR: warm honey-amber, readable and organic
 
-NO water stains, NO foxing spots, NO blotches, NO dirty marks, NO heavy aging
-NO table, NO desk, NO wood surface, NO shadow underneath, NO scene, NO objects
-NO text, NO symbols, NO borders, NO decorative elements
-PURE FLAT PARCHMENT TEXTURE — fills the whole frame edge to edge"""
+NO water stains, NO foxing spots, NO blotches, NO dirty marks
+NO table, NO desk, NO wooden surface, NO background scene, NO objects, NO shadow beneath
+NO text, NO symbols, NO decorative borders
+PURE PARCHMENT MATERIAL — fills the entire frame"""
 
-NEGATIVE = """table, desk, wood, surface, scene, background, object, shadow underneath,
-stains, blotches, foxing spots, heavy aging, dirty, dark patches,
-text, letters, writing, runes, symbols, border, frame, decorative ornament,
-modern, white paper, bright white, cold, blue, grey, purple, futuristic,
-photorealistic, 3d render, dramatic lighting, bokeh, character"""
+NEGATIVE = """table, desk, wood, wooden surface, background scene, object, shadow underneath, floor,
+water stains, foxing spots, blotches, dirty dark patches, heavy aging marks,
+text, letters, writing, runes, symbols, decorative border, ornament, frame,
+modern, white, cold colors, blue, grey, purple, futuristic,
+photorealistic, 3d render, dramatic lighting, bokeh, character, landscape"""
 
 W, H = 512, 384
 
@@ -111,6 +112,6 @@ def run(seed):
 if __name__ == "__main__":
     print("=== Pergamino medieval (512x384) ===")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    for seed in [8901, 8902, 8903]:
+    for seed in [9001, 9002, 9003]:
         run(seed)
     print("\n=== Listo ===")

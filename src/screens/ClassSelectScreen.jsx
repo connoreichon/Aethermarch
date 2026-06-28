@@ -10,7 +10,7 @@ const ARCHETYPE_BG = {
   heraldo: `${BASE}assets/generated/fondo_heraldo_s5501.png`,
 }
 const ARCHETYPE_PANEL = {
-  heraldo: `${BASE}assets/generated/pergamino_s8902.png`,
+  heraldo: `${BASE}assets/generated/pergamino_s9002.png`,
 }
 
 function ClassCard({ arch, animClass }) {
@@ -29,11 +29,9 @@ function ClassCard({ arch, animClass }) {
     if (handleDragY.current === null) return
     const dy = e.changedTouches[0].clientY - handleDragY.current
     handleDragY.current = null
-    if (dy < -30) setPanelOpen(true)
-    else if (dy > 30) setPanelOpen(false)
+    if (dy > 30) setPanelOpen(false)
     else setPanelOpen(p => !p)
   }
-  function onHandleClick() { setPanelOpen(p => !p) }
 
   return (
     <div className={`cs-card ${animClass}`}>
@@ -43,6 +41,13 @@ function ClassCard({ arch, animClass }) {
       {art
         ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
         : <div className="cs-character-empty"><span>⚔</span></div>}
+
+      {/* Indicador visible solo cuando el panel está cerrado */}
+      {!panelOpen && (
+        <div className="cs-panel-trigger" onClick={() => setPanelOpen(true)}>
+          <span className="cs-panel-trigger-icon">◆</span>
+        </div>
+      )}
 
       <div
         className={`cs-info${panelOpen ? ' cs-info--open' : ''}`}
@@ -54,7 +59,7 @@ function ClassCard({ arch, animClass }) {
         {panel && <img className="cs-parchment-bg" src={panel} alt="" aria-hidden="true" draggable="false" />}
         <div
           className="cs-info-handle"
-          onClick={onHandleClick}
+          onClick={() => setPanelOpen(false)}
           onTouchStart={onHandleTouchStart}
           onTouchEnd={onHandleTouchEnd}
         >
