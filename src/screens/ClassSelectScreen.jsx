@@ -9,39 +9,25 @@ const ARCHETYPE_ART = {
 const ARCHETYPE_BG = {
   heraldo: `${BASE}assets/generated/fondo_heraldo_s5501.png`,
 }
-const ARCHETYPE_PANEL = {
-  heraldo: `${BASE}assets/generated/panel_v2_s7702.png`,
-}
-
-
 function ClassCard({ arch, animClass }) {
-  const art   = ARCHETYPE_ART[arch.id]
-  const bg    = ARCHETYPE_BG[arch.id]
-  const panel = ARCHETYPE_PANEL[arch.id]
+  const art = ARCHETYPE_ART[arch.id]
+  const bg  = ARCHETYPE_BG[arch.id]
 
   return (
     <div className={`cs-card ${animClass}`}>
-      {/* Fondo atmosférico generado con ComfyUI */}
       {bg && (
         <img className="cs-bg-img" src={bg} alt="" aria-hidden="true" draggable="false" />
       )}
-
-      {/* Personaje PNG con fondo transparente */}
       {art
         ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
         : <div className="cs-character-empty"><span>⚔</span></div>}
 
-      {/* Nombre de clase sobre el área superior oscura del fondo */}
       <div className="cs-class-banner">
         <span className="cs-banner-role">{arch.role}</span>
         <span className="cs-banner-name">{arch.name}</span>
       </div>
 
-      {/* Panel de habilidades */}
       <div className="cs-info">
-        {panel && (
-          <img className="cs-info-panel-img" src={panel} alt="" aria-hidden="true" draggable="false" />
-        )}
         <div className="cs-info-content">
           {/* Pasiva */}
           <div className="cs-passive-row">

@@ -516,13 +516,13 @@ button,
     0 -1px 3px rgba(0, 0, 0, 0.8);
 }
 
-/* Personaje — sobre el fondo atmosférico, ocupa la parte superior */
+/* Personaje — ocupa toda la altura de la carta */
 .cs-character {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  height: 79%;
+  height: 100%;
   object-fit: contain;
   object-position: center top;
   display: block;
@@ -538,32 +538,49 @@ button,
   opacity: 0.2;
 }
 
-/* Panel de habilidades — fondo ComfyUI + borde CSS preciso */
+/* Panel de habilidades — semitranslúcido con blur: el personaje se ve borroso debajo */
 .cs-info {
   position: absolute;
-  top: 68%;
+  top: 58%;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 3;
-  background: #0a0806;
   overflow: hidden;
-  /* Borde dorado preciso generado en código */
-  box-shadow: inset 0 0 0 1px rgba(178, 138, 42, 0.55);
+  backdrop-filter: blur(10px) brightness(0.72) saturate(0.75);
+  -webkit-backdrop-filter: blur(10px) brightness(0.72) saturate(0.75);
+  background: linear-gradient(
+    to bottom,
+    rgba(4, 2, 10, 0.00) 0%,
+    rgba(4, 2, 10, 0.60) 24%,
+    rgba(5, 3, 12, 0.89) 44%,
+    rgba(6, 3, 13, 0.96) 64%,
+    rgba(7, 4, 15, 0.99) 100%
+  );
 }
-.cs-info-panel-img {
+/* Línea dorada separadora donde el panel se vuelve opaco */
+.cs-info::before {
+  content: '';
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  display: block;
-  z-index: 0;
+  top: 24%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 5%,
+    rgba(178, 138, 42, 0.40) 28%,
+    rgba(210, 168, 58, 0.60) 50%,
+    rgba(178, 138, 42, 0.40) 72%,
+    transparent 95%
+  );
+  z-index: 4;
+  pointer-events: none;
 }
 .cs-info-content {
   position: relative;
   z-index: 1;
-  padding: 8px 18px 4px;
+  padding: 25% 18px 4px;
 }
 
 /* Fila pasiva */
