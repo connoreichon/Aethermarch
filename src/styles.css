@@ -415,33 +415,20 @@ button,
 }
 .cs-viewport:active { cursor: grabbing; }
 
-/* Card — llena todo el espacio disponible */
+/* Card — ocupa toda la pantalla sin márgenes */
 .cs-card {
   position: relative;
-  width: calc(100% - 16px);
-  max-width: 440px;
+  width: 100%;
   height: 100%;
-  border-radius: 6px;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow:
-    0 0 0 1px rgba(120,88,22,0.35),
-    0 12px 48px rgba(0,0,0,0.9),
-    0 0  40px rgba(40,15,5,0.18);
   flex-shrink: 0;
-  /* Sala de guardia medieval: piedra oscura calida + luz de antorcha */
+  /* Fondo muy oscuro en los bordes (donde están las franjas del marco),
+     brillo cálido concentrado solo en el interior — así no sangra por el marco */
   background:
-    radial-gradient(ellipse 88% 90% at 50% 48%, transparent 38%, rgba(0,0,0,0.92) 100%),
-    radial-gradient(ellipse 70% 42% at 50% 93%, rgba(195,58,12,0.60) 0%, transparent 75%),
-    radial-gradient(ellipse 55% 55% at 50% 55%, rgba(115,30,10,0.32) 0%, transparent 72%),
-    radial-gradient(ellipse 80% 28% at 50% 0%,  rgba(5,2,10,0.58)   0%, transparent 80%),
-    linear-gradient(180deg,
-      #0f0608 0%,
-      #1f0c0a 18%,
-      #2a1009 44%,
-      #230c09 70%,
-      #170708 90%,
-      #0c0405 100%
-    );
+    radial-gradient(ellipse 66% 68% at 50% 40%, rgba(78,16,5,0.70) 0%, rgba(24,5,3,0.42) 55%, transparent 88%),
+    radial-gradient(ellipse 38% 20% at 50% 84%, rgba(88,20,6,0.24) 0%, transparent 70%),
+    #060203;
 }
 
 /* Marco SVG (reservado) */
@@ -454,14 +441,13 @@ button,
   z-index: 5;
 }
 
-/* Marco IA — overlay con lighten: negro=invisible, dorado=visible */
+/* Marco IA — PNG con centro transparente, sin blend mode */
 .cs-frame-img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: fill;
-  mix-blend-mode: lighten;
   pointer-events: none;
   z-index: 3;
 }
@@ -481,13 +467,13 @@ button,
   background: radial-gradient(ellipse at 50% 30%, #1a0c0c 0%, #0d0607 55%, #070404 100%);
 }
 
-/* Personaje — dentro de las franjas del marco */
+/* Personaje — debajo del ornamento superior del marco v2 */
 .cs-character {
   position: absolute;
-  top: 55px;
-  left: 44px;
-  width: calc(100% - 88px);
-  height: calc(65% - 55px);
+  top: 82px;
+  left: 30px;
+  width: calc(100% - 60px);
+  height: calc(63% - 82px);
   object-fit: contain;
   object-position: center top;
   display: block;
@@ -506,10 +492,10 @@ button,
 /* Info — dentro del marco: top al 65%, bottom respeta franja inferior */
 .cs-info {
   position: absolute;
-  top: 65%;
-  bottom: 52px;
-  left: 44px;
-  right: 44px;
+  top: 63%;
+  bottom: 30px;
+  left: 30px;
+  right: 30px;
   z-index: 2;
   background: linear-gradient(
     to bottom,

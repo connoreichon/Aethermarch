@@ -8,7 +8,7 @@ const ARCHETYPE_ART = {
 }
 const ARCHETYPE_PANELS = {}
 const ARCHETYPE_FRAMES = {
-  heraldo: `${BASE}assets/generated/marco_heraldo_s7701.png`,
+  heraldo: `${BASE}assets/generated/marco_v2_s8802.png`,
 }
 
 
