@@ -139,32 +139,36 @@ function RibbonBow({ color }) {
 function ClassCard({ arch, animClass, onSelect }) {
   const [open, setOpen] = useState(false)
 
-  const scrollRef  = useRef(null)
-  const rolledRef  = useRef(null)
-  const ribbonRef  = useRef(null)   // wrapper del lazo SVG
-  const paperRef   = useRef(null)
-  const nameRef    = useRef(null)
-  const divRef     = useRef(null)
-  const bodyRef    = useRef(null)
-  const ctaRef     = useRef(null)
-  const tlRef      = useRef(null)
+  const scrollRef   = useRef(null)
+  const rolledRef   = useRef(null)
+  const ribbonRef   = useRef(null)
+  const paperRef    = useRef(null)
+  const rollEdgeRef = useRef(null)  // borde de enrollamiento que sube al abrir
+  const nameRef     = useRef(null)
+  const divRef      = useRef(null)
+  const bodyRef     = useRef(null)
+  const ctaRef      = useRef(null)
+  const tlRef       = useRef(null)
 
   const art   = ARCHETYPE_ART[arch.id]
   const bg    = ARCHETYPE_BG[arch.id]
   const color = arch.color || '#a01e1e'
 
   useEffect(() => {
-    if (!scrollRef.current || !paperRef.current || !rolledRef.current || !ribbonRef.current) return
-    gsap.set(scrollRef.current, { height: 84 })
-    gsap.set(paperRef.current, {
+    const s = scrollRef.current, p = paperRef.current,
+          r = rolledRef.current, b = ribbonRef.current, e = rollEdgeRef.current
+    if (!s || !p || !r || !b || !e) return
+    gsap.set(s, { height: 84 })
+    gsap.set(p, {
       opacity: 0, pointerEvents: 'none',
       clipPath: 'inset(100% 0% 0% 0%)',
       rotateX: 0,
-      transformPerspective: 900,
+      transformPerspective: 1000,
       transformOrigin: 'top center',
     })
-    gsap.set(rolledRef.current, { opacity: 1 })
-    gsap.set(ribbonRef.current, { y: 0, rotation: 0, scale: 1, opacity: 1 })
+    gsap.set(r, { opacity: 1 })
+    gsap.set(b, { y: 0, x: 0, rotation: 0, scale: 1, opacity: 1 })
+    gsap.set(e, { top: '110%', opacity: 1 })
     return () => { if (tlRef.current) tlRef.current.kill() }
   }, [])
 
@@ -180,70 +184,109 @@ function ClassCard({ arch, animClass, onSelect }) {
     if (opening) {
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
       tl
-        // ① Lazo se desata: sale disparado con giro
+        // ① Lazo se desata: sale disparado con giro y deriva lateral
         .to(ribbonRef.current, {
-          y: -45, rotation: 24, scale: 0.38, opacity: 0,
-          duration: 0.30, ease: 'power2.in',
+          y: -52, x: 20, rotation: 32, scale: 0.30, opacity: 0,
+          duration: 0.26, ease: 'power2.in',
         })
-        // ② Container se expande
+
+        // ② OVERSHOOT: scroll se abre de golpe más allá del objetivo (tensión liberada)
         .to(scrollRef.current, {
-          height: '55%', duration: 0.65, ease: 'expo.out',
-        }, 0.10)
+          height: '62%', duration: 0.30, ease: 'power4.out',
+        }, 0.08)
+        // Settle: vuelve suavemente al tamaño correcto
+        .to(scrollRef.current, {
+          height: '55%', duration: 0.28, ease: 'power2.inOut',
+        }, 0.38)
+
         // ③ Estado enrollado se disuelve
         .to(rolledRef.current, {
-          opacity: 0, duration: 0.15, ease: 'power2.in',
-        }, 0.22)
-        // ④ Papel emerge con clipPath + perspectiva 3D
+          opacity: 0, duration: 0.14, ease: 'power2.in',
+        }, 0.16)
+
+        // ④ Papel emerge con clipPath + perspectiva 3D + overshoot rotación
         .set(paperRef.current, {
           clipPath: 'inset(100% 0% 0% 0%)',
-          rotateX: -14,
-          opacity: 1,
-          pointerEvents: 'auto',
-        }, 0.30)
+          rotateX: -20,
+          opacity: 1, pointerEvents: 'auto',
+        }, 0.22)
         .to(paperRef.current, {
           clipPath: 'inset(0% 0% 0% 0%)',
+          rotateX: 4,          // overshoot: papel se "vence" levemente
+          duration: 0.50, ease: 'power3.out',
+        }, 0.22)
+        // Corrección del overshoot — papel se aplana
+        .to(paperRef.current, {
           rotateX: 0,
-          duration: 0.62, ease: 'power3.out',
-        }, 0.30)
-        // ⑤ Contenido en cascada
+          duration: 0.22, ease: 'power2.inOut',
+        }, 0.72)
+
+        // ⑤ Borde de enrollamiento sube de abajo hasta arriba, luego se esfuma
+        .to(rollEdgeRef.current, {
+          top: 0, duration: 0.52, ease: 'power3.out',
+        }, 0.22)
+        .to(rollEdgeRef.current, {
+          opacity: 0, duration: 0.24, ease: 'power2.in',
+        }, 0.62)
+
+        // ⑥ Contenido en cascada
         .fromTo(nameRef.current,
-          { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.28, ease: 'power2.out' },
+          { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.26, ease: 'power2.out' },
           0.56)
         .fromTo(divRef.current,
-          { opacity: 0, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.22, ease: 'power2.out' },
-          0.72)
+          { opacity: 0, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.20, ease: 'power2.out' },
+          0.70)
         .fromTo(rows,
-          { opacity: 0, y: 9 }, { opacity: 1, y: 0, stagger: 0.07, duration: 0.26, ease: 'power2.out' },
-          0.82)
+          { opacity: 0, y: 8 }, { opacity: 1, y: 0, stagger: 0.065, duration: 0.24, ease: 'power2.out' },
+          0.78)
         .fromTo(ctaRef.current,
-          { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.22, ease: 'power2.out' },
-          '-=0.06')
+          { opacity: 0, y: 5 }, { opacity: 1, y: 0, duration: 0.20, ease: 'power2.out' },
+          '-=0.05')
+
     } else {
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
       tl
         // ① Contenido desaparece
         .to([nameRef.current, divRef.current, ...rows, ctaRef.current], {
-          opacity: 0, duration: 0.12, ease: 'power2.in',
+          opacity: 0, duration: 0.10, ease: 'power2.in',
         })
-        // ② Papel se enrolla hacia arriba
+
+        // ② Papel "se resiste" brevemente antes de enrollarse
+        .to(paperRef.current, {
+          rotateX: 5, duration: 0.08, ease: 'power1.inOut',
+        }, 0.06)
+
+        // ③ Borde de enrollamiento aparece arriba y baja (papel volviendo al rollo)
+        .set(rollEdgeRef.current, { top: 0, opacity: 1 }, 0.12)
+        .to(rollEdgeRef.current, {
+          top: '110%', duration: 0.30, ease: 'power3.in',
+        }, 0.12)
+
+        // ④ Papel se enrolla hacia arriba (clip desde abajo)
         .to(paperRef.current, {
           clipPath: 'inset(0% 0% 100% 0%)',
-          rotateX: -12,
-          duration: 0.38, ease: 'power3.in',
-        }, 0.08)
-        .set(paperRef.current, { pointerEvents: 'none', opacity: 0 }, 0.44)
-        // ③ Container se contrae
+          rotateX: -16,
+          duration: 0.34, ease: 'power3.in',
+        }, 0.14)
+        .set(paperRef.current, { pointerEvents: 'none', opacity: 0 }, 0.46)
+
+        // ⑤ UNDERSHOOT + SNAP: container se cierra con energía, rebota levemente
         .to(scrollRef.current, {
-          height: 84, duration: 0.44, ease: 'power3.in',
-        }, 0.10)
-        // ④ Estado enrollado reaparece
-        .set(rolledRef.current, { opacity: 0 }, 0.08)
-        .to(rolledRef.current, { opacity: 1, duration: 0.12 }, 0.38)
-        // ⑤ Lazo vuelve disparado con muelle
+          height: 74, duration: 0.28, ease: 'power4.in',
+        }, 0.14)
+        .to(scrollRef.current, {
+          height: 84, duration: 0.18, ease: 'power2.out',
+        }, 0.42)
+
+        // ⑥ Estado enrollado reaparece
+        .set(rolledRef.current, { opacity: 0 }, 0.10)
+        .to(rolledRef.current, { opacity: 1, duration: 0.14 }, 0.36)
+
+        // ⑦ Lazo vuelve de golpe con muelle potente
         .fromTo(ribbonRef.current,
-          { y: -45, rotation: -16, scale: 0.38, opacity: 0 },
-          { y: 0, rotation: 0, scale: 1, opacity: 1, duration: 0.40, ease: 'back.out(3.2)' },
-          0.36)
+          { y: -52, x: 20, rotation: -24, scale: 0.30, opacity: 0 },
+          { y: 0, x: 0, rotation: 0, scale: 1, opacity: 1, duration: 0.44, ease: 'back.out(4)' },
+          0.34)
     }
   }
 
@@ -288,6 +331,9 @@ function ClassCard({ arch, animClass, onSelect }) {
             pointerEvents: 'none',
           }}
         >
+          {/* Borde de enrollamiento — sube al abrir, baja al cerrar */}
+          <div ref={rollEdgeRef} className="cs-roll-edge" />
+
           <div className="cs-scroll-handle" onClick={toggle}>
             <div className="cs-scroll-drag-bar" style={{ background: color }} />
           </div>
