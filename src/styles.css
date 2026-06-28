@@ -423,12 +423,19 @@ button,
   border-radius: 0;
   overflow: hidden;
   flex-shrink: 0;
-  /* Fondo muy oscuro en los bordes (donde están las franjas del marco),
-     brillo cálido concentrado solo en el interior — así no sangra por el marco */
-  background:
-    radial-gradient(ellipse 66% 68% at 50% 40%, rgba(78,16,5,0.70) 0%, rgba(24,5,3,0.42) 55%, transparent 88%),
-    radial-gradient(ellipse 38% 20% at 50% 84%, rgba(88,20,6,0.24) 0%, transparent 70%),
-    #060203;
+  background: #08030a;
+}
+
+/* Fondo atmosférico por personaje — generado con ComfyUI */
+.cs-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  z-index: 0;
 }
 
 /* Marco SVG (reservado) */
@@ -467,48 +474,55 @@ button,
   background: radial-gradient(ellipse at 50% 30%, #1a0c0c 0%, #0d0607 55%, #070404 100%);
 }
 
-/* Nombre de clase superpuesto en la banda superior del marco */
+/* Nombre de clase — sobre el área superior oscura del fondo */
 .cs-class-banner {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 78px;
+  height: 62px;
   z-index: 4;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   pointer-events: none;
+  /* Gradiente oscuro para que el texto siempre sea legible sobre el fondo */
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.70)  0%,
+    rgba(0, 0, 0, 0.30) 75%,
+    transparent         100%
+  );
 }
 .cs-banner-role {
   font-family: var(--font-gothic);
-  font-size: 0.47rem;
+  font-size: 0.46rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: rgba(200, 165, 60, 0.75);
+  color: rgba(195, 158, 50, 0.80);
 }
 .cs-banner-name {
   font-family: var(--font-gothic);
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #d4b840;
   line-height: 1;
   text-shadow:
-    0 0 14px rgba(180, 140, 30, 0.85),
-    0 1px 4px rgba(0, 0, 0, 1),
-    0 -1px 4px rgba(0, 0, 0, 1);
+    0 0 12px rgba(180, 140, 30, 0.90),
+    0 1px 5px rgba(0, 0, 0, 1),
+    0 -1px 3px rgba(0, 0, 0, 0.8);
 }
 
-/* Personaje — ocupa todo el ancho, el marco cubre los bordes laterales */
+/* Personaje — sobre el fondo atmosférico, ocupa la parte superior */
 .cs-character {
   position: absolute;
-  top: 78px;
+  top: 0;
   left: 0;
   width: 100%;
-  height: calc(80% - 78px);
+  height: 79%;
   object-fit: contain;
   object-position: center top;
   display: block;
@@ -524,24 +538,31 @@ button,
   opacity: 0.2;
 }
 
-/* Info — z-index 4 para quedar sobre el marco y que el texto sea legible */
+/* Panel de habilidad — fondo ComfyUI, texto encima */
 .cs-info {
   position: absolute;
-  top: 80%;
+  top: 79%;
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 4;
-  background: linear-gradient(
-    to bottom,
-    transparent               0%,
-    rgba(6,  2, 2, 0.92)    10%,
-    rgba(4,  1, 1, 0.98)    38%,
-    rgba(3,  1, 1, 1.00)   100%
-  );
-  text-align: center;
-  padding: 10px 32px 0;
+  z-index: 3;
+  background: #0d0b0a;
   overflow: hidden;
+}
+.cs-info-panel-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+  z-index: 0;
+}
+.cs-info-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 10px 28px 0;
 }
 
 /* Cabecera de la ficha: rol + nombre */
