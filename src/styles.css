@@ -539,72 +539,76 @@ button,
   /* height set by GSAP — starts at 84px */
 }
 
-/* Varillas doradas (cilindros superior e inferior) */
-.cs-cap {
-  position: absolute;
-  left: 3%;
-  right: 3%;
-  height: 22px;
-  z-index: 9;
-  border-radius: 50% / 100%;
-  background: linear-gradient(
-    180deg,
-    #f8e898 0%,
-    #d8b040 16%,
-    #8a6012 52%,
-    #b08832 78%,
-    #ecd060 100%
-  );
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.70),
-    inset 0 1px 3px rgba(255, 235, 130, 0.30);
-}
-.cs-cap--top    { top: 0; }
-.cs-cap--bottom { bottom: 0; }
-
-/* Cuerpo enrollado (con lazo, visible cuando cerrado) */
+/* Cuerpo enrollado (visible cuando cerrado) */
 .cs-scroll-rolled {
   position: absolute;
-  top: 16px;
-  bottom: 16px;
-  left: 3%;
-  right: 3%;
+  inset: 0;
   z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
   background-color: #c8a850;
   background-size: cover;
   background-position: center;
+  /* sombras suaves que insinúan el grosor cilíndrico */
   box-shadow:
-    inset 0  8px 16px rgba(0, 0, 0, 0.32),
-    inset 0 -8px 16px rgba(0, 0, 0, 0.24);
+    inset 0  0 0 1px rgba(80, 40, 0, 0.18),
+    inset 0  5px 18px rgba(0, 0, 0, 0.28),
+    inset 0 -5px 18px rgba(0, 0, 0, 0.20),
+    0 -4px 20px rgba(0, 0, 0, 0.50),
+    0  2px  8px rgba(0, 0, 0, 0.35);
+}
+
+/* Lazo del pergamino (imagen ComfyUI, fondo blanco + mix-blend darken) */
+.cs-ribbon-img {
+  position: absolute;
+  width: 100%;
+  height: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  mix-blend-mode: darken;
+  pointer-events: none;
+  display: block;
+  z-index: 2;
 }
 
 /* Pergamino desplegado (visible cuando abierto) */
 .cs-scroll-paper {
   position: absolute;
-  top: 16px;
-  bottom: 16px;
-  left: 3%;
-  right: 3%;
+  inset: 0;
   z-index: 6;
   overflow-y: auto;
   overflow-x: hidden;
   background-color: #d4b068;
   background-size: cover;
   background-position: center top;
-  box-shadow: inset 0 0 24px rgba(100, 60, 0, 0.10);
+  /* perspectiva 3D configurada por GSAP al inicializar */
+  will-change: clip-path, transform;
 }
-/* Marco interior estilo anime/JRPG */
+/* Marco interior + capa de textura de papel sobre el texto */
 .cs-scroll-paper::before {
   content: '';
   position: absolute;
   inset: 8px;
-  border: 1px solid rgba(110, 65, 10, 0.36);
+  border: 1px solid rgba(110, 65, 10, 0.28);
   pointer-events: none;
   z-index: 20;
+}
+/* Textura de pergamino superpuesta: hace que el texto parezca tintado sobre el papel */
+.cs-scroll-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--parchment-url);
+  background-size: cover;
+  background-position: center top;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  z-index: 14;
 }
 
 /* Asa de cierre */
@@ -636,20 +640,26 @@ button,
 /* Cuerpo del contenido */
 .cs-scroll-body {
   padding: 0 18px 18px;
+  position: relative;
+  z-index: 15;
 }
 
 /* Nombre del personaje */
 .cs-scroll-name {
   font-family: var(--font-gothic);
   font-size: 1.55rem;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   text-align: center;
   margin: 0 0 4px;
   line-height: 1.1;
+  position: relative;
+  z-index: 15;
+  /* tinta sobre pergamino: sombra cálida que imita la absorción del pigmento */
   text-shadow:
-    1px 2px 6px rgba(50, 20, 0, 0.35),
-    0 0 30px rgba(0, 0, 0, 0.06);
+    0 1px 0 rgba(255, 220, 150, 0.15),
+    0 2px 8px rgba(60, 18, 0, 0.50),
+    0 0 28px rgba(0, 0, 0, 0.08);
 }
 
 /* Divisor ornamental con gema */
