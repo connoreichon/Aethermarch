@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
+import Lottie from 'lottie-react'
 import { ARCHETYPES } from '../data/gameData.js'
+import { SEAL_ANIM } from '../anim/sealAnim.js'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -195,11 +197,11 @@ function ClassSeal({ classDef, arch, innerRef }) {
 // ── CharacterScrollPanel ──────────────────────────────────────────────────────
 // Componente principal del pergamino. Reutilizable por clase futura.
 function CharacterScrollPanel({ arch, onSelect }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen]           = useState(false)
+  const [sealState, setSealState] = useState('idle') // 'idle' | 'opening' | 'closing'
 
   const scrollRef   = useRef(null)
   const rolledRef   = useRef(null)
-  const sealRef     = useRef(null)
   const paperRef    = useRef(null)
   const rollEdgeRef = useRef(null)
   const nameRef     = useRef(null)
@@ -207,15 +209,15 @@ function CharacterScrollPanel({ arch, onSelect }) {
   const bodyRef     = useRef(null)
   const ctaRef      = useRef(null)
   const tlRef       = useRef(null)
+  const lottieRef   = useRef(null)
 
   const classDef = CLASS_DEFS[arch.id] || CLASS_DEFS.heraldo
   const { primaryColor, sealColor, accentColor } = classDef
 
   useEffect(() => {
     const s = scrollRef.current, p = paperRef.current,
-          r = rolledRef.current, seal = sealRef.current,
-          e = rollEdgeRef.current
-    if (!s || !p || !r || !seal || !e) return
+          r = rolledRef.current, e = rollEdgeRef.current
+    if (!s || !p || !r || !e) return
     gsap.set(s, { height: 54 })
     gsap.set(p, {
       opacity: 0, pointerEvents: 'none',
@@ -225,10 +227,16 @@ function CharacterScrollPanel({ arch, onSelect }) {
       transformOrigin: 'top center',
     })
     gsap.set(r, { opacity: 1 })
-    gsap.set(seal, { y: 0, scale: 1, opacity: 1 })
     gsap.set(e, { top: '110%', opacity: 1 })
     return () => { if (tlRef.current) tlRef.current.kill() }
   }, [])
+
+  // Dispara la animación Lottie del sello cuando cambia el estado
+  useEffect(() => {
+    if (!lottieRef.current) return
+    if (sealState === 'opening') lottieRef.current.playSegments([0, 40], true)
+    else if (sealState === 'closing') lottieRef.current.playSegments([50, 90], true)
+  }, [sealState])
 
   function toggle() {
     const opening = !open
@@ -240,19 +248,10 @@ function CharacterScrollPanel({ arch, onSelect }) {
     tlRef.current = tl
 
     if (opening) {
+      setSealState('opening')
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
       tl
-        // ① Sello pulsa — como si el calor lo activara
-        .to(sealRef.current, {
-          scale: 1.12, duration: 0.14, ease: 'power1.out',
-        })
-        // ② Sello se rompe / vuela hacia arriba
-        .to(sealRef.current, {
-          y: -58, scale: 0.28, opacity: 0,
-          duration: 0.24, ease: 'power3.in',
-        }, 0.12)
-
-        // ③ OVERSHOOT: scroll se despliega con tensión
+        // ① OVERSHOOT: scroll se despliega con tensión
         .to(scrollRef.current, {
           height: '63%', duration: 0.32, ease: 'power4.out',
         }, 0.18)
@@ -304,6 +303,7 @@ function CharacterScrollPanel({ arch, onSelect }) {
           '-=0.04')
 
     } else {
+      setSealState('closing')
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
       tl
         // ① Contenido desaparece
@@ -342,11 +342,6 @@ function CharacterScrollPanel({ arch, onSelect }) {
         .set(rolledRef.current, { opacity: 0 }, 0.10)
         .to(rolledRef.current, { opacity: 1, duration: 0.12 }, 0.34)
 
-        // ⑦ Sello vuelve con muelle
-        .fromTo(sealRef.current,
-          { y: -58, scale: 0.28, opacity: 0 },
-          { y: 0, scale: 1, opacity: 1, duration: 0.42, ease: 'back.out(3.5)' },
-          0.32)
     }
   }
 
@@ -370,8 +365,48 @@ function CharacterScrollPanel({ arch, onSelect }) {
         <div className="cs-scroll-end cs-scroll-end--left" />
         <div className="cs-scroll-end cs-scroll-end--right" />
 
-        {/* Sello de cera centrado */}
-        <ClassSeal classDef={classDef} arch={arch} innerRef={sealRef} />
+        {/* Sello de cera: SVG estático en reposo, Lottie al animar */}
+        <div
+          className="cs-seal-wrap"
+          style={{
+            filter: sealState === 'idle' ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.65))' : 'none',
+            animation: sealState !== 'idle' ? 'none' : undefined,
+          }}
+        >
+          {/* SVG estático — visible solo en reposo */}
+          <svg
+            viewBox="0 0 80 80"
+            className="cs-seal-svg"
+            aria-hidden="true"
+            style={{ display: sealState === 'idle' ? 'block' : 'none' }}
+          >
+            <path d="M40 4 L50 7 L60 4 L68 12 L74 22 L75 34 L72 44 L76 54 L69 65 L59 73 L47 77 L36 76 L24 77 L14 70 L7 60 L5 48 L8 37 L4 26 L11 16 L22 8 L33 5 Z" fill={sealColor}/>
+            <circle cx="40" cy="40" r="27" fill={primaryColor} opacity="0.55"/>
+            <circle cx="40" cy="40" r="26" stroke="rgba(0,0,0,0.30)" strokeWidth="1" fill="none"/>
+            <circle cx="40" cy="40" r="23" stroke={accentColor} strokeWidth="0.7" fill="none" opacity="0.45"/>
+            <g transform="translate(14, 10) scale(0.65)">
+              <ClassEmblem type={classDef.emblem} color={accentColor} size={34}/>
+            </g>
+            <ellipse cx="30" cy="26" rx="9" ry="5.5" fill="rgba(255,255,255,0.13)" transform="rotate(-25 30 26)"/>
+          </svg>
+
+          {/* Lottie — siempre montado, visible al animar */}
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            display: sealState !== 'idle' ? 'block' : 'none',
+            pointerEvents: 'none',
+          }}>
+            <Lottie
+              lottieRef={lottieRef}
+              animationData={SEAL_ANIM}
+              autoplay={false}
+              loop={false}
+              onComplete={() => setSealState('idle')}
+              style={{ width: 80, height: 80 }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* ── Estado abierto: pergamino desplegado ── */}
