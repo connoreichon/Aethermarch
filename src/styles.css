@@ -536,10 +536,10 @@ button,
   right: 0;
   z-index: 5;
   overflow: hidden;
-  /* height set by GSAP — starts at 84px */
+  /* height set by GSAP — starts at 54px */
 }
 
-/* Cuerpo enrollado (visible cuando cerrado) */
+/* ── Pergamino cerrado — aspecto de rollo físico ── */
 .cs-scroll-rolled {
   position: absolute;
   inset: 0;
@@ -550,52 +550,117 @@ button,
   cursor: pointer;
   overflow: hidden;
   isolation: isolate;
-  background-color: #e8c878;
+  /* Pergamino marfil envejecido con sombras cilíndricas */
+  background-color: #E8D8A0;
   background-size: cover;
   background-position: center;
-  /* sombras suaves que insinúan el grosor cilíndrico */
+  /* Sombras que dan volumen de cilindro sin ser exageradas */
   box-shadow:
-    inset 0  0 0 1px rgba(80, 40, 0, 0.18),
-    inset 0  5px 18px rgba(0, 0, 0, 0.28),
-    inset 0 -5px 18px rgba(0, 0, 0, 0.20),
-    0 -4px 20px rgba(0, 0, 0, 0.50),
-    0  2px  8px rgba(0, 0, 0, 0.35);
+    inset 0  8px 18px rgba(0, 0, 0, 0.30),
+    inset 0 -8px 18px rgba(0, 0, 0, 0.22),
+    0 -6px 22px rgba(0, 0, 0, 0.55),
+    0  2px  6px rgba(0, 0, 0, 0.30);
+}
+/* Líneas diagonales sutiles — arrugas del pergamino */
+.cs-scroll-rolled::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      112deg,
+      transparent 0px,
+      transparent 28px,
+      rgba(140, 100, 30, 0.05) 28px,
+      rgba(140, 100, 30, 0.05) 29px
+    );
+  pointer-events: none;
 }
 
-/* Contenedor del lazo SVG */
-.cs-ribbon-wrap {
+/* Extremos enrollados — simulan los bordes del cilindro */
+.cs-scroll-end {
   position: absolute;
-  width: 100%;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  pointer-events: none;
+  z-index: 3;
+}
+.cs-scroll-end--left {
+  left: 0;
+  background: linear-gradient(
+    to right,
+    #7A5418 0%,
+    #B07A2A 28%,
+    #D4A84A 58%,
+    transparent 100%
+  );
+  border-radius: 50% 0 0 50% / 50% 0 0 50%;
+}
+.cs-scroll-end--right {
+  right: 0;
+  background: linear-gradient(
+    to left,
+    #7A5418 0%,
+    #B07A2A 28%,
+    #D4A84A 58%,
+    transparent 100%
+  );
+  border-radius: 0 50% 50% 0 / 0 50% 50% 0;
+}
+
+/* ── Sello de cera ── */
+.cs-seal-wrap {
+  position: absolute;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  z-index: 2;
+  z-index: 4;
+  /* Centrado horizontal; ligeramente desplazado para naturalidad */
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  /* Pulso de brasa — animación idle */
+  animation: waxSealPulse 3.2s ease-in-out infinite;
+}
+.cs-seal-svg {
+  width: 64px;
+  height: 64px;
+  display: block;
 }
 
-/* Pergamino desplegado (visible cuando abierto) */
+@keyframes waxSealPulse {
+  0%, 100% {
+    filter: drop-shadow(0 2px 6px rgba(142, 33, 26, 0.30));
+  }
+  50% {
+    filter: drop-shadow(0 4px 12px rgba(182, 58, 46, 0.50));
+  }
+}
+
+/* ── Pergamino desplegado ── */
 .cs-scroll-paper {
   position: absolute;
   inset: 0;
   z-index: 6;
   overflow-y: auto;
   overflow-x: hidden;
-  background-color: #d4b068;
+  background-color: #DEC878;
   background-size: cover;
   background-position: center top;
-  /* perspectiva 3D configurada por GSAP al inicializar */
   will-change: clip-path, transform;
 }
-/* Marco interior + capa de textura de papel sobre el texto */
+/* Marco interior */
 .cs-scroll-paper::before {
   content: '';
   position: absolute;
-  inset: 8px;
-  border: 1px solid rgba(110, 65, 10, 0.28);
+  inset: 10px;
+  border: 1px solid rgba(110, 65, 10, 0.22);
   pointer-events: none;
   z-index: 20;
 }
-/* Textura de pergamino superpuesta: hace que el texto parezca tintado sobre el papel */
+/* Textura de pergamino superpuesta */
 .cs-scroll-paper::after {
   content: '';
   position: absolute;
@@ -603,24 +668,42 @@ button,
   background-image: var(--parchment-url);
   background-size: cover;
   background-position: center top;
-  opacity: 0.22;
+  opacity: 0.20;
   mix-blend-mode: multiply;
   pointer-events: none;
   z-index: 14;
 }
 
-/* Borde de enrollamiento: sombra curva que sube al desplegarse el pergamino */
+/* Borde superior del papel — simula el borde curvado del rollo */
+.cs-scroll-top-curl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 14px;
+  background: linear-gradient(
+    to bottom,
+    rgba(90, 50, 5, 0.35) 0%,
+    rgba(140, 90, 15, 0.16) 55%,
+    transparent 100%
+  );
+  border-radius: 0 0 50% 50% / 0 0 8px 8px;
+  pointer-events: none;
+  z-index: 19;
+}
+
+/* Borde de enrollamiento que sube al abrir */
 .cs-roll-edge {
   position: absolute;
   left: 0;
   right: 0;
-  top: 110%;   /* fuera de vista inicialmente; GSAP lo mueve */
-  height: 26px;
-  border-radius: 50% 50% 0 0 / 14px 14px 0 0;
+  top: 110%;
+  height: 22px;
+  border-radius: 50% 50% 0 0 / 12px 12px 0 0;
   background: linear-gradient(
     to bottom,
-    rgba(110, 65, 10, 0.55) 0%,
-    rgba(175, 125, 35, 0.26) 48%,
+    rgba(110, 65, 10, 0.50) 0%,
+    rgba(175, 125, 35, 0.22) 48%,
     transparent 100%
   );
   pointer-events: none;
@@ -636,22 +719,32 @@ button,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 0 6px;
+  padding: 8px 0 5px;
   cursor: pointer;
   user-select: none;
   touch-action: manipulation;
   background: linear-gradient(
     to bottom,
-    rgba(215, 185, 88, 0.94) 0%,
-    rgba(215, 185, 88, 0.55) 65%,
+    rgba(210, 178, 72, 0.92) 0%,
+    rgba(210, 178, 72, 0.48) 65%,
     transparent 100%
   );
 }
 .cs-scroll-drag-bar {
-  width: 36px;
+  width: 32px;
   height: 3px;
   border-radius: 2px;
-  opacity: 0.55;
+  opacity: 0.50;
+}
+
+/* Emblema pequeño en la cabecera del pergamino abierto */
+.cs-scroll-emblem-header {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 2px;
+  opacity: 0.70;
+  position: relative;
+  z-index: 15;
 }
 
 /* Cuerpo del contenido */
@@ -664,19 +757,18 @@ button,
 /* Nombre del personaje */
 .cs-scroll-name {
   font-family: var(--font-gothic);
-  font-size: 1.55rem;
-  letter-spacing: 0.24em;
+  font-size: 1.50rem;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   text-align: center;
   margin: 0 0 4px;
   line-height: 1.1;
   position: relative;
   z-index: 15;
-  /* tinta sobre pergamino: sombra cálida que imita la absorción del pigmento */
   text-shadow:
     0 1px 0 rgba(255, 220, 150, 0.15),
-    0 2px 8px rgba(60, 18, 0, 0.50),
-    0 0 28px rgba(0, 0, 0, 0.08);
+    0 2px 8px rgba(60, 18, 0, 0.45),
+    0 0 28px rgba(0, 0, 0, 0.06);
 }
 
 /* Divisor ornamental con gema */
@@ -691,17 +783,17 @@ button,
   content: '';
   flex: 1;
   height: 1px;
-  background: rgba(110, 62, 10, 0.40);
+  background: rgba(110, 62, 10, 0.35);
 }
 .cs-scroll-gem {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 1px;
   transform: rotate(45deg);
   flex-shrink: 0;
 }
 
-/* Botón Elegir dentro del pergamino */
+/* Botón Elegir */
 .cs-scroll-cta {
   display: block;
   width: calc(100% - 16px);
@@ -711,7 +803,7 @@ button,
   font-size: 0.70rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  background: rgba(12, 5, 2, 0.82);
+  background: rgba(12, 5, 2, 0.78);
   border: 1.5px solid;
   border-radius: 1px;
   cursor: pointer;
@@ -723,17 +815,17 @@ button,
 .cs-passive-row {
   text-align: center;
   padding-bottom: 7px;
-  border-bottom: 1px solid rgba(100, 55, 10, 0.26);
+  border-bottom: 1px solid rgba(100, 55, 10, 0.24);
   margin-bottom: 7px;
 }
 
-/* Fila de habilidad funcional */
+/* Fila de habilidad */
 .cs-ability-row {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   padding: 5px 0;
-  border-bottom: 1px solid rgba(100, 55, 10, 0.18);
+  border-bottom: 1px solid rgba(100, 55, 10, 0.16);
 }
 .cs-ability-row:last-of-type { border-bottom: none; }
 
@@ -773,7 +865,7 @@ button,
   display: block;
   font-family: var(--font-gothic);
   font-size: 0.52rem;
-  color: rgba(125, 18, 18, 0.92);
+  color: rgba(125, 18, 18, 0.90);
   letter-spacing: 0.13em;
   margin-bottom: 3px;
   text-align: center;
@@ -794,7 +886,7 @@ button,
   justify-content: center;
   margin-top: 2px;
   padding-top: 7px;
-  border-top: 1px solid rgba(100, 55, 10, 0.22);
+  border-top: 1px solid rgba(100, 55, 10, 0.20);
 }
 .cs-stat-badge {
   font-family: var(--font-gothic);
@@ -831,7 +923,7 @@ button,
 /* Dots — superpuestos sobre la carta, por encima del scroll */
 .cs-dots {
   position: absolute;
-  bottom: 92px;
+  bottom: 62px;
   left: 0;
   right: 0;
   z-index: 6;

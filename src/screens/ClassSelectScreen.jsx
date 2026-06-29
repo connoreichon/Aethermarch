@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { ARCHETYPES } from '../data/gameData.js'
-// Rive instalado: úsalo así cuando tengas un .riv:
-//   import { useRive } from '@rive-app/react-canvas'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -13,6 +11,39 @@ const ARCHETYPE_BG = {
   heraldo: `${BASE}assets/generated/fondo_heraldo_s5501.png`,
 }
 const PARCHMENT = `${BASE}assets/generated/parch_anime_s8103.png`
+
+// ── Definiciones de clase — sistema extensible ────────────────────────────────
+// Cada clase futura añade su entrada aquí con sus colores y emblema.
+const CLASS_DEFS = {
+  heraldo: {
+    primaryColor:   '#B63A2E',
+    sealColor:      '#8E211A',
+    secondaryColor: '#D46A2D',
+    accentColor:    '#B8944A',
+    emblem:         'herald_lantern',
+  },
+  guardian: {
+    primaryColor:   '#3a6e96',
+    sealColor:      '#1e4a6e',
+    secondaryColor: '#5a8eb6',
+    accentColor:    '#B8944A',
+    emblem:         'default',
+  },
+  runario: {
+    primaryColor:   '#6a3a9a',
+    sealColor:      '#3d1a6e',
+    secondaryColor: '#8a5aba',
+    accentColor:    '#B8944A',
+    emblem:         'default',
+  },
+  rastreador: {
+    primaryColor:   '#2d7048',
+    sealColor:      '#1a4a2e',
+    secondaryColor: '#4a9068',
+    accentColor:    '#B8944A',
+    emblem:         'default',
+  },
+}
 
 // ── Sonido sintetizado de pergamino ───────────────────────────────────────────
 function playScrollSound(opening) {
@@ -46,128 +77,155 @@ function playScrollSound(opening) {
   } catch {}
 }
 
-// ── Lazo SVG ilustración 2D anime ────────────────────────────────────────────
-// Cel-shading: fill plano + highlight blanco semitransparente + sombra oscura.
-// El color viene del personaje. Pintado como arte de game UI JRPG.
-function RibbonBow({ color }) {
-  const hi  = 'rgba(255,255,255,0.30)'  // highlight (luz)
-  const sh  = 'rgba(0,0,0,0.20)'        // shadow (sombra inferior)
-  const ink = 'rgba(20,6,0,0.55)'       // contorno tipo tinta
+// ── Emblema SVG por clase ─────────────────────────────────────────────────────
+// Diseño vectorial propio — no necesita ComfyUI.
+// Añadir nuevos 'case' para futuras clases.
+function ClassEmblem({ type = 'default', color = '#B8944A', size = 34 }) {
+  if (type === 'herald_lantern') {
+    return (
+      <svg
+        viewBox="0 0 40 54"
+        width={size}
+        height={size * 54 / 40}
+        fill="none"
+        aria-hidden="true"
+        style={{ display: 'block' }}
+      >
+        {/* Punta de lanza / estandarte */}
+        <path
+          d="M20 1 L26.5 11 L20 9 L13.5 11 Z"
+          fill={color}
+          stroke="rgba(0,0,0,0.35)"
+          strokeWidth="0.8"
+        />
+        {/* Barra transversal */}
+        <rect x="8" y="11" width="24" height="2.5" rx="1.25"
+          fill={color} stroke="rgba(0,0,0,0.25)" strokeWidth="0.6" />
 
+        {/* Ala izquierda — llama lateral */}
+        <path d="M9 12.5 C3 14 1 21 5 24" stroke={color} strokeWidth="1.8"
+          strokeLinecap="round" fill="none" opacity="0.9" />
+        {/* Ala derecha — llama lateral */}
+        <path d="M31 12.5 C37 14 39 21 35 24" stroke={color} strokeWidth="1.8"
+          strokeLinecap="round" fill="none" opacity="0.9" />
+
+        {/* Cuerpo del farol — exterior */}
+        <rect x="13" y="13.5" width="14" height="24" rx="2.5"
+          fill={color} opacity="0.18"
+          stroke={color} strokeWidth="1.4" />
+
+        {/* Panes del farol — cruceta interior */}
+        <line x1="20" y1="13.5" x2="20" y2="37.5"
+          stroke={color} strokeWidth="0.9" opacity="0.55" />
+        <line x1="13" y1="25.5" x2="27" y2="25.5"
+          stroke={color} strokeWidth="0.9" opacity="0.55" />
+
+        {/* Llama interior */}
+        <path
+          d="M20 34 C16.5 31 16.5 26.5 20 21 C23.5 26.5 23.5 31 20 34 Z"
+          fill={color} opacity="0.95"
+        />
+        {/* Punto de brillo en la llama */}
+        <ellipse cx="18.5" cy="24.5" rx="1.8" ry="2.8"
+          fill="rgba(255,230,160,0.45)" transform="rotate(-10 18.5 24.5)" />
+
+        {/* Cadena / mango inferior */}
+        <rect x="18.5" y="37.5" width="3" height="4" rx="0.8" fill={color} />
+        {/* Pie del farol — horquilla */}
+        <path d="M20 41.5 L16 48 M20 41.5 L24 48"
+          stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="15" y1="48" x2="25" y2="48"
+          stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    )
+  }
+  // Emblema genérico para clases sin diseño propio todavía
   return (
-    <svg
-      viewBox="0 0 200 88"
-      aria-hidden="true"
-      style={{
-        display: 'block',
-        width: '90%',
-        maxWidth: 240,
-        filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.55))',
-      }}
-    >
-      {/* ── Colas del lazo (detrás de todo) ──────────── */}
-      {/* contorno */}
-      <line x1="93" y1="51" x2="69" y2="87" stroke={ink}   strokeWidth="13" strokeLinecap="round"/>
-      <line x1="107" y1="51" x2="131" y2="87" stroke={ink} strokeWidth="13" strokeLinecap="round"/>
-      {/* color */}
-      <line x1="93" y1="51" x2="69" y2="87" stroke={color}   strokeWidth="10" strokeLinecap="round"/>
-      <line x1="107" y1="51" x2="131" y2="87" stroke={color} strokeWidth="10" strokeLinecap="round"/>
-      {/* highlight cola */}
-      <line x1="91" y1="51" x2="67" y2="87" stroke={hi}   strokeWidth="3" strokeLinecap="round"/>
-      <line x1="109" y1="51" x2="133" y2="87" stroke={hi} strokeWidth="3" strokeLinecap="round"/>
-
-      {/* ── Banda horizontal ──────────────────────────── */}
-      <rect x="0" y="37" width="200" height="13" rx="6.5"
-        fill={color} stroke={ink} strokeWidth="1.6"
-        style={{ paintOrder: 'stroke fill' }}
-      />
-      {/* highlight banda */}
-      <rect x="5" y="37" width="190" height="4.5" rx="2.25" fill={hi}/>
-      {/* sombra inferior banda */}
-      <rect x="5" y="46" width="190" height="3.5" rx="1.75" fill={sh}/>
-
-      {/* ── Lazo izquierdo (forma almendra) ──────────── */}
-      <path
-        d="M 97 44 C 82 27, 7 11, 7 39 C 7 60, 79 62, 97 48 Z"
-        fill={color} stroke={ink} strokeWidth="1.6"
-        style={{ paintOrder: 'stroke fill' }}
-      />
-      {/* highlight superior izquierdo */}
-      <path
-        d="M 97 44 C 84 29, 24 15, 16 36 C 23 25, 83 23, 97 40 Z"
-        fill={hi}
-      />
-      {/* sombra inferior izquierdo */}
-      <path
-        d="M 7 39 C 7 60, 79 62, 97 48 C 79 57, 9 55, 7 39 Z"
-        fill={sh}
-      />
-
-      {/* ── Lazo derecho (espejo) ─────────────────────── */}
-      <path
-        d="M 103 44 C 118 27, 193 11, 193 39 C 193 60, 121 62, 103 48 Z"
-        fill={color} stroke={ink} strokeWidth="1.6"
-        style={{ paintOrder: 'stroke fill' }}
-      />
-      {/* highlight superior derecho */}
-      <path
-        d="M 103 44 C 116 29, 176 15, 184 36 C 177 25, 117 23, 103 40 Z"
-        fill={hi}
-      />
-      {/* sombra inferior derecho */}
-      <path
-        d="M 193 39 C 193 60, 121 62, 103 48 C 121 57, 191 55, 193 39 Z"
-        fill={sh}
-      />
-
-      {/* ── Nudo central ──────────────────────────────── */}
-      <ellipse cx="100" cy="45" rx="12" ry="10"
-        fill={color} stroke={ink} strokeWidth="1.6"
-        style={{ paintOrder: 'stroke fill' }}
-      />
-      {/* líneas de pliegue en el nudo (look de tela recogida) */}
-      <line x1="92" y1="40" x2="108" y2="40" stroke={ink} strokeWidth="0.8" opacity="0.4"/>
-      <line x1="90" y1="45" x2="110" y2="45" stroke={ink} strokeWidth="0.8" opacity="0.4"/>
-      <line x1="92" y1="50" x2="108" y2="50" stroke={ink} strokeWidth="0.8" opacity="0.4"/>
-      {/* highlight nudo */}
-      <ellipse cx="98" cy="41" rx="7" ry="4.5" fill={hi}/>
+    <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden="true" style={{ display: 'block' }}>
+      <circle cx="20" cy="20" r="14" stroke={color} strokeWidth="1.6" fill="none" opacity="0.7" />
+      <path d="M20 10 L23 17 L31 17 L24.5 22 L27 29 L20 24.5 L13 29 L15.5 22 L9 17 L17 17 Z"
+        fill={color} opacity="0.8" />
     </svg>
   )
 }
 
-// ── ClassCard ─────────────────────────────────────────────────────────────────
-function ClassCard({ arch, animClass, onSelect }) {
+// ── Sello de cera SVG ─────────────────────────────────────────────────────────
+// Forma irregular tipo "gota de cera estampada".
+// El sealColor y accentColor vienen de CLASS_DEFS.
+function ClassSeal({ classDef, arch, innerRef }) {
+  const { sealColor, primaryColor, accentColor, emblem } = classDef
+  return (
+    <div
+      ref={innerRef}
+      className="cs-seal-wrap"
+      style={{ filter: `drop-shadow(0 4px 10px rgba(0,0,0,0.65))` }}
+    >
+      <svg
+        viewBox="0 0 80 80"
+        className="cs-seal-svg"
+        aria-hidden="true"
+      >
+        {/* Forma de cera irregular — no es un círculo perfecto */}
+        <path
+          d="M40 4 L50 7 L60 4 L68 12 L74 22 L75 34 L72 44 L76 54 L69 65 L59 73 L47 77 L36 76 L24 77 L14 70 L7 60 L5 48 L8 37 L4 26 L11 16 L22 8 L33 5 Z"
+          fill={sealColor}
+        />
+        {/* Relieve central más claro */}
+        <circle cx="40" cy="40" r="27" fill={primaryColor} opacity="0.55" />
+        {/* Borde del sello */}
+        <circle cx="40" cy="40" r="26" stroke="rgba(0,0,0,0.30)" strokeWidth="1" fill="none" />
+        <circle cx="40" cy="40" r="23" stroke={accentColor} strokeWidth="0.7" fill="none" opacity="0.45" />
+
+        {/* Emblema centrado — escalado al interior del sello */}
+        <g transform="translate(14, 10) scale(0.65)">
+          <ClassEmblem type={emblem} color={accentColor} size={34} />
+        </g>
+
+        {/* Brillo especular — sensación de relieve céreo */}
+        <ellipse
+          cx="30" cy="26" rx="9" ry="5.5"
+          fill="rgba(255,255,255,0.13)"
+          transform="rotate(-25 30 26)"
+        />
+      </svg>
+    </div>
+  )
+}
+
+// ── CharacterScrollPanel ──────────────────────────────────────────────────────
+// Componente principal del pergamino. Reutilizable por clase futura.
+function CharacterScrollPanel({ arch, onSelect }) {
   const [open, setOpen] = useState(false)
 
   const scrollRef   = useRef(null)
   const rolledRef   = useRef(null)
-  const ribbonRef   = useRef(null)
+  const sealRef     = useRef(null)
   const paperRef    = useRef(null)
-  const rollEdgeRef = useRef(null)  // borde de enrollamiento que sube al abrir
+  const rollEdgeRef = useRef(null)
   const nameRef     = useRef(null)
   const divRef      = useRef(null)
   const bodyRef     = useRef(null)
   const ctaRef      = useRef(null)
   const tlRef       = useRef(null)
 
-  const art   = ARCHETYPE_ART[arch.id]
-  const bg    = ARCHETYPE_BG[arch.id]
-  const color = arch.color || '#a01e1e'
+  const classDef = CLASS_DEFS[arch.id] || CLASS_DEFS.heraldo
+  const { primaryColor, sealColor, accentColor } = classDef
 
   useEffect(() => {
     const s = scrollRef.current, p = paperRef.current,
-          r = rolledRef.current, b = ribbonRef.current, e = rollEdgeRef.current
-    if (!s || !p || !r || !b || !e) return
-    gsap.set(s, { height: 84 })
+          r = rolledRef.current, seal = sealRef.current,
+          e = rollEdgeRef.current
+    if (!s || !p || !r || !seal || !e) return
+    gsap.set(s, { height: 54 })
     gsap.set(p, {
       opacity: 0, pointerEvents: 'none',
       clipPath: 'inset(100% 0% 0% 0%)',
       rotateX: 0,
-      transformPerspective: 1000,
+      transformPerspective: 1200,
       transformOrigin: 'top center',
     })
     gsap.set(r, { opacity: 1 })
-    gsap.set(b, { y: 0, x: 0, rotation: 0, scale: 1, opacity: 1 })
+    gsap.set(seal, { y: 0, scale: 1, opacity: 1 })
     gsap.set(e, { top: '110%', opacity: 1 })
     return () => { if (tlRef.current) tlRef.current.kill() }
   }, [])
@@ -184,111 +242,220 @@ function ClassCard({ arch, animClass, onSelect }) {
     if (opening) {
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
       tl
-        // ① Lazo se desata: sale disparado con giro y deriva lateral
-        .to(ribbonRef.current, {
-          y: -52, x: 20, rotation: 32, scale: 0.30, opacity: 0,
-          duration: 0.26, ease: 'power2.in',
+        // ① Sello pulsa — como si el calor lo activara
+        .to(sealRef.current, {
+          scale: 1.12, duration: 0.14, ease: 'power1.out',
         })
+        // ② Sello se rompe / vuela hacia arriba
+        .to(sealRef.current, {
+          y: -58, scale: 0.28, opacity: 0,
+          duration: 0.24, ease: 'power3.in',
+        }, 0.12)
 
-        // ② OVERSHOOT: scroll se abre de golpe más allá del objetivo (tensión liberada)
+        // ③ OVERSHOOT: scroll se despliega con tensión
         .to(scrollRef.current, {
-          height: '62%', duration: 0.30, ease: 'power4.out',
-        }, 0.08)
-        // Settle: vuelve suavemente al tamaño correcto
+          height: '63%', duration: 0.32, ease: 'power4.out',
+        }, 0.18)
         .to(scrollRef.current, {
-          height: '55%', duration: 0.28, ease: 'power2.inOut',
-        }, 0.38)
+          height: '57%', duration: 0.26, ease: 'power2.inOut',
+        }, 0.50)
 
-        // ③ Estado enrollado se disuelve
+        // ④ Estado enrollado se disuelve
         .to(rolledRef.current, {
-          opacity: 0, duration: 0.14, ease: 'power2.in',
-        }, 0.16)
+          opacity: 0, duration: 0.12, ease: 'power2.in',
+        }, 0.22)
 
-        // ④ Papel emerge con clipPath + perspectiva 3D + overshoot rotación
+        // ⑤ Papel emerge con clipPath + perspectiva 3D
         .set(paperRef.current, {
           clipPath: 'inset(100% 0% 0% 0%)',
-          rotateX: -20,
+          rotateX: -18,
           opacity: 1, pointerEvents: 'auto',
-        }, 0.22)
+        }, 0.26)
         .to(paperRef.current, {
           clipPath: 'inset(0% 0% 0% 0%)',
-          rotateX: 4,          // overshoot: papel se "vence" levemente
-          duration: 0.50, ease: 'power3.out',
-        }, 0.22)
-        // Corrección del overshoot — papel se aplana
+          rotateX: 3,
+          duration: 0.52, ease: 'power3.out',
+        }, 0.26)
         .to(paperRef.current, {
           rotateX: 0,
-          duration: 0.22, ease: 'power2.inOut',
-        }, 0.72)
+          duration: 0.20, ease: 'power2.inOut',
+        }, 0.78)
 
-        // ⑤ Borde de enrollamiento sube de abajo hasta arriba, luego se esfuma
+        // ⑥ Borde de enrollamiento sube y se esfuma
         .to(rollEdgeRef.current, {
-          top: 0, duration: 0.52, ease: 'power3.out',
-        }, 0.22)
+          top: 0, duration: 0.54, ease: 'power3.out',
+        }, 0.26)
         .to(rollEdgeRef.current, {
-          opacity: 0, duration: 0.24, ease: 'power2.in',
-        }, 0.62)
+          opacity: 0, duration: 0.22, ease: 'power2.in',
+        }, 0.66)
 
-        // ⑥ Contenido en cascada
+        // ⑦ Contenido en cascada
         .fromTo(nameRef.current,
-          { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.26, ease: 'power2.out' },
-          0.56)
+          { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.24, ease: 'power2.out' },
+          0.60)
         .fromTo(divRef.current,
-          { opacity: 0, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.20, ease: 'power2.out' },
-          0.70)
+          { opacity: 0, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.18, ease: 'power2.out' },
+          0.74)
         .fromTo(rows,
-          { opacity: 0, y: 8 }, { opacity: 1, y: 0, stagger: 0.065, duration: 0.24, ease: 'power2.out' },
-          0.78)
+          { opacity: 0, y: 7 }, { opacity: 1, y: 0, stagger: 0.06, duration: 0.22, ease: 'power2.out' },
+          0.80)
         .fromTo(ctaRef.current,
           { opacity: 0, y: 5 }, { opacity: 1, y: 0, duration: 0.20, ease: 'power2.out' },
-          '-=0.05')
+          '-=0.04')
 
     } else {
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
       tl
         // ① Contenido desaparece
         .to([nameRef.current, divRef.current, ...rows, ctaRef.current], {
-          opacity: 0, duration: 0.10, ease: 'power2.in',
+          opacity: 0, duration: 0.08, ease: 'power2.in',
         })
 
-        // ② Papel "se resiste" brevemente antes de enrollarse
+        // ② Papel resiste brevemente
         .to(paperRef.current, {
-          rotateX: 5, duration: 0.08, ease: 'power1.inOut',
+          rotateX: 4, duration: 0.08, ease: 'power1.inOut',
         }, 0.06)
 
-        // ③ Borde de enrollamiento aparece arriba y baja (papel volviendo al rollo)
+        // ③ Borde de enrollamiento baja
         .set(rollEdgeRef.current, { top: 0, opacity: 1 }, 0.12)
         .to(rollEdgeRef.current, {
-          top: '110%', duration: 0.30, ease: 'power3.in',
+          top: '110%', duration: 0.28, ease: 'power3.in',
         }, 0.12)
 
-        // ④ Papel se enrolla hacia arriba (clip desde abajo)
+        // ④ Papel se enrolla hacia arriba
         .to(paperRef.current, {
           clipPath: 'inset(0% 0% 100% 0%)',
-          rotateX: -16,
-          duration: 0.34, ease: 'power3.in',
+          rotateX: -14,
+          duration: 0.32, ease: 'power3.in',
         }, 0.14)
-        .set(paperRef.current, { pointerEvents: 'none', opacity: 0 }, 0.46)
+        .set(paperRef.current, { pointerEvents: 'none', opacity: 0 }, 0.44)
 
-        // ⑤ UNDERSHOOT + SNAP: container se cierra con energía, rebota levemente
+        // ⑤ UNDERSHOOT + SNAP
         .to(scrollRef.current, {
-          height: 74, duration: 0.28, ease: 'power4.in',
+          height: 42, duration: 0.26, ease: 'power4.in',
         }, 0.14)
         .to(scrollRef.current, {
-          height: 84, duration: 0.18, ease: 'power2.out',
-        }, 0.42)
+          height: 54, duration: 0.18, ease: 'power2.out',
+        }, 0.40)
 
         // ⑥ Estado enrollado reaparece
         .set(rolledRef.current, { opacity: 0 }, 0.10)
-        .to(rolledRef.current, { opacity: 1, duration: 0.14 }, 0.36)
+        .to(rolledRef.current, { opacity: 1, duration: 0.12 }, 0.34)
 
-        // ⑦ Lazo vuelve de golpe con muelle potente
-        .fromTo(ribbonRef.current,
-          { y: -52, x: 20, rotation: -24, scale: 0.30, opacity: 0 },
-          { y: 0, x: 0, rotation: 0, scale: 1, opacity: 1, duration: 0.44, ease: 'back.out(4)' },
-          0.34)
+        // ⑦ Sello vuelve con muelle
+        .fromTo(sealRef.current,
+          { y: -58, scale: 0.28, opacity: 0 },
+          { y: 0, scale: 1, opacity: 1, duration: 0.42, ease: 'back.out(3.5)' },
+          0.32)
     }
   }
+
+  return (
+    <div
+      className="cs-scroll"
+      ref={scrollRef}
+      onTouchStart={e => e.stopPropagation()}
+      onTouchEnd={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+      onMouseUp={e => e.stopPropagation()}
+    >
+      {/* ── Estado cerrado: pergamino enrollado + sello ── */}
+      <div
+        className="cs-scroll-rolled"
+        ref={rolledRef}
+        onClick={toggle}
+        style={{ backgroundImage: `url(${PARCHMENT})` }}
+      >
+        {/* Extremos enrollados — simulan los bordes del cilindro */}
+        <div className="cs-scroll-end cs-scroll-end--left" />
+        <div className="cs-scroll-end cs-scroll-end--right" />
+
+        {/* Sello de cera centrado */}
+        <ClassSeal classDef={classDef} arch={arch} innerRef={sealRef} />
+      </div>
+
+      {/* ── Estado abierto: pergamino desplegado ── */}
+      <div
+        className="cs-scroll-paper"
+        ref={paperRef}
+        style={{
+          backgroundImage: `url(${PARCHMENT})`,
+          '--parchment-url': `url(${PARCHMENT})`,
+          opacity: 0,
+          pointerEvents: 'none',
+        }}
+      >
+        {/* Borde de enrollamiento */}
+        <div ref={rollEdgeRef} className="cs-roll-edge" />
+
+        {/* Borde superior — simula el borde doblado del rollo */}
+        <div className="cs-scroll-top-curl" />
+
+        {/* Asa de cierre */}
+        <div className="cs-scroll-handle" onClick={toggle}>
+          <div className="cs-scroll-drag-bar" style={{ background: accentColor }} />
+        </div>
+
+        <div className="cs-scroll-body" ref={bodyRef}>
+          {/* Emblema pequeño de clase como cabecera decorativa */}
+          <div className="cs-scroll-emblem-header">
+            <ClassEmblem type={classDef.emblem} color={accentColor} size={22} />
+          </div>
+
+          <h2 className="cs-scroll-name" ref={nameRef} style={{ color: primaryColor }}>
+            {arch.name}
+          </h2>
+
+          <div className="cs-scroll-divider" ref={divRef}>
+            <div className="cs-scroll-gem" style={{ background: accentColor }} />
+          </div>
+
+          <div className="cs-parch-row cs-passive-row">
+            <span className="cs-passive-name">— {arch.passiveName} —</span>
+            <p className="cs-passive-desc">{arch.passiveDescription}</p>
+          </div>
+
+          {arch.abilities?.map(ab => (
+            <div key={ab.id} className="cs-parch-row cs-ability-row">
+              <span
+                className="cs-ability-tag"
+                style={{ color: primaryColor, borderColor: `${primaryColor}66`, background: `${primaryColor}12` }}
+              >
+                {ab.tag}
+              </span>
+              <div className="cs-ability-body">
+                <span className="cs-ability-name" style={{ color: primaryColor }}>{ab.name}</span>
+                <span className="cs-ability-desc">{ab.description}</span>
+              </div>
+            </div>
+          ))}
+
+          {arch.hpBonus > 0 && (
+            <div className="cs-parch-row cs-stat-row">
+              <span className="cs-stat-badge" style={{ color: accentColor }}>
+                &#9829; +{arch.hpBonus} vitalidad
+              </span>
+            </div>
+          )}
+
+          <button
+            ref={ctaRef}
+            className="cs-scroll-cta"
+            style={{ color: accentColor, borderColor: `${accentColor}88` }}
+            onClick={e => { e.stopPropagation(); onSelect(arch.id) }}
+          >
+            Elegir — {arch.name}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── ClassCard ─────────────────────────────────────────────────────────────────
+function ClassCard({ arch, animClass, onSelect }) {
+  const art = ARCHETYPE_ART[arch.id]
+  const bg  = ARCHETYPE_BG[arch.id]
 
   return (
     <div className={`cs-card ${animClass}`}>
@@ -299,93 +466,7 @@ function ClassCard({ arch, animClass, onSelect }) {
         ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
         : <div className="cs-character-empty"><span>⚔</span></div>}
 
-      {/* ── SCROLL ───────────────────────────────── */}
-      <div
-        className="cs-scroll"
-        ref={scrollRef}
-        onTouchStart={e => e.stopPropagation()}
-        onTouchEnd={e => e.stopPropagation()}
-        onMouseDown={e => e.stopPropagation()}
-        onMouseUp={e => e.stopPropagation()}
-      >
-        {/* Estado enrollado: pergamino + lazo SVG */}
-        <div
-          className="cs-scroll-rolled"
-          ref={rolledRef}
-          onClick={toggle}
-          style={{ backgroundImage: `url(${PARCHMENT})` }}
-        >
-          <div ref={ribbonRef} className="cs-ribbon-wrap">
-            <RibbonBow color={color} />
-          </div>
-        </div>
-
-        {/* Estado desplegado */}
-        <div
-          className="cs-scroll-paper"
-          ref={paperRef}
-          style={{
-            backgroundImage: `url(${PARCHMENT})`,
-            '--parchment-url': `url(${PARCHMENT})`,
-            opacity: 0,
-            pointerEvents: 'none',
-          }}
-        >
-          {/* Borde de enrollamiento — sube al abrir, baja al cerrar */}
-          <div ref={rollEdgeRef} className="cs-roll-edge" />
-
-          <div className="cs-scroll-handle" onClick={toggle}>
-            <div className="cs-scroll-drag-bar" style={{ background: color }} />
-          </div>
-
-          <div className="cs-scroll-body" ref={bodyRef}>
-            <h2 className="cs-scroll-name" ref={nameRef} style={{ color }}>
-              {arch.name}
-            </h2>
-
-            <div className="cs-scroll-divider" ref={divRef}>
-              <div className="cs-scroll-gem" style={{ background: color }} />
-            </div>
-
-            <div className="cs-parch-row cs-passive-row">
-              <span className="cs-passive-name">— {arch.passiveName} —</span>
-              <p className="cs-passive-desc">{arch.passiveDescription}</p>
-            </div>
-
-            {arch.abilities?.map(ab => (
-              <div key={ab.id} className="cs-parch-row cs-ability-row">
-                <span
-                  className="cs-ability-tag"
-                  style={{ color, borderColor: `${color}66`, background: `${color}12` }}
-                >
-                  {ab.tag}
-                </span>
-                <div className="cs-ability-body">
-                  <span className="cs-ability-name" style={{ color }}>{ab.name}</span>
-                  <span className="cs-ability-desc">{ab.description}</span>
-                </div>
-              </div>
-            ))}
-
-            {arch.hpBonus > 0 && (
-              <div className="cs-parch-row cs-stat-row">
-                <span className="cs-stat-badge" style={{ color }}>
-                  &#9829; +{arch.hpBonus} vitalidad
-                </span>
-              </div>
-            )}
-
-            <button
-              ref={ctaRef}
-              className="cs-scroll-cta"
-              style={{ color, borderColor: color }}
-              onClick={e => { e.stopPropagation(); onSelect(arch.id) }}
-            >
-              Elegir — {arch.name}
-            </button>
-          </div>
-        </div>
-      </div>
+      <CharacterScrollPanel arch={arch} onSelect={onSelect} />
     </div>
   )
 }
