@@ -5,7 +5,7 @@ import { ARCHETYPES } from '../data/gameData.js'
 const BASE = import.meta.env.BASE_URL
 
 const ARCHETYPE_ART = {
-  heraldo: `${BASE}assets/generated/heraldo_s2014_nobg.png`,
+  heraldo: `${BASE}assets/generated/heraldo_redux_hq_s2010.png`,
 }
 const ARCHETYPE_BG = {
   heraldo: `${BASE}assets/generated/fondo_heraldo_s5501.png`,
@@ -96,58 +96,74 @@ function ClassEmblem({ type = 'default', color = '#B8944A', size = 34 }) {
   if (type === 'herald_lantern') {
     return (
       <svg
-        viewBox="0 0 40 54"
+        viewBox="0 0 40 60"
         width={size}
-        height={size * 54 / 40}
+        height={size * 60 / 40}
         fill="none"
         aria-hidden="true"
         style={{ display: 'block' }}
       >
-        {/* Punta de lanza / estandarte */}
-        <path
-          d="M20 1 L26.5 11 L20 9 L13.5 11 Z"
-          fill={color}
-          stroke="rgba(0,0,0,0.35)"
-          strokeWidth="0.8"
-        />
-        {/* Barra transversal */}
-        <rect x="8" y="11" width="24" height="2.5" rx="1.25"
-          fill={color} stroke="rgba(0,0,0,0.25)" strokeWidth="0.6" />
+        {/* Cimera de lanza — punta con base escalonada */}
+        <polygon points="20,0 24,8 20,6 16,8"
+          fill={color} stroke="rgba(0,0,0,0.30)" strokeWidth="0.6" />
+        <line x1="20" y1="6" x2="20" y2="11"
+          stroke={color} strokeWidth="2.2" strokeLinecap="round" />
 
-        {/* Ala izquierda — llama lateral */}
-        <path d="M9 12.5 C3 14 1 21 5 24" stroke={color} strokeWidth="1.8"
-          strokeLinecap="round" fill="none" opacity="0.9" />
-        {/* Ala derecha — llama lateral */}
-        <path d="M31 12.5 C37 14 39 21 35 24" stroke={color} strokeWidth="1.8"
-          strokeLinecap="round" fill="none" opacity="0.9" />
+        {/* Travesaño con remates en bola */}
+        <rect x="5.5" y="10" width="29" height="3" rx="1.5"
+          fill={color} stroke="rgba(0,0,0,0.18)" strokeWidth="0.5" />
+        <circle cx="5.5"  cy="11.5" r="2.6" fill={color} />
+        <circle cx="34.5" cy="11.5" r="2.6" fill={color} />
+        <circle cx="5.5"  cy="11.5" r="1.5" fill="rgba(255,255,255,0.14)" />
+        <circle cx="34.5" cy="11.5" r="1.5" fill="rgba(255,255,255,0.14)" />
 
-        {/* Cuerpo del farol — exterior */}
-        <rect x="13" y="13.5" width="14" height="24" rx="2.5"
-          fill={color} opacity="0.18"
-          stroke={color} strokeWidth="1.4" />
+        {/* Ala izquierda — doble arco heráldico */}
+        <path d="M8.5 13 C1.5 15.5 -0.5 25 5 31"
+          stroke={color} strokeWidth="1.9" strokeLinecap="round" />
+        <path d="M10.5 15.5 C5.5 17.5 4 25 8 30"
+          stroke={color} strokeWidth="0.9" strokeLinecap="round" opacity="0.50" />
 
-        {/* Panes del farol — cruceta interior */}
-        <line x1="20" y1="13.5" x2="20" y2="37.5"
-          stroke={color} strokeWidth="0.9" opacity="0.55" />
-        <line x1="13" y1="25.5" x2="27" y2="25.5"
-          stroke={color} strokeWidth="0.9" opacity="0.55" />
+        {/* Ala derecha — doble arco heráldico */}
+        <path d="M31.5 13 C38.5 15.5 40.5 25 35 31"
+          stroke={color} strokeWidth="1.9" strokeLinecap="round" />
+        <path d="M29.5 15.5 C34.5 17.5 36 25 32 30"
+          stroke={color} strokeWidth="0.9" strokeLinecap="round" opacity="0.50" />
 
-        {/* Llama interior */}
-        <path
-          d="M20 34 C16.5 31 16.5 26.5 20 21 C23.5 26.5 23.5 31 20 34 Z"
-          fill={color} opacity="0.95"
-        />
-        {/* Punto de brillo en la llama */}
-        <ellipse cx="18.5" cy="24.5" rx="1.8" ry="2.8"
-          fill="rgba(255,230,160,0.45)" transform="rotate(-10 18.5 24.5)" />
+        {/* Marco del farol */}
+        <rect x="12" y="13" width="16" height="28" rx="2"
+          fill={color} fillOpacity="0.10" stroke={color} strokeWidth="1.6" />
+        {/* Montura de esquinas */}
+        <circle cx="12" cy="13" r="1.5" fill={color} />
+        <circle cx="28" cy="13" r="1.5" fill={color} />
+        <circle cx="12" cy="41" r="1.5" fill={color} />
+        <circle cx="28" cy="41" r="1.5" fill={color} />
 
-        {/* Cadena / mango inferior */}
-        <rect x="18.5" y="37.5" width="3" height="4" rx="0.8" fill={color} />
-        {/* Pie del farol — horquilla */}
-        <path d="M20 41.5 L16 48 M20 41.5 L24 48"
-          stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="15" y1="48" x2="25" y2="48"
-          stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        {/* Cruceta interior */}
+        <line x1="20" y1="13" x2="20" y2="41"
+          stroke={color} strokeWidth="0.8" opacity="0.45" />
+        <line x1="12" y1="27" x2="28" y2="27"
+          stroke={color} strokeWidth="0.8" opacity="0.45" />
+
+        {/* Llama — gota orgánica que trepa hacia arriba */}
+        <path d="M20 40 C15.5 36 14 29 17.5 21 C18.5 18 19.2 16.5 20 14.5 C20.8 16.5 21.5 18 22.5 21 C26 29 24.5 36 20 40 Z"
+          fill={color} opacity="0.95" />
+        {/* Reflex especular en la llama */}
+        <ellipse cx="17.8" cy="24" rx="1.8" ry="3"
+          fill="rgba(255,240,150,0.50)" transform="rotate(-15 17.8 24)" />
+
+        {/* Mango inferior */}
+        <rect x="18.5" y="41" width="3" height="5" rx="1" fill={color} />
+
+        {/* Trípode heráldico */}
+        <line x1="20" y1="46" x2="13" y2="55"
+          stroke={color} strokeWidth="1.7" strokeLinecap="round" />
+        <line x1="20" y1="46" x2="27" y2="55"
+          stroke={color} strokeWidth="1.7" strokeLinecap="round" />
+        <line x1="11" y1="55" x2="29" y2="55"
+          stroke={color} strokeWidth="1.7" strokeLinecap="round" />
+        <circle cx="11" cy="55" r="2.3" fill={color} />
+        <circle cx="29" cy="55" r="2.3" fill={color} />
+        <circle cx="20" cy="46" r="1.4" fill={color} opacity="0.65" />
       </svg>
     )
   }
@@ -201,6 +217,22 @@ function ClassSeal({ classDef, arch, innerRef }) {
         />
       </svg>
     </div>
+  )
+}
+
+// ── Ornamento divisor de pergamino ───────────────────────────────────────────
+function ScrollOrnament({ color = 'rgba(90, 54, 12, 0.30)' }) {
+  return (
+    <svg viewBox="0 0 200 16" width="100%" height="12"
+      aria-hidden="true" preserveAspectRatio="xMidYMid meet"
+      style={{ display: 'block', margin: '4px 0' }}>
+      <line x1="0"   y1="8" x2="78"  y2="8" stroke={color} strokeWidth="0.8" />
+      <line x1="122" y1="8" x2="200" y2="8" stroke={color} strokeWidth="0.8" />
+      <circle cx="82"  cy="8" r="1.5" fill={color} opacity="0.65" />
+      <circle cx="118" cy="8" r="1.5" fill={color} opacity="0.65" />
+      <path d="M88 8 L94 3 L100 8 L94 13 Z" fill={color} />
+      <path d="M100 8 L106 3 L112 8 L106 13 Z" fill={color} fillOpacity="0.42" />
+    </svg>
   )
 }
 
@@ -371,14 +403,28 @@ function CharacterScrollPanel({ arch, onSelect }) {
         {/* Sello de cera — GSAP controla scale/opacity/y */}
         <div ref={sealRef} className="cs-seal-wrap">
           <svg viewBox="0 0 80 80" className="cs-seal-svg" aria-hidden="true">
-            <path d="M40 4 L50 7 L60 4 L68 12 L74 22 L75 34 L72 44 L76 54 L69 65 L59 73 L47 77 L36 76 L24 77 L14 70 L7 60 L5 48 L8 37 L4 26 L11 16 L22 8 L33 5 Z" fill={sealColor}/>
-            <circle cx="40" cy="40" r="27" fill={primaryColor} opacity="0.55"/>
-            <circle cx="40" cy="40" r="26" stroke="rgba(0,0,0,0.30)" strokeWidth="1" fill="none"/>
-            <circle cx="40" cy="40" r="23" stroke={accentColor} strokeWidth="0.7" fill="none" opacity="0.45"/>
-            <g transform="translate(14, 10) scale(0.65)">
+            {/* Blob de cera — forma irregular orgánica */}
+            <path d="M40 3 L49 6 L58 3 L67 10 L74 21 L76 33 L73 44 L77 55 L70 65 L60 72 L48 77 L37 76 L25 78 L14 71 L6 61 L4 48 L7 37 L3 26 L10 15 L22 8 L32 4 Z"
+              fill={sealColor} />
+            {/* Borde de estampa — le da definición al blob */}
+            <path d="M40 3 L49 6 L58 3 L67 10 L74 21 L76 33 L73 44 L77 55 L70 65 L60 72 L48 77 L37 76 L25 78 L14 71 L6 61 L4 48 L7 37 L3 26 L10 15 L22 8 L32 4 Z"
+              fill="none" stroke="rgba(0,0,0,0.40)" strokeWidth="1.5" />
+            {/* Área central elevada */}
+            <circle cx="40" cy="40" r="28" fill={primaryColor} opacity="0.50" />
+            {/* Anillo ornamental exterior */}
+            <circle cx="40" cy="40" r="27" stroke={accentColor} strokeWidth="1.0" fill="none" opacity="0.58" />
+            {/* Anillo ornamental interior */}
+            <circle cx="40" cy="40" r="23" stroke={accentColor} strokeWidth="0.6" fill="none" opacity="0.38" />
+            {/* Emblema centrado — nueva escala para viewBox 0 0 40 60 */}
+            <g transform="translate(26, 19) scale(0.82)">
               <ClassEmblem type={classDef.emblem} color={accentColor} size={34}/>
             </g>
-            <ellipse cx="30" cy="26" rx="9" ry="5.5" fill="rgba(255,255,255,0.13)" transform="rotate(-25 30 26)"/>
+            {/* Brillo especular — sensación de relieve céreo */}
+            <ellipse cx="28" cy="24" rx="11" ry="6.5"
+              fill="rgba(255,255,255,0.14)" transform="rotate(-28 28 24)" />
+            {/* Segundo reflex más sutil */}
+            <ellipse cx="55" cy="53" rx="4" ry="2.5"
+              fill="rgba(255,255,255,0.07)" transform="rotate(-28 55 53)" />
           </svg>
         </div>
       </div>
@@ -418,6 +464,9 @@ function CharacterScrollPanel({ arch, onSelect }) {
           <h2 className="cs-scroll-name" ref={nameRef} style={{ color: primaryColor }}>
             {arch.name}
           </h2>
+          {arch.role && (
+            <p className="cs-scroll-role" style={{ color: primaryColor }}>{arch.role}</p>
+          )}
 
           <div className="cs-scroll-divider" ref={divRef}>
             <div className="cs-scroll-gem" style={{ background: accentColor }} />
@@ -426,6 +475,10 @@ function CharacterScrollPanel({ arch, onSelect }) {
           <div className="cs-parch-row cs-passive-row">
             <span className="cs-passive-name">— {arch.passiveName} —</span>
             <p className="cs-passive-desc">{arch.passiveDescription}</p>
+          </div>
+
+          <div className="cs-parch-row cs-ornament-row">
+            <ScrollOrnament />
           </div>
 
           {arch.abilities?.map(ab => (
@@ -454,7 +507,7 @@ function CharacterScrollPanel({ arch, onSelect }) {
           <button
             ref={ctaRef}
             className="cs-scroll-cta"
-            style={{ color: accentColor, borderColor: `${accentColor}88` }}
+            style={{ color: accentColor, borderColor: `${accentColor}60` }}
             onClick={e => { e.stopPropagation(); onSelect(arch.id) }}
           >
             Elegir — {arch.name}
@@ -476,7 +529,8 @@ function ClassCard({ arch, animClass, onSelect }) {
         <img className="cs-bg-img" src={bg} alt="" aria-hidden="true" draggable="false" />
       )}
       {art
-        ? <img className="cs-character" src={art} alt={arch.name} draggable="false" />
+        ? <img className="cs-character" src={art} alt={arch.name} draggable="false"
+            style={{ mixBlendMode: 'screen' }} />
         : <div className="cs-character-empty"><span>⚔</span></div>}
 
       <CharacterScrollPanel arch={arch} onSelect={onSelect} />
