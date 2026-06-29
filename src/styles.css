@@ -649,7 +649,7 @@ button,
   background-color: #DEC878;
   background-size: cover;
   background-position: center top;
-  will-change: clip-path, transform;
+  will-change: opacity, transform;
 }
 /* Marco interior */
 .cs-scroll-paper::before {
@@ -923,7 +923,7 @@ button,
 /* Dots — superpuestos sobre la carta, por encima del scroll */
 .cs-dots {
   position: absolute;
-  bottom: 62px;
+  bottom: 78px;
   left: 0;
   right: 0;
   z-index: 6;

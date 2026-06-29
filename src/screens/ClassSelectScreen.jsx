@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
-import Lottie from 'lottie-react'
 import { ARCHETYPES } from '../data/gameData.js'
-import { SEAL_ANIM } from '../anim/sealAnim.js'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -48,34 +46,46 @@ const CLASS_DEFS = {
 }
 
 // ── Sonido sintetizado de pergamino ───────────────────────────────────────────
+// Ruido rosa (algoritmo Paul Kellet) + EQ de papel. Mucho más natural que ruido blanco.
+// Para producción: usar un .mp3 real de Freesound.org o Pixabay.com/sound-effects
 function playScrollSound(opening) {
   try {
     const Ctx = window.AudioContext || window.webkitAudioContext
     if (!Ctx) return
     const ctx = new Ctx()
-    const dur = opening ? 0.50 : 0.32
+    const dur = opening ? 0.90 : 0.60
     const sr  = ctx.sampleRate
-    const buf = ctx.createBuffer(1, Math.floor(sr * dur), sr)
+    const len = Math.floor(sr * dur)
+    const buf = ctx.createBuffer(1, len, sr)
     const dat = buf.getChannelData(0)
-    for (let i = 0; i < dat.length; i++) {
-      const t   = i / sr
+    let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1
+      b0 = 0.99886*b0 + w*0.0555179; b1 = 0.99332*b1 + w*0.0750759
+      b2 = 0.96900*b2 + w*0.1538520; b3 = 0.86650*b3 + w*0.3104856
+      b4 = 0.55000*b4 + w*0.5329522; b5 = -0.7616*b5 - w*0.0168980
+      const pink = (b0+b1+b2+b3+b4+b5+b6+w*0.5362) / 7
+      b6 = w * 0.115926
+      const t = i / len
       const env = opening
-        ? Math.pow(t / dur, 0.06) * Math.pow(1 - t / dur, 1.8)
-        : Math.pow(1 - t / dur, 2.5)
-      dat[i] = (Math.random() * 2 - 1) * env * 0.22
+        ? Math.pow(Math.sin(t * Math.PI), 0.5) * (1 - t * 0.25)
+        : (1 - t) * (1 - t) * (1 + 0.35 * Math.sin(t * Math.PI * 5))
+      dat[i] = pink * env * 0.32
     }
     const src = ctx.createBufferSource()
     src.buffer = buf
-    const bpf = ctx.createBiquadFilter()
-    bpf.type = 'bandpass'
-    bpf.frequency.value = opening ? 3200 : 1800
-    bpf.Q.value = 0.6
+    const hpf = ctx.createBiquadFilter()
+    hpf.type = 'highpass'; hpf.frequency.value = 180
+    const pk1 = ctx.createBiquadFilter()
+    pk1.type = 'peaking'; pk1.frequency.value = 700; pk1.Q.value = 0.6; pk1.gain.value = 5
+    const pk2 = ctx.createBiquadFilter()
+    pk2.type = 'peaking'; pk2.frequency.value = 2200; pk2.Q.value = 0.8; pk2.gain.value = 3
     const lpf = ctx.createBiquadFilter()
-    lpf.type = 'lowpass'
-    lpf.frequency.value = 8000
-    src.connect(bpf); bpf.connect(lpf); lpf.connect(ctx.destination)
+    lpf.type = 'lowpass'; lpf.frequency.value = 6500
+    src.connect(hpf); hpf.connect(pk1); pk1.connect(pk2); pk2.connect(lpf)
+    lpf.connect(ctx.destination)
     src.start()
-    setTimeout(() => { try { ctx.close() } catch {} }, 1500)
+    setTimeout(() => { try { ctx.close() } catch {} }, 2000)
   } catch {}
 }
 
@@ -197,11 +207,11 @@ function ClassSeal({ classDef, arch, innerRef }) {
 // ── CharacterScrollPanel ──────────────────────────────────────────────────────
 // Componente principal del pergamino. Reutilizable por clase futura.
 function CharacterScrollPanel({ arch, onSelect }) {
-  const [open, setOpen]           = useState(false)
-  const [sealState, setSealState] = useState('idle') // 'idle' | 'opening' | 'closing'
+  const [open, setOpen] = useState(false)
 
   const scrollRef   = useRef(null)
   const rolledRef   = useRef(null)
+  const sealRef     = useRef(null)
   const paperRef    = useRef(null)
   const rollEdgeRef = useRef(null)
   const nameRef     = useRef(null)
@@ -209,34 +219,22 @@ function CharacterScrollPanel({ arch, onSelect }) {
   const bodyRef     = useRef(null)
   const ctaRef      = useRef(null)
   const tlRef       = useRef(null)
-  const lottieRef   = useRef(null)
 
   const classDef = CLASS_DEFS[arch.id] || CLASS_DEFS.heraldo
   const { primaryColor, sealColor, accentColor } = classDef
 
   useEffect(() => {
     const s = scrollRef.current, p = paperRef.current,
-          r = rolledRef.current, e = rollEdgeRef.current
-    if (!s || !p || !r || !e) return
-    gsap.set(s, { height: 54 })
-    gsap.set(p, {
-      opacity: 0, pointerEvents: 'none',
-      clipPath: 'inset(100% 0% 0% 0%)',
-      rotateX: 0,
-      transformPerspective: 1200,
-      transformOrigin: 'top center',
-    })
+          r = rolledRef.current, seal = sealRef.current,
+          e = rollEdgeRef.current
+    if (!s || !p || !r || !seal || !e) return
+    gsap.set(s, { height: 70 })
+    gsap.set(p, { opacity: 0, pointerEvents: 'none' })
     gsap.set(r, { opacity: 1 })
-    gsap.set(e, { top: '110%', opacity: 1 })
+    gsap.set(seal, { y: 0, scale: 1, opacity: 1 })
+    gsap.set(e, { top: 75, opacity: 0 })
     return () => { if (tlRef.current) tlRef.current.kill() }
   }, [])
-
-  // Dispara la animación Lottie del sello cuando cambia el estado
-  useEffect(() => {
-    if (!lottieRef.current) return
-    if (sealState === 'opening') lottieRef.current.playSegments([0, 40], true)
-    else if (sealState === 'closing') lottieRef.current.playSegments([50, 90], true)
-  }, [sealState])
 
   function toggle() {
     const opening = !open
@@ -248,99 +246,96 @@ function CharacterScrollPanel({ arch, onSelect }) {
     tlRef.current = tl
 
     if (opening) {
-      setSealState('opening')
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
       tl
-        // ① OVERSHOOT: scroll se despliega con tensión
+        // ① Sello se disuelve con un pequeño pulso
+        .to(sealRef.current, {
+          scale: 1.10, duration: 0.22, ease: 'power1.out',
+        })
+        .to(sealRef.current, {
+          scale: 0.60, opacity: 0, y: -22,
+          duration: 0.32, ease: 'power2.in',
+        }, 0.20)
+
+        // ② Pergamino se despliega lentamente — sin overshoot brusco
         .to(scrollRef.current, {
-          height: '63%', duration: 0.32, ease: 'power4.out',
-        }, 0.18)
+          height: '61%', duration: 0.92, ease: 'power2.out',
+        }, 0.10)
         .to(scrollRef.current, {
-          height: '57%', duration: 0.26, ease: 'power2.inOut',
+          height: '57%', duration: 0.40, ease: 'power2.inOut',
+        }, 1.02)
+
+        // ③ Estado enrollado se disuelve
+        .to(rolledRef.current, {
+          opacity: 0, duration: 0.34, ease: 'power2.in',
+        }, 0.10)
+
+        // ④ Borde de enrollamiento sube (papel desenrollándose hacia arriba)
+        .set(rollEdgeRef.current, { top: 62, opacity: 0.9 }, 0.18)
+        .to(rollEdgeRef.current, {
+          top: -26, duration: 0.88, ease: 'power2.out',
+        }, 0.20)
+        .to(rollEdgeRef.current, {
+          opacity: 0, duration: 0.30, ease: 'power2.in',
         }, 0.50)
 
-        // ④ Estado enrollado se disuelve
-        .to(rolledRef.current, {
-          opacity: 0, duration: 0.12, ease: 'power2.in',
-        }, 0.22)
-
-        // ⑤ Papel emerge con clipPath + perspectiva 3D
-        .set(paperRef.current, {
-          clipPath: 'inset(100% 0% 0% 0%)',
-          rotateX: -18,
-          opacity: 1, pointerEvents: 'auto',
-        }, 0.26)
+        // ⑤ Papel aparece con fade suave — sin clipPath ni rotateX
+        .set(paperRef.current, { opacity: 0, pointerEvents: 'auto' }, 0.22)
         .to(paperRef.current, {
-          clipPath: 'inset(0% 0% 0% 0%)',
-          rotateX: 3,
-          duration: 0.52, ease: 'power3.out',
-        }, 0.26)
-        .to(paperRef.current, {
-          rotateX: 0,
-          duration: 0.20, ease: 'power2.inOut',
-        }, 0.78)
+          opacity: 1, duration: 0.58, ease: 'power2.out',
+        }, 0.28)
 
-        // ⑥ Borde de enrollamiento sube y se esfuma
-        .to(rollEdgeRef.current, {
-          top: 0, duration: 0.54, ease: 'power3.out',
-        }, 0.26)
-        .to(rollEdgeRef.current, {
-          opacity: 0, duration: 0.22, ease: 'power2.in',
-        }, 0.66)
-
-        // ⑦ Contenido en cascada
+        // ⑥ Contenido en cascada
         .fromTo(nameRef.current,
-          { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.24, ease: 'power2.out' },
-          0.60)
+          { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.30, ease: 'power2.out' },
+          0.90)
         .fromTo(divRef.current,
-          { opacity: 0, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.18, ease: 'power2.out' },
-          0.74)
+          { opacity: 0, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.22, ease: 'power2.out' },
+          1.06)
         .fromTo(rows,
-          { opacity: 0, y: 7 }, { opacity: 1, y: 0, stagger: 0.06, duration: 0.22, ease: 'power2.out' },
-          0.80)
+          { opacity: 0, y: 7 }, { opacity: 1, y: 0, stagger: 0.07, duration: 0.26, ease: 'power2.out' },
+          1.12)
         .fromTo(ctaRef.current,
-          { opacity: 0, y: 5 }, { opacity: 1, y: 0, duration: 0.20, ease: 'power2.out' },
+          { opacity: 0, y: 5 }, { opacity: 1, y: 0, duration: 0.22, ease: 'power2.out' },
           '-=0.04')
 
     } else {
-      setSealState('closing')
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
       tl
         // ① Contenido desaparece
         .to([nameRef.current, divRef.current, ...rows, ctaRef.current], {
-          opacity: 0, duration: 0.08, ease: 'power2.in',
+          opacity: 0, duration: 0.14, ease: 'power2.in',
         })
 
-        // ② Papel resiste brevemente
+        // ② Papel se desvanece
         .to(paperRef.current, {
-          rotateX: 4, duration: 0.08, ease: 'power1.inOut',
-        }, 0.06)
+          opacity: 0, duration: 0.32, ease: 'power2.in',
+        }, 0.10)
+        .set(paperRef.current, { pointerEvents: 'none' }, 0.42)
 
-        // ③ Borde de enrollamiento baja
-        .set(rollEdgeRef.current, { top: 0, opacity: 1 }, 0.12)
+        // ③ Borde de enrollamiento baja (pergamino se vuelve a enrollar)
+        .set(rollEdgeRef.current, { top: 10, opacity: 0.9 }, 0.14)
         .to(rollEdgeRef.current, {
-          top: '110%', duration: 0.28, ease: 'power3.in',
-        }, 0.12)
+          top: 420, duration: 0.44, ease: 'power2.in',
+        }, 0.16)
 
-        // ④ Papel se enrolla hacia arriba
-        .to(paperRef.current, {
-          clipPath: 'inset(0% 0% 100% 0%)',
-          rotateX: -14,
-          duration: 0.32, ease: 'power3.in',
-        }, 0.14)
-        .set(paperRef.current, { pointerEvents: 'none', opacity: 0 }, 0.44)
-
-        // ⑤ UNDERSHOOT + SNAP
+        // ④ Scroll se contrae con leve undershoot + snap
         .to(scrollRef.current, {
-          height: 42, duration: 0.26, ease: 'power4.in',
+          height: 50, duration: 0.44, ease: 'power3.in',
         }, 0.14)
         .to(scrollRef.current, {
-          height: 54, duration: 0.18, ease: 'power2.out',
-        }, 0.40)
+          height: 70, duration: 0.30, ease: 'back.out(2.5)',
+        }, 0.58)
 
-        // ⑥ Estado enrollado reaparece
+        // ⑤ Estado enrollado reaparece
         .set(rolledRef.current, { opacity: 0 }, 0.10)
-        .to(rolledRef.current, { opacity: 1, duration: 0.12 }, 0.34)
+        .to(rolledRef.current, { opacity: 1, duration: 0.24 }, 0.54)
+
+        // ⑥ Sello reaparece con rebote
+        .fromTo(sealRef.current,
+          { scale: 0.60, opacity: 0, y: -22 },
+          { scale: 1, opacity: 1, y: 0, duration: 0.45, ease: 'back.out(3.5)' },
+          0.64)
 
     }
   }
@@ -365,21 +360,9 @@ function CharacterScrollPanel({ arch, onSelect }) {
         <div className="cs-scroll-end cs-scroll-end--left" />
         <div className="cs-scroll-end cs-scroll-end--right" />
 
-        {/* Sello de cera: SVG estático en reposo, Lottie al animar */}
-        <div
-          className="cs-seal-wrap"
-          style={{
-            filter: sealState === 'idle' ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.65))' : 'none',
-            animation: sealState !== 'idle' ? 'none' : undefined,
-          }}
-        >
-          {/* SVG estático — visible solo en reposo */}
-          <svg
-            viewBox="0 0 80 80"
-            className="cs-seal-svg"
-            aria-hidden="true"
-            style={{ display: sealState === 'idle' ? 'block' : 'none' }}
-          >
+        {/* Sello de cera — GSAP controla scale/opacity/y */}
+        <div ref={sealRef} className="cs-seal-wrap">
+          <svg viewBox="0 0 80 80" className="cs-seal-svg" aria-hidden="true">
             <path d="M40 4 L50 7 L60 4 L68 12 L74 22 L75 34 L72 44 L76 54 L69 65 L59 73 L47 77 L36 76 L24 77 L14 70 L7 60 L5 48 L8 37 L4 26 L11 16 L22 8 L33 5 Z" fill={sealColor}/>
             <circle cx="40" cy="40" r="27" fill={primaryColor} opacity="0.55"/>
             <circle cx="40" cy="40" r="26" stroke="rgba(0,0,0,0.30)" strokeWidth="1" fill="none"/>
@@ -389,25 +372,11 @@ function CharacterScrollPanel({ arch, onSelect }) {
             </g>
             <ellipse cx="30" cy="26" rx="9" ry="5.5" fill="rgba(255,255,255,0.13)" transform="rotate(-25 30 26)"/>
           </svg>
-
-          {/* Lottie — siempre montado, visible al animar */}
-          <div style={{
-            position: 'absolute', top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            display: sealState !== 'idle' ? 'block' : 'none',
-            pointerEvents: 'none',
-          }}>
-            <Lottie
-              lottieRef={lottieRef}
-              animationData={SEAL_ANIM}
-              autoplay={false}
-              loop={false}
-              onComplete={() => setSealState('idle')}
-              style={{ width: 80, height: 80 }}
-            />
-          </div>
         </div>
       </div>
+
+      {/* Borde de enrollamiento — fuera del paper para no heredar su opacity */}
+      <div ref={rollEdgeRef} className="cs-roll-edge" />
 
       {/* ── Estado abierto: pergamino desplegado ── */}
       <div
@@ -420,8 +389,6 @@ function CharacterScrollPanel({ arch, onSelect }) {
           pointerEvents: 'none',
         }}
       >
-        {/* Borde de enrollamiento */}
-        <div ref={rollEdgeRef} className="cs-roll-edge" />
 
         {/* Borde superior — simula el borde doblado del rollo */}
         <div className="cs-scroll-top-curl" />
