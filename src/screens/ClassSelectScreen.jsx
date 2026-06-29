@@ -213,8 +213,9 @@ function CharacterScrollPanel({ arch, onSelect }) {
   const rolledRef   = useRef(null)
   const sealRef     = useRef(null)
   const paperRef    = useRef(null)
-  const rollEdgeRef = useRef(null)
-  const nameRef     = useRef(null)
+  const rollEdgeRef   = useRef(null)
+  const shadowBandRef = useRef(null)
+  const nameRef       = useRef(null)
   const divRef      = useRef(null)
   const bodyRef     = useRef(null)
   const ctaRef      = useRef(null)
@@ -226,13 +227,17 @@ function CharacterScrollPanel({ arch, onSelect }) {
   useEffect(() => {
     const s = scrollRef.current, p = paperRef.current,
           r = rolledRef.current, seal = sealRef.current,
-          e = rollEdgeRef.current
-    if (!s || !p || !r || !seal || !e) return
+          e = rollEdgeRef.current, sb = shadowBandRef.current
+    if (!s || !p || !r || !seal || !e || !sb) return
     gsap.set(s, { height: 70 })
-    gsap.set(p, { opacity: 0, pointerEvents: 'none' })
+    gsap.set(p, {
+      opacity: 0, pointerEvents: 'none',
+      scaleY: 0.01, transformOrigin: 'top center',
+    })
     gsap.set(r, { opacity: 1 })
-    gsap.set(seal, { y: 0, scale: 1, opacity: 1 })
+    gsap.set(seal, { y: 0, scale: 1, opacity: 1, rotation: 0 })
     gsap.set(e, { top: 75, opacity: 0 })
+    gsap.set(sb, { y: -100, opacity: 0 })
     return () => { if (tlRef.current) tlRef.current.kill() }
   }, [])
 
@@ -248,53 +253,56 @@ function CharacterScrollPanel({ arch, onSelect }) {
     if (opening) {
       const rows = Array.from(bodyRef.current?.querySelectorAll('.cs-parch-row') ?? [])
       tl
-        // ① Sello se disuelve con un pequeño pulso
+        // ① Sello: vibración → destello → fragmentación
         .to(sealRef.current, {
-          scale: 1.10, duration: 0.22, ease: 'power1.out',
+          keyframes: [
+            { scale: 1.12, rotation:  7, duration: 0.11, ease: 'power1.out'   },
+            { scale: 1.05, rotation: -6, duration: 0.08, ease: 'power1.inOut' },
+            { scale: 1.16, rotation:  4, duration: 0.07, ease: 'power1.inOut' },
+            { scale: 0, rotation: 22, opacity: 0, y: -18, duration: 0.22, ease: 'power3.in' },
+          ],
         })
-        .to(sealRef.current, {
-          scale: 0.60, opacity: 0, y: -22,
-          duration: 0.32, ease: 'power2.in',
-        }, 0.20)
 
-        // ② Pergamino se despliega lentamente — sin overshoot brusco
-        .to(scrollRef.current, {
-          height: '61%', duration: 0.92, ease: 'power2.out',
-        }, 0.10)
-        .to(scrollRef.current, {
-          height: '57%', duration: 0.40, ease: 'power2.inOut',
-        }, 1.02)
-
-        // ③ Estado enrollado se disuelve
+        // ② Rollo desaparece
         .to(rolledRef.current, {
-          opacity: 0, duration: 0.34, ease: 'power2.in',
-        }, 0.10)
+          opacity: 0, duration: 0.20, ease: 'power2.in',
+        }, 0.30)
 
-        // ④ Borde de enrollamiento sube (papel desenrollándose hacia arriba)
-        .set(rollEdgeRef.current, { top: 62, opacity: 0.9 }, 0.18)
-        .to(rollEdgeRef.current, {
-          top: -26, duration: 0.88, ease: 'power2.out',
-        }, 0.20)
-        .to(rollEdgeRef.current, {
-          opacity: 0, duration: 0.30, ease: 'power2.in',
-        }, 0.50)
+        // ③ Contenedor crece
+        .to(scrollRef.current, {
+          height: '62%', duration: 1.10, ease: 'power3.out',
+        }, 0.26)
+        .to(scrollRef.current, {
+          height: '57%', duration: 0.36, ease: 'power2.inOut',
+        }, 1.36)
 
-        // ⑤ Papel aparece con fade suave — sin clipPath ni rotateX
-        .set(paperRef.current, { opacity: 0, pointerEvents: 'auto' }, 0.22)
+        // ④ Papel se despliega: scaleY 0 → 1 desde el borde superior (efecto rollo)
+        .set(paperRef.current, {
+          scaleY: 0.01, opacity: 1, pointerEvents: 'auto',
+        }, 0.32)
         .to(paperRef.current, {
-          opacity: 1, duration: 0.58, ease: 'power2.out',
-        }, 0.28)
+          scaleY: 1, duration: 0.84, ease: 'power3.out',
+        }, 0.34)
+
+        // ⑤ Banda de sombra cilíndrica barre de arriba a abajo
+        .set(shadowBandRef.current, { y: -100, opacity: 0.88 }, 0.34)
+        .to(shadowBandRef.current, {
+          y: 620, duration: 0.80, ease: 'power2.out',
+        }, 0.36)
+        .to(shadowBandRef.current, {
+          opacity: 0, duration: 0.22, ease: 'power1.in',
+        }, 0.84)
 
         // ⑥ Contenido en cascada
         .fromTo(nameRef.current,
-          { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.30, ease: 'power2.out' },
-          0.90)
+          { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.28, ease: 'power2.out' },
+          0.98)
         .fromTo(divRef.current,
           { opacity: 0, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.22, ease: 'power2.out' },
-          1.06)
+          1.14)
         .fromTo(rows,
-          { opacity: 0, y: 7 }, { opacity: 1, y: 0, stagger: 0.07, duration: 0.26, ease: 'power2.out' },
-          1.12)
+          { opacity: 0, y: 6 }, { opacity: 1, y: 0, stagger: 0.07, duration: 0.24, ease: 'power2.out' },
+          1.20)
         .fromTo(ctaRef.current,
           { opacity: 0, y: 5 }, { opacity: 1, y: 0, duration: 0.22, ease: 'power2.out' },
           '-=0.04')
@@ -304,38 +312,38 @@ function CharacterScrollPanel({ arch, onSelect }) {
       tl
         // ① Contenido desaparece
         .to([nameRef.current, divRef.current, ...rows, ctaRef.current], {
-          opacity: 0, duration: 0.14, ease: 'power2.in',
+          opacity: 0, duration: 0.11, ease: 'power2.in',
         })
 
-        // ② Papel se desvanece
+        // ② Papel se re-enrolla: scaleY 1 → 0 desde el borde superior
         .to(paperRef.current, {
-          opacity: 0, duration: 0.32, ease: 'power2.in',
-        }, 0.10)
-        .set(paperRef.current, { pointerEvents: 'none' }, 0.42)
+          scaleY: 0.01, duration: 0.32, ease: 'power3.in',
+        }, 0.08)
+        .set(paperRef.current, { opacity: 0, pointerEvents: 'none' }, 0.40)
 
-        // ③ Borde de enrollamiento baja (pergamino se vuelve a enrollar)
-        .set(rollEdgeRef.current, { top: 10, opacity: 0.9 }, 0.14)
-        .to(rollEdgeRef.current, {
-          top: 420, duration: 0.44, ease: 'power2.in',
-        }, 0.16)
-
-        // ④ Scroll se contrae con leve undershoot + snap
+        // ③ Scroll se contrae con undershoot + snap
         .to(scrollRef.current, {
-          height: 50, duration: 0.44, ease: 'power3.in',
-        }, 0.14)
+          height: 44, duration: 0.40, ease: 'power3.in',
+        }, 0.08)
         .to(scrollRef.current, {
-          height: 70, duration: 0.30, ease: 'back.out(2.5)',
-        }, 0.58)
+          height: 70, duration: 0.32, ease: 'back.out(2.8)',
+        }, 0.48)
 
-        // ⑤ Estado enrollado reaparece
-        .set(rolledRef.current, { opacity: 0 }, 0.10)
-        .to(rolledRef.current, { opacity: 1, duration: 0.24 }, 0.54)
+        // ④ Estado enrollado reaparece
+        .set(rolledRef.current, { opacity: 0 }, 0.08)
+        .to(rolledRef.current, { opacity: 1, duration: 0.20 }, 0.38)
 
-        // ⑥ Sello reaparece con rebote
+        // ⑤ Sello aparece: caída + doble rebote (back.out → ligero squeeze)
         .fromTo(sealRef.current,
-          { scale: 0.60, opacity: 0, y: -22 },
-          { scale: 1, opacity: 1, y: 0, duration: 0.45, ease: 'back.out(3.5)' },
-          0.64)
+          { scale: 0, opacity: 0, rotation: -16, y: -22 },
+          { scale: 1.28, opacity: 1, rotation: 0, y: 0, duration: 0.28, ease: 'back.out(5)' },
+          0.50)
+        .to(sealRef.current, {
+          scale: 0.90, duration: 0.10, ease: 'power2.in',
+        }, 0.78)
+        .to(sealRef.current, {
+          scale: 1, duration: 0.16, ease: 'back.out(3)',
+        }, 0.88)
 
     }
   }
@@ -374,6 +382,9 @@ function CharacterScrollPanel({ arch, onSelect }) {
           </svg>
         </div>
       </div>
+
+      {/* Banda de sombra cilíndrica — simula el interior del rollo al abrirse */}
+      <div ref={shadowBandRef} className="cs-shadow-band" />
 
       {/* Borde de enrollamiento — fuera del paper para no heredar su opacity */}
       <div ref={rollEdgeRef} className="cs-roll-edge" />

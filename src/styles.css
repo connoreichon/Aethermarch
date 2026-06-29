@@ -692,6 +692,26 @@ button,
   z-index: 19;
 }
 
+/* Banda de sombra cilíndrica — simula el pliegue del rollo al abrirse/cerrarse */
+.cs-shadow-band {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 0;
+  height: 100px;
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 4, 0, 0.06)  0%,
+    rgba(55, 22, 4, 0.42) 28%,
+    rgba(90, 42, 8, 0.30) 52%,
+    rgba(45, 16, 2, 0.12) 78%,
+    transparent           100%
+  );
+  pointer-events: none;
+  z-index: 22;
+  will-change: transform, opacity;
+}
+
 /* Borde de enrollamiento que sube al abrir */
 .cs-roll-edge {
   position: absolute;
