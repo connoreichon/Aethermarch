@@ -3,7 +3,7 @@
 
   "carpeta_originales": "fotos",
   "carpeta_fotos": "retocadas",
-  "fundido": 0.9,
+  "fundido": 1.0,
   "musica": null,
 
   "retoque": {
@@ -28,21 +28,21 @@
   "secuencia": [
     { "tipo": "portada", "titulo": "SILVIA", "subtitulo": "ACTRIZ", "duracion": 3.6 },
 
-    { "tipo": "fotos", "duracion": 4.4,
+    { "tipo": "fotos", "duracion": 4.6,
       "archivos": ["01_natural_retrato_a.jpg", "02_natural_retrato_b.jpg"] },
 
     { "tipo": "seccion", "titulo": "PERSONAJES", "duracion": 2.6 },
 
-    { "tipo": "fotos", "duracion": 4.6,
+    { "tipo": "fotos", "duracion": 4.8,
       "archivos": ["03_criada_bn_puerta.jpg", "04_criada_color.jpg", "05_criada_bn_escena.jpg"] },
 
-    { "tipo": "fotos", "duracion": 4.6,
+    { "tipo": "fotos", "duracion": 4.8,
       "archivos": ["06_tragedia_sentada.jpg", "07_tragedia_panuelo.jpg",
                    "08_tragedia_brazo.jpg", "09_tragedia_mirada.jpg"] },
 
     { "tipo": "seccion", "titulo": "BOOK", "duracion": 2.4 },
 
-    { "tipo": "fotos", "duracion": 4.2,
+    { "tipo": "fotos", "duracion": 4.4,
       "archivos": ["10_book_cuerpo_a.jpg", "11_book_medio.jpg", "12_book_cuerpo_b.jpg"] },
 
     { "tipo": "final", "titulo": "SILVIA", "subtitulo": "ACTRIZ",

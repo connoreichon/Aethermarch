@@ -21,11 +21,16 @@ Otras opciones:
 
 ```bash
 python3 scripts/hacer.py --rapido                  # 720p, para revisar en 40s
+python3 scripts/hacer.py --calidad media           # mas rapido, casi igual
 python3 scripts/hacer.py --solo-retoque            # solo las fotos
 python3 scripts/hacer.py --solo-video              # solo el montaje
 python3 scripts/hacer.py --formatos horizontal     # un formato nada mas
 python3 scripts/hacer.py --musica pista.mp3
 ```
+
+El render final va a ~12 s de calculo por cada segundo de video en una maquina
+de 4 nucleos: un minuto de videobook son unos 12 minutos por formato. Para
+revisar cambios usa `--rapido`, que tarda menos de un minuto.
 
 ## Como se cambia algo
 
@@ -89,6 +94,18 @@ pisa la cara, mejor recortar la foto.
 
 Los fotogramas se generan en Python y se le pasan a ffmpeg por tuberia.
 
+**Todo se dibuja a mayor resolucion de la que se entrega y se reduce al final
+promediando** (supermuestreo, 1,5x por defecto). Es antialiasing de verdad:
+los bordes de las fotos, las sombras y los rotulos dejan de hervir cuando hay
+movimiento. Se controla con `--calidad alta|media|borrador`.
+
+**Los rotulos no se reescalan nunca.** Un texto ya rasterizado al que se le
+aplica un zoom lentisimo cambia de patron de antialiasing en cada fotograma, y
+los trazos finos de una serif se ponen a temblar. Aqui el texto se dibuja una
+sola vez y lo unico que se anima es la opacidad y la linea fina, que se traza
+por geometria con precision de subpixel. Medido: la diferencia entre
+fotogramas consecutivos en la zona del texto baja de 0,54 a 0,0001.
+
 - **Movimiento** Ken Burns lento, alternando acercamiento y alejamiento, con
   la deriva cambiando de foto en foto para que no se note el patron.
 - **Fotos verticales en marco horizontal** (y al reves): se muestran enteras
@@ -96,9 +113,15 @@ Los fotogramas se generan en Python y se le pasan a ffmpeg por tuberia.
   debajo. Nunca aparecen bandas negras. El fondo se mueve al reves que la
   foto: da sensacion de profundidad.
 - **Encadenados** de 0,9 s con curva suave.
-- **Acabado comun**: grano de pelicula muy fino y un viraje leve (sombras
-  algo frias, luces algo calidas). Es lo que hace que fotos de camaras,
-  epocas y luces distintas parezcan del mismo trabajo.
+- **Filete finisimo** en el canto de las fotos que no llenan el encuadre.
+- **Acabado comun**: halo suave en las luces altas, grano de pelicula y un
+  viraje leve (sombras algo frias, luces algo calidas). Es lo que hace que
+  fotos de camaras, epocas y luces distintas parezcan del mismo trabajo.
+
+  El grano se genera a media resolucion y se amplia, y se modula por
+  luminancia. Ademas de ser mas fiel a la pelicula, es lo que mantiene el
+  archivo en un tamano razonable: con ruido blanco pixel a pixel el codec no
+  puede predecir entre fotogramas y el mismo video pasaba de 45 MB a 409 MB.
 - **Tipografia**: Cormorant Garamond para los nombres y Jost para los datos,
   ambas con tracking amplio.
 

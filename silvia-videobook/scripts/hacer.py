@@ -97,11 +97,12 @@ def retocar(cfg: dict, calidad: int = 96) -> int:
     return 0
 
 
-def montar(cfg_ruta: Path, formatos: list[str], rapido: bool, musica: str | None) -> int:
+def montar(cfg_ruta: Path, formatos: list[str], rapido: bool, musica: str | None,
+           calidad: str = "alta") -> int:
     for formato in formatos:
         print()
         cmd = [sys.executable, str(RAIZ / "scripts" / "videobook.py"),
-               "--config", str(cfg_ruta), "--formato", formato]
+               "--config", str(cfg_ruta), "--formato", formato, "--calidad", calidad]
         if rapido:
             cmd.append("--rapido")
         if musica:
@@ -118,6 +119,8 @@ def main() -> int:
     p.add_argument("--solo-retoque", action="store_true")
     p.add_argument("--solo-video", action="store_true")
     p.add_argument("--rapido", action="store_true")
+    p.add_argument("--calidad", default="alta",
+                   choices=["alta", "media", "borrador"])
     p.add_argument("--formatos", default="horizontal,vertical")
     p.add_argument("--musica", default=None)
     args = p.parse_args()
@@ -129,7 +132,7 @@ def main() -> int:
         retocar(cfg)
     if not args.solo_retoque:
         formatos = [f.strip() for f in args.formatos.split(",") if f.strip()]
-        return montar(cfg_ruta, formatos, args.rapido, args.musica)
+        return montar(cfg_ruta, formatos, args.rapido, args.musica, args.calidad)
     return 0
 
 

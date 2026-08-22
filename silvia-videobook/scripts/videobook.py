@@ -7,11 +7,17 @@ Genera el video fotograma a fotograma en Python (numpy) y se lo pasa a ffmpeg
 por tuberia. Hacerlo asi da control fino sobre el movimiento, los fundidos y la
 tipografia, que es donde se nota si un videobook parece profesional o casero.
 
-Cada foto se compone asi:
-  - fondo: la propia foto ampliada a cubrir el encuadre, muy desenfocada y
-    oscurecida (evita las bandas negras en las verticales)
-  - primer plano: la foto entera, con un movimiento Ken Burns lento
-  - los dos planos se mueven en sentidos opuestos -> sensacion de profundidad
+Dos decisiones importantes de calidad:
+
+  * Todo se dibuja a mayor resolucion de la que se entrega y se reduce al final
+    promediando (supermuestreo). Es antialiasing de verdad: los bordes de las
+    fotos, las sombras y las letras dejan de hervir cuando hay movimiento.
+
+  * Los rotulos NO se reescalan nunca. Un texto rasterizado al que se le aplica
+    un zoom lentisimo cambia de patron de antialiasing en cada fotograma, y los
+    trazos finos de una serif se ponen a temblar. Aqui el texto se dibuja una
+    sola vez y lo unico que se anima es la opacidad y una linea que se traza
+    por geometria.
 
 Uso:
     python3 videobook.py --config ../config.json
@@ -43,9 +49,13 @@ FORMATOS = {
     "cuadrado": (1080, 1080),
 }
 
+# supermuestreo por nivel de calidad
+CALIDADES = {"alta": 1.5, "media": 1.25, "borrador": 1.0}
+
 CREMA = (233, 226, 214)
 CREMA_TENUE = (168, 160, 148)
 NEGRO = (10, 9, 8)
+BORDE_FOTO = (196, 202, 210)      # BGR, crema apagado
 
 
 # --------------------------------------------------------------------------
@@ -63,12 +73,18 @@ def suave_fuerte(t: float) -> float:
     return 0.5 * (1 - math.cos(math.pi * t))
 
 
+def lut_opacidad(alfa: float) -> np.ndarray:
+    """Tabla para atenuar una imagen entera. cv2.LUT es mucho mas rapido que
+    multiplicar en float, y a estas resoluciones eso se nota."""
+    return np.clip(np.arange(256, dtype=np.float32) * alfa, 0, 255).astype(np.uint8)
+
+
 # --------------------------------------------------------------------------
 # tipografia
 # --------------------------------------------------------------------------
 
 def cargar_fuente(ruta: Path, tam: int, variante: str | None = None) -> ImageFont.FreeTypeFont:
-    f = ImageFont.truetype(str(ruta), tam)
+    f = ImageFont.truetype(str(ruta), max(1, tam))
     if variante:
         try:
             f.set_variation_by_name(variante)
@@ -77,23 +93,22 @@ def cargar_fuente(ruta: Path, tam: int, variante: str | None = None) -> ImageFon
     return f
 
 
-def ancho_texto(draw: ImageDraw.ImageDraw, texto: str, fuente, espaciado: float) -> int:
+def ancho_texto(draw: ImageDraw.ImageDraw, texto: str, fuente, espaciado: float) -> float:
     if not texto:
-        return 0
+        return 0.0
     total = sum(draw.textlength(c, font=fuente) for c in texto)
-    return int(total + espaciado * (len(texto) - 1))
+    return total + espaciado * (len(texto) - 1)
 
 
 def dibujar_espaciado(draw: ImageDraw.ImageDraw, xy, texto: str, fuente,
-                      color, espaciado: float, ancla_centro=True):
-    """Dibuja texto con tracking (separacion entre letras).
+                      color, espaciado: float):
+    """Dibuja texto centrado con tracking (separacion entre letras).
 
     PIL no sabe hacer letter-spacing, y sin tracking los titulos en mayusculas
     quedan apretados y con pinta de plantilla barata.
     """
     x, y = xy
-    if ancla_centro:
-        x -= ancho_texto(draw, texto, fuente, espaciado) / 2
+    x -= ancho_texto(draw, texto, fuente, espaciado) / 2
     for c in texto:
         draw.text((x, y), c, font=fuente, fill=color)
         x += draw.textlength(c, font=fuente) + espaciado
@@ -112,7 +127,13 @@ class Escena:
 
 @dataclass
 class Cartela(Escena):
-    """Rotulo sobre fondo negro: portada, separadores y despedida."""
+    """Rotulo sobre fondo negro: portada, separadores y despedida.
+
+    El texto se rasteriza una unica vez y ya no se vuelve a tocar su geometria.
+    Lo que da vida a la cartela es el fundido y una linea fina que se traza
+    desde el centro; la linea se dibuja por geometria en cada fotograma, asi
+    que crece limpia y sin hervir.
+    """
     ancho: int
     alto: int
     fps: int
@@ -125,21 +146,21 @@ class Cartela(Escena):
 
     def __post_init__(self):
         self.n_frames = max(1, int(round(self.duracion * self.fps)))
+        self._regla_y = None
+        self._regla_ancho = 0
         self._base = self._componer()
 
     def _componer(self) -> np.ndarray:
         W, H = self.ancho, self.alto
-        lienzo = Image.new("RGB", (W, H), NEGRO)
+        base = min(W, H)
 
         # degradado radial muy tenue: evita el negro plano de presentacion
         yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
         r = np.sqrt(((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2)
         halo = np.clip(1.0 - r / 1.5, 0, 1) ** 2 * 16.0
-        fondo = np.array(lienzo, dtype=np.float32) + halo[..., None]
+        fondo = np.array(Image.new("RGB", (W, H), NEGRO), dtype=np.float32) + halo[..., None]
         lienzo = Image.fromarray(np.clip(fondo, 0, 255).astype(np.uint8))
-
         d = ImageDraw.Draw(lienzo)
-        base = min(W, H)
 
         # Maquetamos el bloque entero y luego lo centramos verticalmente.
         # Ir colocando cada linea "a ojo" respecto al centro es lo que hace que
@@ -147,19 +168,19 @@ class Cartela(Escena):
         piezas = []   # (texto, fuente, color, tracking, alto_linea, hueco_antes)
 
         if self.titulo:
-            tam = int(base * 0.135 * self.escala_titulo)
+            tam = max(8, int(base * 0.135 * self.escala_titulo))
             f = cargar_fuente(FUENTE_SERIF, tam, "Light")
             piezas.append((self.titulo, f, CREMA, tam * 0.16, tam * 1.06, 0.0))
             if self.regla:
                 piezas.append((None, None, None, 0, 1, tam * 0.30))
             if self.subtitulo:
-                tam_s = int(base * 0.026)
+                tam_s = max(6, int(base * 0.026))
                 fs = cargar_fuente(FUENTE_SANS, tam_s, "Light")
                 piezas.append((self.subtitulo, fs, CREMA_TENUE, tam_s * 0.46,
                                tam_s * 1.2, tam * 0.26))
 
         if self.lineas:
-            tam_l = int(base * 0.028)
+            tam_l = max(6, int(base * 0.028))
             fl = cargar_fuente(FUENTE_SANS, tam_l, "Light")
             for k, linea in enumerate(self.lineas):
                 hueco = base * 0.075 if k == 0 and self.titulo else tam_l * 0.75
@@ -173,9 +194,10 @@ class Cartela(Escena):
 
         for texto, fuente, color, tracking, alto_linea, hueco in piezas:
             y += hueco
-            if texto is None:                     # la reglita
-                mitad = base * 0.055
-                d.line([(W / 2 - mitad, y), (W / 2 + mitad, y)], fill=CREMA_TENUE, width=1)
+            if texto is None:
+                # la reglita no se pinta aqui: se anima en cada fotograma
+                self._regla_y = int(round(y))
+                self._regla_ancho = int(base * 0.055)
             else:
                 dibujar_espaciado(d, (W / 2, y), texto, fuente, color, tracking)
             y += alto_linea
@@ -183,20 +205,34 @@ class Cartela(Escena):
         return cv2.cvtColor(np.array(lienzo), cv2.COLOR_RGB2BGR)
 
     def render(self, i: int) -> np.ndarray:
-        t = i / max(1, self.n_frames - 1)
-        # respiracion: un zoom minimo para que el rotulo no parezca congelado
-        z = 1.0 + 0.018 * suave(t)
-        H, W = self._base.shape[:2]
-        nw, nh = int(W / z), int(H / z)
-        x0, y0 = (W - nw) // 2, (H - nh) // 2
-        recorte = self._base[y0:y0 + nh, x0:x0 + nw]
-        frame = cv2.resize(recorte, (W, H), interpolation=cv2.INTER_LINEAR)
-
-        # entrada y salida en fundido
-        ent = min(1.0, i / max(1.0, 0.30 * self.n_frames))
-        sal = min(1.0, (self.n_frames - 1 - i) / max(1.0, 0.30 * self.n_frames))
+        n = self.n_frames
+        ent = min(1.0, i / max(1.0, 0.30 * n))
+        sal = min(1.0, (n - 1 - i) / max(1.0, 0.30 * n))
         alfa = suave(min(ent, sal))
-        return (frame.astype(np.float32) * alfa).astype(np.uint8)
+
+        if alfa >= 0.999:
+            frame = self._base.copy()
+        else:
+            frame = cv2.LUT(self._base, lut_opacidad(alfa))
+
+        if self._regla_y is not None:
+            # se traza desde el centro durante el primer tercio. Las
+            # coordenadas van en punto fijo (shift) para que crezca con
+            # precision de subpixel: a saltos de pixel entero se ve escalonada.
+            crecer = suave(min(1.0, i / max(1.0, 0.35 * n)))
+            mitad = self._regla_ancho * crecer
+            if mitad >= 0.5:
+                SHIFT = 4
+                k = 1 << SHIFT
+                c = tuple(int(v * alfa) for v in CREMA_TENUE)
+                x = self.ancho / 2
+                y = self._regla_y
+                grosor = max(1, int(round(self.ancho * 0.0008)))
+                cv2.line(frame,
+                         (int((x - mitad) * k), int(y * k)),
+                         (int((x + mitad) * k), int(y * k)),
+                         c, grosor, cv2.LINE_AA, SHIFT)
+        return frame
 
 
 @dataclass
@@ -212,10 +248,10 @@ class Foto(Escena):
     ancho: int
     alto: int
     fps: int
-    duracion: float = 4.6
+    duracion: float = 4.8
     direccion: int = 1              # 1 acerca, -1 aleja
     deriva: tuple = (0.0, 0.0)      # hacia donde se desplaza el encuadre
-    zoom: float = 0.075
+    zoom: float = 0.065
 
     def __post_init__(self):
         self.n_frames = max(1, int(round(self.duracion * self.fps)))
@@ -250,7 +286,7 @@ class Foto(Escena):
 
         # resolucion de trabajo: la justa para el zoom maximo, ni un pixel mas
         aspecto = self.pw / self.ph
-        bw, bh = self._ventana_base(iw, ih, aspecto)
+        bw, _ = self._ventana_base(iw, ih, aspecto)
         escala = min(1.0, (self.pw * (1.0 + self.zoom)) / bw)
         if escala < 0.98:
             nw, nh = max(2, int(iw * escala)), max(2, int(ih * escala))
@@ -258,8 +294,14 @@ class Foto(Escena):
         else:
             self._frente = img
 
-        self._fondo = None if self.llenar else self._hacer_fondo(img)
-        self._sombra = None if self.llenar else self._hacer_sombra()
+        if self.llenar:
+            self._fondo = None
+            self._sombra = None
+            self._borde = None
+        else:
+            self._fondo = self._hacer_fondo(img)
+            self._sombra = self._hacer_sombra()
+            self._borde = self._hacer_borde()
 
     def _hacer_fondo(self, img: np.ndarray) -> np.ndarray:
         """La propia foto, ampliada a cubrir, muy desenfocada y apagada."""
@@ -284,6 +326,17 @@ class Foto(Escena):
         k = max(3, (int(min(W, H) * 0.030) | 1))
         return cv2.GaussianBlur(m, (k, k), 0)[..., None]
 
+    def _hacer_borde(self) -> np.ndarray:
+        """Filete finisimo en el canto de la foto. Le da acabado de copia
+        montada en vez de imagen pegada."""
+        W, H = self.ancho, self.alto
+        m = np.zeros((H, W), np.float32)
+        grosor = max(1, int(round(min(W, H) * 0.0013)))
+        cv2.rectangle(m, (self.px, self.py),
+                      (self.px + self.pw - 1, self.py + self.ph - 1),
+                      1.0, grosor, cv2.LINE_AA)
+        return (m * 0.30)[..., None]
+
     # -- render -----------------------------------------------------------
 
     def _recorte(self, capa: np.ndarray, t: float, destino: tuple[int, int],
@@ -298,7 +351,7 @@ class Foto(Escena):
             s = 1.0 - s
         z = 1.0 + zoom * (s if self.direccion > 0 else (1.0 - s))
 
-        bw, bh = self._ventana_base(cw, ch, aspecto)
+        bw, _ = self._ventana_base(cw, ch, aspecto)
         vw = max(8, min(cw, int(round(bw / z))))
         vh = max(8, min(ch, int(round(vw / aspecto))))
         if vh > ch:
@@ -310,7 +363,12 @@ class Foto(Escena):
         y0 = int(np.clip(libre_y / 2 * (1.0 + deriva[1] * (2 * s - 1)), 0, libre_y))
 
         recorte = capa[y0:y0 + vh, x0:x0 + vw]
-        interp = cv2.INTER_AREA if (vw > dw) else cv2.INTER_LINEAR
+        if vw > dw:
+            interp = cv2.INTER_AREA          # reduciendo: promedia, no muestrea
+        elif vw < dw:
+            interp = cv2.INTER_LANCZOS4      # ampliando: el mas nitido
+        else:
+            interp = cv2.INTER_LINEAR
         return cv2.resize(recorte, (dw, dh), interpolation=interp)
 
     def render(self, i: int) -> np.ndarray:
@@ -325,6 +383,9 @@ class Foto(Escena):
                               (-self.deriva[0], -self.deriva[1]), True)
         salida = fondo.astype(np.float32) * (1.0 - self._sombra * 0.60)
         salida[self.py:self.py + self.ph, self.px:self.px + self.pw] = foto
+
+        col = np.array(BORDE_FOTO, dtype=np.float32)
+        salida = salida * (1.0 - self._borde) + col * self._borde
         return np.clip(salida, 0, 255).astype(np.uint8)
 
 
@@ -333,27 +394,69 @@ class Foto(Escena):
 # --------------------------------------------------------------------------
 
 class Acabado:
-    """Grano de pelicula y viraje comun a todo el video.
+    """Reduccion final, halo, grano y viraje.
 
-    Da unidad: fotos hechas con camaras distintas, en anos distintos y con luces
-    distintas acaban pareciendo del mismo trabajo.
+    Recibe el fotograma dibujado a mayor resolucion y lo entrega al tamano
+    final. Reducir promediando es lo que quita el hervido de los bordes; y el
+    grano se anade despues de reducir, para que quede fino y no emborronado.
+
+    El viraje comun (sombras algo frias, luces algo calidas) da unidad: fotos
+    hechas con camaras distintas, en anos distintos y con luces distintas
+    acaban pareciendo del mismo trabajo.
     """
 
-    def __init__(self, ancho: int, alto: int, grano: float = 3.2, semilla: int = 11):
+    def __init__(self, ancho: int, alto: int, grano: float = 2.4,
+                 halo: float = 0.10, semilla: int = 11):
+        self.ancho, self.alto = ancho, alto
+        self.halo = halo
         rng = np.random.default_rng(semilla)
-        self._tiles = [rng.normal(0, grano, (alto, ancho, 1)).astype(np.float32)
-                       for _ in range(12)]
-        self._n = len(self._tiles)
+        # El grano se genera a media resolucion y se amplia. Asi cada grano
+        # mide un par de pixeles, que es como se comporta la pelicula; el
+        # ruido blanco pixel a pixel no solo parece ruido digital, es que
+        # ademas impide al codec predecir entre fotogramas y multiplica por
+        # diez el tamano del archivo.
+        self._tiles = []
+        if grano > 0:
+            gh, gw = max(2, alto // 2), max(2, ancho // 2)
+            for _ in range(14):
+                t = rng.normal(0, grano, (gh, gw)).astype(np.float32)
+                t = cv2.resize(t, (ancho, alto), interpolation=cv2.INTER_LINEAR)
+                self._tiles.append(t[..., None])
 
-        # viraje suave: sombras algo frias, luces algo calidas
         x = np.linspace(0, 1, 256, dtype=np.float32)
         self._lut_b = np.clip((x + 0.016 * (1 - x) ** 2 - 0.012 * x ** 2) * 255, 0, 255).astype(np.uint8)
         self._lut_g = np.clip((x + 0.004 * (1 - x) ** 2) * 255, 0, 255).astype(np.uint8)
         self._lut_r = np.clip((x - 0.006 * (1 - x) ** 2 + 0.020 * x ** 2) * 255, 0, 255).astype(np.uint8)
 
+    def _halo(self, f: np.ndarray) -> np.ndarray:
+        """Difusion suave de las luces altas. Es lo que hace que una imagen
+        digital respire como una copia optica, sin llegar a verse el efecto."""
+        if self.halo <= 0:
+            return f
+        h, w = f.shape[:2]
+        luz = f.max(axis=2)
+        m = np.clip((luz - 200.0) / 55.0, 0, 1)[..., None]
+        brillo = cv2.resize(f * m, (max(2, w // 4), max(2, h // 4)),
+                            interpolation=cv2.INTER_AREA)
+        brillo = cv2.GaussianBlur(brillo, (0, 0), max(1.0, min(w, h) / 220.0))
+        glow = cv2.resize(brillo, (w, h), interpolation=cv2.INTER_LINEAR)
+        return f + glow * self.halo
+
     def aplicar(self, frame: np.ndarray, i: int) -> np.ndarray:
-        f = frame.astype(np.float32) + self._tiles[i % self._n]
+        if frame.shape[1] != self.ancho or frame.shape[0] != self.alto:
+            frame = cv2.resize(frame, (self.ancho, self.alto),
+                               interpolation=cv2.INTER_AREA)
+
+        f = self._halo(frame.astype(np.float32))
+        if self._tiles:
+            # el grano se ve en los medios tonos; en negros y blancos casi no
+            # existe. Modularlo asi es mas fiel y ahorra mucho bitrate en las
+            # cartelas, que son casi todo negro.
+            luz = f.max(axis=2, keepdims=True) * (1.0 / 255.0)
+            peso = 0.30 + 0.70 * (1.0 - np.abs(2.0 * luz - 1.0))
+            f = f + self._tiles[i % len(self._tiles)] * peso
         f = np.clip(f, 0, 255).astype(np.uint8)
+
         b, g, r = cv2.split(f)
         return cv2.merge([cv2.LUT(b, self._lut_b),
                           cv2.LUT(g, self._lut_g),
@@ -383,7 +486,7 @@ class Montaje:
             if 0 <= local < e.n_frames:
                 activas.append((e, local))
         if not activas:
-            e, ini = self.escenas[-1], self.inicios[-1]
+            e = self.escenas[-1]
             return e.render(e.n_frames - 1)
         if len(activas) == 1:
             e, local = activas[0]
@@ -391,9 +494,9 @@ class Montaje:
 
         (e1, l1), (e2, l2) = activas[0], activas[1]
         a = suave(l2 / max(1, self.n_fundido - 1))
-        f1 = e1.render(l1).astype(np.float32)
-        f2 = e2.render(l2).astype(np.float32)
-        return np.clip(f1 * (1 - a) + f2 * a, 0, 255).astype(np.uint8)
+        f1 = e1.render(l1)
+        f2 = e2.render(l2)
+        return cv2.addWeighted(f1, 1.0 - a, f2, a, 0.0)
 
 
 # --------------------------------------------------------------------------
@@ -425,7 +528,7 @@ def construir_escenas(cfg: dict, W: int, H: int, fps: int, carpeta: Path) -> lis
                                    titulo=bloque.get("titulo", ""),
                                    subtitulo=bloque.get("subtitulo", ""),
                                    lineas=bloque.get("lineas", []),
-                                   duracion=bloque.get("duracion", 4.6)))
+                                   duracion=bloque.get("duracion", 4.8)))
         elif tipo == "fotos":
             if "patron" in bloque:
                 nombres = [r.name for r in sorted(carpeta.glob(bloque["patron"]))]
@@ -440,10 +543,10 @@ def construir_escenas(cfg: dict, W: int, H: int, fps: int, carpeta: Path) -> lis
                     print(f"  aviso: falta {nombre}, se omite", file=sys.stderr)
                     continue
                 escenas.append(Foto(ruta, W, H, fps,
-                                    duracion=bloque.get("duracion", 4.6),
+                                    duracion=bloque.get("duracion", 4.8),
                                     direccion=1 if n_foto % 2 == 0 else -1,
                                     deriva=derivas[d_i % len(derivas)],
-                                    zoom=bloque.get("zoom", 0.075)))
+                                    zoom=bloque.get("zoom", 0.065)))
                 d_i += 1
                 n_foto += 1
         else:
@@ -470,49 +573,60 @@ def main() -> int:
     p.add_argument("--config", default=str(RAIZ / "config.json"))
     p.add_argument("--fotos", default=None, help="carpeta de fotos (por defecto, la del config)")
     p.add_argument("--formato", default="horizontal", choices=list(FORMATOS))
+    p.add_argument("--calidad", default="alta", choices=list(CALIDADES))
     p.add_argument("--salida", default=None)
     p.add_argument("--fps", type=int, default=25)
     p.add_argument("--musica", default=None)
-    p.add_argument("--rapido", action="store_true", help="720p y CRF alto, para revisar rapido")
+    p.add_argument("--rapido", action="store_true", help="720p sin supermuestreo, para revisar")
     args = p.parse_args()
 
     cfg = json.loads(Path(args.config).read_text(encoding="utf-8"))
     carpeta = Path(args.fotos) if args.fotos else (RAIZ / cfg.get("carpeta_fotos", "retocadas"))
 
     W, H = FORMATOS[args.formato]
+    calidad = "borrador" if args.rapido else args.calidad
     if args.rapido:
-        W, H = W * 2 // 3, H * 2 // 3
-        W -= W % 2
-        H -= H % 2
+        W, H = (W * 2 // 3) & ~1, (H * 2 // 3) & ~1
 
+    ss = CALIDADES[calidad]
+    SW, SH = int(W * ss) & ~1, int(H * ss) & ~1
     fps = args.fps
-    fundido = cfg.get("fundido", 0.9)
+    fundido = cfg.get("fundido", 1.0)
 
-    print(f"Formato {args.formato} {W}x{H} @ {fps}fps  |  fotos en {carpeta}")
-    escenas = construir_escenas(cfg, W, H, fps, carpeta)
+    print(f"Formato {args.formato} {W}x{H} @ {fps}fps  |  calidad {calidad}"
+          f"{f' (dibujado a {SW}x{SH})' if ss > 1 else ''}")
+    print(f"Fotos en {carpeta}")
+
+    escenas = construir_escenas(cfg, SW, SH, fps, carpeta)
     montaje = Montaje(escenas, fps, fundido)
-    acabado = Acabado(W, H, grano=0.0 if args.rapido else 3.0)
+    acabado = Acabado(W, H, grano=0.0 if args.rapido else 2.4,
+                      halo=0.0 if args.rapido else 0.10)
 
     dur = montaje.total / fps
     print(f"{len(escenas)} escenas  |  {montaje.total} fotogramas  |  {dur:.1f}s")
 
+    sufijo = "_preview" if args.rapido else ""
     destino = Path(args.salida) if args.salida else (
-        RAIZ / "salida" / f"silvia_videobook_{args.formato}{'_preview' if args.rapido else ''}.mp4")
+        RAIZ / "salida" / f"silvia_videobook_{args.formato}{sufijo}.mp4")
     destino.parent.mkdir(parents=True, exist_ok=True)
 
     musica = args.musica or cfg.get("musica")
+    tiene_musica = bool(musica) and Path(musica).exists()
+
     cmd = [ruta_ffmpeg(), "-y", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-"]
-    if musica and Path(musica).exists():
+    if tiene_musica:
         cmd += ["-i", str(musica)]
-    cmd += ["-c:v", "libx264", "-preset", "veryfast" if args.rapido else "slow",
-            "-crf", "26" if args.rapido else "17",
-            "-pix_fmt", "yuv420p", "-movflags", "+faststart",
-            "-x264-params", "keyint=50:min-keyint=25"]
-    if musica and Path(musica).exists():
-        desv = max(0.1, dur - 2.0)
-        cmd += ["-c:a", "aac", "-b:a", "192k", "-shortest",
-                "-af", f"afade=t=in:st=0:d=2,afade=t=out:st={desv:.2f}:d=2"]
+    cmd += ["-c:v", "libx264",
+            "-preset", "veryfast" if args.rapido else "slower",
+            "-crf", "26" if args.rapido else "18",
+            "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.2",
+            "-movflags", "+faststart",
+            "-x264-params", f"keyint={fps*2}:min-keyint={fps}:bframes=3:ref=4"]
+    if tiene_musica:
+        desv = max(0.1, dur - 2.5)
+        cmd += ["-c:a", "aac", "-b:a", "256k", "-shortest",
+                "-af", f"afade=t=in:st=0:d=2,afade=t=out:st={desv:.2f}:d=2.5"]
     cmd += [str(destino)]
 
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
@@ -521,8 +635,8 @@ def main() -> int:
             frame = acabado.aplicar(montaje.frame(g), g)
             proc.stdin.write(frame.tobytes())
             if g % (fps * 2) == 0:
-                pct = 100.0 * g / montaje.total
-                print(f"\r  renderizando {pct:5.1f}%  ({g}/{montaje.total})", end="", flush=True)
+                print(f"\r  renderizando {100.0 * g / montaje.total:5.1f}%"
+                      f"  ({g}/{montaje.total})", end="", flush=True)
     finally:
         proc.stdin.close()
         codigo = proc.wait()
