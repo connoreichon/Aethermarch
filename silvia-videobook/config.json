@@ -1,0 +1,52 @@
+{
+  "_nota": "Ajusta aqui los nombres de las fotos, los textos y el contacto. Despues: python3 scripts/hacer.py",
+
+  "carpeta_originales": "fotos",
+  "carpeta_fotos": "retocadas",
+  "fundido": 0.9,
+  "musica": null,
+
+  "retoque": {
+    "por_defecto": {
+      "balance": 0.85,
+      "exposicion": 0.7,
+      "altas": 0.30,
+      "sombras": 0.26,
+      "contraste": 0.16,
+      "vibrance": 0.12,
+      "ruido": 1.0,
+      "piel": 0.28,
+      "enfoque": 0.55,
+      "vineta": 0.14
+    },
+    "por_foto": {
+      "01_natural_retrato_a.jpg": { "marca": "auto" },
+      "02_natural_retrato_b.jpg": { "marca": "auto" }
+    }
+  },
+
+  "secuencia": [
+    { "tipo": "portada", "titulo": "SILVIA", "subtitulo": "ACTRIZ", "duracion": 3.6 },
+
+    { "tipo": "fotos", "duracion": 4.4,
+      "archivos": ["01_natural_retrato_a.jpg", "02_natural_retrato_b.jpg"] },
+
+    { "tipo": "seccion", "titulo": "PERSONAJES", "duracion": 2.6 },
+
+    { "tipo": "fotos", "duracion": 4.6,
+      "archivos": ["03_criada_bn_puerta.jpg", "04_criada_color.jpg", "05_criada_bn_escena.jpg"] },
+
+    { "tipo": "fotos", "duracion": 4.6,
+      "archivos": ["06_tragedia_sentada.jpg", "07_tragedia_panuelo.jpg",
+                   "08_tragedia_brazo.jpg", "09_tragedia_mirada.jpg"] },
+
+    { "tipo": "seccion", "titulo": "BOOK", "duracion": 2.4 },
+
+    { "tipo": "fotos", "duracion": 4.2,
+      "archivos": ["10_book_cuerpo_a.jpg", "11_book_medio.jpg", "12_book_cuerpo_b.jpg"] },
+
+    { "tipo": "final", "titulo": "SILVIA", "subtitulo": "ACTRIZ",
+      "lineas": ["PENDIENTE: correo", "PENDIENTE: telefono", "PENDIENTE: web"],
+      "duracion": 4.8 }
+  ]
+}
