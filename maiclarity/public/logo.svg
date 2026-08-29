@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 32" width="210" height="32" role="img" aria-label="MAIClarity">
+  <style>
+    .ink { stroke: #17202a; }
+    .ink-soft { stroke: #17202a; opacity: 0.45; }
+    .swipe { stroke: #148f84; opacity: 0.9; }
+    .mark { fill: #148f84; opacity: 0.24; }
+    .word { fill: #17202a; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; font-size: 17px; letter-spacing: -0.3px; }
+    .word--strong { font-weight: 700; }
+    .word--light { font-weight: 400; }
+    @media (prefers-color-scheme: dark) {
+      .ink { stroke: #f4f7fb; }
+      .ink-soft { stroke: #f4f7fb; opacity: 0.5; }
+      .swipe { stroke: #2ec4b6; }
+      .mark { fill: #2ec4b6; opacity: 0.3; }
+      .word { fill: #f4f7fb; }
+    }
+  </style>
+  <path class="swipe" d="M5.5 16.6 26 13.4" stroke-width="7" stroke-linecap="round" />
+  <path class="ink-soft" d="M5 8.5h9.5" stroke-width="2.4" stroke-linecap="round" />
+  <path class="ink" d="M5 23.5h16" stroke-width="2.4" stroke-linecap="round" />
+  <!-- El mismo gesto de rotulador subraya la segunda mitad del nombre. -->
+  <rect class="mark" x="70" y="12" width="47" height="10" rx="2" />
+  <text x="38" y="21.5" class="word word--strong">MAI</text>
+  <text x="71" y="21.5" class="word word--light">Clarity</text>
+</svg>

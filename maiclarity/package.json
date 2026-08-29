@@ -1,0 +1,21 @@
+{
+  "name": "maiclarity",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Local text cleaner and reading styler. Everything runs in the browser.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.2.108"
+  },
+  "devDependencies": {
+    "vite": "^7.1.14",
+    "vitest": "^4.1.11"
+  }
+}

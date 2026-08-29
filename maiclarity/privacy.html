@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="{{lang}}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{privacyTitle}}</title>
+    <meta name="description" content="{{productName}}: qué se procesa, qué se guarda y qué no sale nunca de tu dispositivo." />
+    <meta name="theme-color" content="#F6F8FA" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="robots" content="index, follow" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />{{canonical}}
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('maiclarity.theme');
+          var dark =
+            stored === 'dark' ||
+            ((!stored || stored === 'system') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
+    <script type="module" src="/src/privacy.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="{{productName}}">
+        <svg class="brand__mark" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
+          <path d="M5.5 16.6 26 13.4" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" opacity=".9" />
+          <path d="M5 8.5h9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".45" />
+          <path d="M5 23.5h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+        </svg>
+        <span class="brand__word"
+          ><strong id="brand-part-a">MAI</strong><span id="brand-part-b">Clarity</span></span
+        >
+      </a>
+      <div class="header-tools" style="margin-left: auto">
+        <div class="segmented" role="group" data-i18n-attr="aria-label:header.language">
+          <button type="button" class="segmented__btn" data-lang-set="es">ES</button>
+          <button type="button" class="segmented__btn" data-lang-set="en">EN</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <article class="page">
+        <h1 data-i18n="privacy.title">Privacy</h1>
+        <p class="page__intro" data-i18n="privacy.intro"></p>
+
+        <section>
+          <h2 data-i18n="privacy.p1.title"></h2>
+          <p data-i18n="privacy.p1.body"></p>
+        </section>
+        <section>
+          <h2 data-i18n="privacy.p2.title"></h2>
+          <p data-i18n="privacy.p2.body"></p>
+        </section>
+        <section>
+          <h2 data-i18n="privacy.p3.title"></h2>
+          <p data-i18n="privacy.p3.body"></p>
+        </section>
+        <section>
+          <h2 data-i18n="privacy.p4.title"></h2>
+          <p data-i18n="privacy.p4.body"></p>
+        </section>
+        <section>
+          <h2 data-i18n="privacy.p5.title"></h2>
+          <p data-i18n="privacy.p5.body"></p>
+        </section>
+
+        <a class="page__back" href="./" data-i18n="privacy.back">Back to the tool</a>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__brand">
+        <span class="brand__word"><strong>MAI</strong><span>Clarity</span></span>
+        <span class="site-footer__tagline" data-i18n="footer.tagline"></span>
+      </div>
+      <div class="site-footer__links">
+        <span class="site-footer__project" data-i18n="footer.project"></span>
+      </div>
+    </footer>
+  </body>
+</html>

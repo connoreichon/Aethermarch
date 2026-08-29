@@ -4,9 +4,409 @@
     {
       "name": "aethermarch-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173,
       "autoPort": true
+    },
+    {
+      "name": "gatekeeper",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/The last gatekeeper"
+      ],
+      "port": 5199
+    },
+    {
+      "name": "miserere",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/Miserere"
+      ],
+      "port": 5178
+    },
+    {
+      "name": "euronova",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/Clientes-Web/euronova-web"
+      ],
+      "port": 4321
+    },
+    {
+      "name": "euronova-m",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/Clientes-Web/euronova-web",
+        "--",
+        "--port",
+        "4331"
+      ],
+      "port": 4331
+    },
+    {
+      "name": "calcucore",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/CalcuCore",
+        "--",
+        "--port",
+        "4390",
+        "--strictPort",
+        "--host"
+      ],
+      "port": 4390
+    },
+    {
+      "name": "calcuautonomo",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/calcuautonomo",
+        "--",
+        "--port",
+        "4391",
+        "--strictPort",
+        "--host"
+      ],
+      "port": 4391
+    },
+    {
+      "name": "calcuiva",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/calcuiva",
+        "--",
+        "--port",
+        "4392",
+        "--strictPort",
+        "--host"
+      ],
+      "port": 4392
+    },
+    {
+      "name": "finiquito",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4380",
+        "--directory",
+        "C:/Users/Usuario/Desktop/Finiquito/dist"
+      ],
+      "port": 4380
+    },
+    {
+      "name": "solar-malaga",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4425",
+        "--directory",
+        "C:/Users/Usuario/Desktop/Solar-Malaga"
+      ],
+      "port": 4425
+    },
+    {
+      "name": "mitoma-web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/Usuario/Desktop/medication-companion/scripts/preview-web.mjs",
+        "4394"
+      ],
+      "port": 4394
+    },
+    {
+      "name": "mitoma-web-4399",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/Usuario/Desktop/medication-companion/scripts/preview-web.mjs",
+        "4399"
+      ],
+      "port": 4399
+    },
+    {
+      "name": "calcuiva-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/calcuiva",
+        "--",
+        "--port",
+        "4393",
+        "--strictPort"
+      ],
+      "port": 4393
+    },
+    {
+      "name": "calcuneto-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/CalcuCore",
+        "--",
+        "--port",
+        "4396",
+        "--strictPort"
+      ],
+      "port": 4396
+    },
+    {
+      "name": "calcuautonomo-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/calcuautonomo",
+        "--",
+        "--port",
+        "4412",
+        "--strictPort"
+      ],
+      "port": 4412
+    },
+    {
+      "name": "piccolo",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/Clientes-Web/piccolo-teatro-web",
+        "--",
+        "--port",
+        "4420",
+        "--strictPort"
+      ],
+      "port": 4420
+    },
+    {
+      "name": "piccolo-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/Clientes-Web/piccolo-teatro-web",
+        "--",
+        "--port",
+        "4421",
+        "--strictPort"
+      ],
+      "port": 4421
+    },
+    {
+      "name": "calcuparo",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/calcuparo",
+        "--",
+        "--port",
+        "4415",
+        "--strictPort"
+      ],
+      "port": 4415
+    },
+    {
+      "name": "calcubaja",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/calcubaja",
+        "--",
+        "--port",
+        "4416",
+        "--strictPort"
+      ],
+      "port": 4416
+    },
+    {
+      "name": "calcubaja-dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/calcubaja",
+        "--",
+        "--port",
+        "5180",
+        "--strictPort"
+      ],
+      "port": 5180
+    },
+    {
+      "name": "calcuhipoteca",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/calcuhipoteca",
+        "--",
+        "--port",
+        "4417",
+        "--strictPort"
+      ],
+      "port": 4417
+    },
+    {
+      "name": "calcuhipoteca-dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/calcuhipoteca",
+        "--",
+        "--port",
+        "5181",
+        "--strictPort"
+      ],
+      "port": 5181
+    },
+    {
+      "name": "calcupension",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/calcupension",
+        "--",
+        "--port",
+        "4418",
+        "--strictPort"
+      ],
+      "port": 4418
+    },
+    {
+      "name": "mai-core",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/mai-core"
+      ],
+      "port": 4430,
+      "autoPort": true
+    },
+    {
+      "name": "maiclarity",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/Aethermarch_Clean/maiclarity",
+        "--",
+        "--port",
+        "4440",
+        "--strictPort"
+      ],
+      "port": 4440
+    },
+    {
+      "name": "maiclarity-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/Aethermarch_Clean/maiclarity",
+        "--",
+        "--port",
+        "4441",
+        "--strictPort"
+      ],
+      "port": 4441
+    },
+    {
+      "name": "calcuplusvalia",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--prefix",
+        "C:\\Users\\Usuario\\Desktop\\calcuplusvalia"
+      ],
+      "port": 4399
     }
   ]
 }

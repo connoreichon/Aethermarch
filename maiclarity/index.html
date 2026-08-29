@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="{{lang}}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{seoTitle}}</title>
+    <meta name="description" content="{{description}}" />
+    <meta name="theme-color" content="#F6F8FA" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./logo-mark.svg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="{{productName}}" />
+    <meta property="og:title" content="{{seoTitle}}" />
+    <meta property="og:description" content="{{description}}" />
+    <meta name="twitter:card" content="summary" />{{canonical}}
+    <script>
+      // Evita el parpadeo de tema: se aplica antes del primer pintado.
+      (function () {
+        try {
+          var stored = localStorage.getItem('maiclarity.theme');
+          var dark =
+            stored === 'dark' ||
+            ((!stored || stored === 'system') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <!-- Iconos: un unico sprite, sin librerias externas. -->
+    <svg class="sprite" aria-hidden="true" focusable="false">
+      <symbol id="icon-copy" viewBox="0 0 24 24">
+        <path
+          d="M9 9V6.5A1.5 1.5 0 0 1 10.5 5h7A1.5 1.5 0 0 1 19 6.5v7a1.5 1.5 0 0 1-1.5 1.5H15M6.5 9h7A1.5 1.5 0 0 1 15 10.5v7a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 17.5v-7A1.5 1.5 0 0 1 6.5 9Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="icon-download" viewBox="0 0 24 24">
+        <path
+          d="M12 4v10m0 0 3.5-3.5M12 14l-3.5-3.5M5 17.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24">
+        <path
+          d="M6 7h12M10 7V5.5A.5.5 0 0 1 10.5 5h3a.5.5 0 0 1 .5.5V7m-7 0 .8 11a1 1 0 0 0 1 .9h5.4a1 1 0 0 0 1-.9L17 7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="icon-undo" viewBox="0 0 24 24">
+        <path
+          d="M8 9H5V6m0 3 2.3-2.3a7 7 0 1 1-1.5 7.6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24">
+        <path
+          d="m7 7 10 10M17 7 7 17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24">
+        <path
+          d="M12 6v12M6 12h12"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="icon-file" viewBox="0 0 24 24">
+        <path
+          d="M13 4H7.5A1.5 1.5 0 0 0 6 5.5v13A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V9m-5-5 5 5m-5-5v5h5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="icon-sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3.6" fill="none" stroke="currentColor" stroke-width="1.6" />
+        <path
+          d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6 18 18M18 6l-1.4 1.4M7.4 16.6 6 18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="icon-moon" viewBox="0 0 24 24">
+        <path
+          d="M19 14.2A7.4 7.4 0 0 1 9.8 5a7.4 7.4 0 1 0 9.2 9.2Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="icon-monitor" viewBox="0 0 24 24">
+        <rect
+          x="4"
+          y="5.5"
+          width="16"
+          height="11"
+          rx="1.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        />
+        <path d="M9.5 20h5M12 16.5V20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+      </symbol>
+      <symbol id="icon-sliders" viewBox="0 0 24 24">
+        <path
+          d="M5 8h9m3 0h2M5 16h3m3 0h8M15 5.5v5M9 13.5v5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="icon-eye" viewBox="0 0 24 24">
+        <path
+          d="M3.5 12S6.9 6.5 12 6.5 20.5 12 20.5 12 17.1 17.5 12 17.5 3.5 12 3.5 12Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linejoin="round"
+        />
+        <circle cx="12" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <path
+          d="m6 12.5 4 4 8-9"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+    </svg>
+
+    <a class="skip-link" href="#workspace">Saltar a la herramienta</a>
+
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="{{productName}}">
+        <svg class="brand__mark" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
+          <path d="M5.5 16.6 26 13.4" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" opacity=".9" />
+          <path d="M5 8.5h9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".45" />
+          <path d="M5 23.5h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+        </svg>
+        <span class="brand__word"
+          ><strong id="brand-part-a">MAI</strong><span id="brand-part-b">Clarity</span></span
+        >
+      </a>
+
+      <nav class="site-nav" aria-label="Secciones">
+        <a href="#how" data-i18n="nav.how">How it works</a>
+        <a href="#faq" data-i18n="nav.faq">FAQ</a>
+        <a href="./privacy.html" data-i18n="nav.privacy">Privacy</a>
+      </nav>
+
+      <div class="header-tools">
+        <span
+          class="local-badge"
+          id="local-badge"
+          tabindex="0"
+          role="note"
+          data-i18n-attr="aria-label:header.localTooltip;title:header.localTooltip"
+        >
+          <span class="local-badge__dot" aria-hidden="true"></span>
+          <span data-i18n="header.local">LOCAL</span>
+        </span>
+
+        <div class="segmented segmented--icons" role="group" data-i18n-attr="aria-label:header.theme">
+          <button type="button" class="segmented__btn" data-theme-set="system" data-i18n-attr="title:theme.system;aria-label:theme.system">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-monitor" /></svg>
+          </button>
+          <button type="button" class="segmented__btn" data-theme-set="light" data-i18n-attr="title:theme.light;aria-label:theme.light">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-sun" /></svg>
+          </button>
+          <button type="button" class="segmented__btn" data-theme-set="dark" data-i18n-attr="title:theme.dark;aria-label:theme.dark">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-moon" /></svg>
+          </button>
+        </div>
+
+        <div class="segmented" role="group" data-i18n-attr="aria-label:header.language">
+          <button type="button" class="segmented__btn" data-lang-set="es">ES</button>
+          <button type="button" class="segmented__btn" data-lang-set="en">EN</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1 data-i18n="hero.title">Clean messy text. Highlight what matters.</h1>
+        <p class="hero__sub" data-i18n="hero.subtitle"></p>
+      </section>
+
+      <section id="workspace" class="workspace" aria-label="{{productName}}">
+        <!-- ---------- Fuente ---------- -->
+        <section class="panel panel--source" id="panel-source" aria-labelledby="source-title">
+          <div class="panel__head">
+            <h2 class="panel__title" id="source-title" data-i18n="source.title">Original</h2>
+            <span class="file-badge" id="file-badge" hidden></span>
+            <button
+              type="button"
+              class="btn btn--ghost btn--sm panel__collapse"
+              id="toggle-source"
+              data-i18n="source.hide"
+            >
+              Hide original
+            </button>
+          </div>
+          <div class="panel__body dropzone" id="dropzone">
+            <label class="visually-hidden" for="source-input" data-i18n="source.title">Original</label>
+            <textarea
+              id="source-input"
+              class="editor"
+              spellcheck="false"
+              autocomplete="off"
+            ></textarea>
+            <div class="dropzone__empty" id="dropzone-empty">
+              <svg class="dropzone__mark" viewBox="0 0 32 32" width="34" height="34" aria-hidden="true">
+                <path d="M5.5 16.6 26 13.4" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" opacity=".85" />
+                <path d="M5 8.5h9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".4" />
+                <path d="M5 23.5h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".7" />
+              </svg>
+              <p class="dropzone__title" data-i18n="empty.title"></p>
+              <p class="dropzone__hint" data-i18n="empty.hint"></p>
+              <div class="dropzone__actions">
+                <button type="button" class="btn btn--primary btn--sm" id="empty-example" data-i18n="empty.example"></button>
+                <button type="button" class="btn btn--soft btn--sm" id="empty-choose" data-i18n="empty.choose"></button>
+              </div>
+              <p class="dropzone__kbd">
+                <kbd>Ctrl</kbd><kbd>V</kbd>
+                <span data-i18n="empty.paste"></span>
+              </p>
+            </div>
+            <div class="dropzone__veil" aria-hidden="true">
+              <span class="dropzone__veil-text" data-i18n="drop.active">Drop the file to open it locally</span>
+            </div>
+          </div>
+          <div class="panel__foot">
+            <button type="button" class="btn btn--soft btn--sm" id="choose-file" data-i18n="empty.choose">
+              Choose file
+            </button>
+            <button type="button" class="btn btn--ghost btn--sm" id="load-example" data-i18n="empty.example">
+              Try an example
+            </button>
+            <input type="file" id="file-input" class="visually-hidden" />
+            <p class="foot-note">
+              <span data-i18n="empty.formats"></span>
+            </p>
+          </div>
+        </section>
+
+        <!-- ---------- Resultado ---------- -->
+        <section class="panel panel--output" aria-labelledby="output-title">
+          <div class="panel__head">
+            <h2 class="visually-hidden" id="output-title" data-i18n="output.title">Result</h2>
+            <div class="tabs" role="tablist" aria-labelledby="output-title">
+              <button
+                type="button"
+                class="tabs__btn is-active"
+                role="tab"
+                aria-selected="true"
+                id="tab-cleaned"
+                aria-controls="clean-output"
+                data-view="cleaned"
+                data-i18n="tab.cleaned"
+              >
+                Cleaned
+              </button>
+              <button
+                type="button"
+                class="tabs__btn"
+                role="tab"
+                aria-selected="false"
+                id="tab-styled"
+                aria-controls="styled-output"
+                data-view="styled"
+              >
+                <span data-i18n="tab.styled">Styled</span>
+                <span class="tabs__dot" id="styled-dot" hidden>
+                  <span class="visually-hidden" data-i18n="tab.unseen"></span>
+                </span>
+              </button>
+            </div>
+            <div class="status-wrap">
+              <button
+                type="button"
+                class="status"
+                id="status"
+                aria-live="polite"
+                aria-expanded="false"
+                aria-controls="fixes-popover"
+              ></button>
+              <div class="fixes-popover" id="fixes-popover" role="group" hidden>
+                <p class="fixes-popover__title" data-i18n="fixes.title"></p>
+                <ul class="fixes-list" id="fixes-list"></ul>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn btn--soft btn--sm inspector-toggle"
+              id="open-inspector"
+              aria-controls="inspector"
+              aria-expanded="false"
+            >
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-sliders" /></svg>
+              <span data-i18n="action.style">Style</span>
+            </button>
+          </div>
+
+          <div class="panel__body">
+            <label class="visually-hidden" for="clean-output" data-i18n="tab.cleaned">Cleaned</label>
+            <textarea
+              id="clean-output"
+              class="editor editor--clean"
+              role="tabpanel"
+              aria-labelledby="tab-cleaned"
+              spellcheck="false"
+            ></textarea>
+            <div
+              id="styled-output"
+              class="reader"
+              role="tabpanel"
+              aria-labelledby="tab-styled"
+              tabindex="0"
+              hidden
+            ></div>
+            <p class="panel__hint">
+              <span id="panel-hint"></span>
+              <span class="meta-stats" id="meta-stats" hidden></span>
+            </p>
+          </div>
+
+          <div class="panel__foot panel__foot--actions">
+            <button type="button" class="btn btn--primary btn--sm" id="copy-clean">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-copy" /></svg>
+              <span data-i18n="action.copyClean">Copy clean text</span>
+            </button>
+            <button type="button" class="btn btn--soft btn--sm" id="copy-styled">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-copy" /></svg>
+              <span data-i18n="action.copyStyled">Copy with formatting</span>
+            </button>
+            <button type="button" class="btn btn--ghost btn--sm" id="download-txt">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-download" /></svg>
+              <span data-i18n="action.downloadTxt">Download .txt</span>
+            </button>
+            <button type="button" class="btn btn--ghost btn--sm" id="download-html">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-download" /></svg>
+              <span data-i18n="action.downloadHtml">Download .html</span>
+            </button>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn--ghost btn--sm" id="undo-edit" hidden>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-undo" /></svg>
+              <span data-i18n="action.undo">Undo</span>
+            </button>
+            <button type="button" class="btn btn--ghost btn--sm btn--danger" id="clear-doc">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-trash" /></svg>
+              <span data-i18n="action.clear">Clear document</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- ---------- Inspector ---------- -->
+        <aside class="inspector" id="inspector" aria-label="{{productName}}">
+          <div class="inspector__head">
+            <div class="tabs tabs--inspector" role="tablist">
+              <button
+                type="button"
+                class="tabs__btn is-active"
+                role="tab"
+                aria-selected="true"
+                id="tab-inspector-style" aria-controls="panel-style" data-inspector="style"
+                data-i18n="inspector.title"
+              >
+                Style
+              </button>
+              <button
+                type="button"
+                class="tabs__btn"
+                role="tab"
+                aria-selected="false"
+                id="tab-inspector-document" aria-controls="panel-document" data-inspector="document"
+                data-i18n="insights.title"
+              >
+                Document
+              </button>
+            </div>
+            <button
+              type="button"
+              class="btn btn--icon inspector__close"
+              id="close-inspector"
+              data-i18n-attr="aria-label:action.closePanel;title:action.closePanel"
+            >
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-close" /></svg>
+            </button>
+          </div>
+
+          <div class="inspector__scroll">
+            <!-- Panel: estilo -->
+            <div class="inspector__panel" id="panel-style" role="tabpanel" aria-labelledby="tab-inspector-style" data-panel="style">
+              <section class="field">
+                <h3 class="field__label" data-i18n="inspector.preset">Preset</h3>
+                <div class="segmented segmented--wrap" role="group" data-i18n-attr="aria-label:inspector.preset">
+                  <button type="button" class="segmented__btn" data-preset="clean" data-i18n="preset.clean"></button>
+                  <button type="button" class="segmented__btn" data-preset="study" data-i18n="preset.study"></button>
+                  <button type="button" class="segmented__btn" data-preset="focus" data-i18n="preset.focus"></button>
+                  <button type="button" class="segmented__btn" data-preset="keywords" data-i18n="preset.keywords"></button>
+                  <button type="button" class="segmented__btn is-custom" data-preset="custom" data-i18n="preset.custom" disabled></button>
+                </div>
+                <p class="field__hint" id="preset-desc"></p>
+              </section>
+
+              <section class="field">
+                <div class="switch-row">
+                  <label class="switch">
+                    <input type="checkbox" id="keywords-enabled" />
+                    <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+                    <span class="switch__text" data-i18n="keywords.enable">Highlight key terms</span>
+                  </label>
+                </div>
+
+                <div class="subfields" id="keyword-controls">
+                  <div class="subfield">
+                    <span class="field__sublabel" data-i18n="keywords.amount">Amount</span>
+                    <div class="segmented segmented--sm" role="group" data-i18n-attr="aria-label:keywords.amount">
+                      <button type="button" class="segmented__btn" data-amount="low" data-i18n="amount.low"></button>
+                      <button type="button" class="segmented__btn" data-amount="medium" data-i18n="amount.medium"></button>
+                      <button type="button" class="segmented__btn" data-amount="high" data-i18n="amount.high"></button>
+                    </div>
+                  </div>
+
+                  <div class="subfield">
+                    <span class="field__sublabel" data-i18n="keywords.color">Colour</span>
+                    <div class="swatches" id="keyword-swatches" role="group" data-i18n-attr="aria-label:keywords.color"></div>
+                  </div>
+
+                  <div class="subfield">
+                    <span class="field__sublabel" data-i18n="keywords.bold">Style</span>
+                    <div class="toggle-group" role="group">
+                      <button type="button" class="toggle" data-kw-style="bold" data-i18n-attr="title:keywords.bold;aria-label:keywords.bold">
+                        <b>B</b>
+                      </button>
+                      <button type="button" class="toggle" data-kw-style="italic" data-i18n-attr="title:keywords.italic;aria-label:keywords.italic">
+                        <i>I</i>
+                      </button>
+                      <button type="button" class="toggle" data-kw-style="underline" data-i18n-attr="title:keywords.underline;aria-label:keywords.underline">
+                        <u>U</u>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="field__hint" id="keywords-hint"></p>
+                <div class="keyword-list" id="keyword-list" aria-live="polite"></div>
+              </section>
+
+              <section class="field">
+                <h3 class="field__label" data-i18n="custom.section">Custom highlights</h3>
+                <form class="custom-form" id="custom-form">
+                  <input
+                    type="text"
+                    id="custom-input"
+                    class="input"
+                    maxlength="60"
+                    autocomplete="off"
+                    data-i18n-attr="placeholder:custom.placeholder;aria-label:custom.section"
+                  />
+                  <button type="submit" class="btn btn--soft btn--sm" data-i18n="custom.add">Add</button>
+                </form>
+                <p class="field__hint" data-i18n="custom.hint"></p>
+                <div class="rules" id="custom-rules"></div>
+              </section>
+
+              <details class="field field--fold">
+                <summary class="field__label" data-i18n="type.section">Typography</summary>
+                <div class="subfield">
+                  <label class="field__sublabel" for="font-select" data-i18n="type.font">Reading font</label>
+                  <select id="font-select" class="input select">
+                    <option value="system" data-i18n="font.system"></option>
+                    <option value="arial" data-i18n="font.arial"></option>
+                    <option value="verdana" data-i18n="font.verdana"></option>
+                    <option value="georgia" data-i18n="font.georgia"></option>
+                    <option value="times" data-i18n="font.times"></option>
+                    <option value="mono" data-i18n="font.mono"></option>
+                  </select>
+                </div>
+                <div class="subfield">
+                  <label class="field__sublabel" for="size-range">
+                    <span data-i18n="type.size">Text size</span>
+                    <output id="size-value" for="size-range">18</output>
+                  </label>
+                  <input type="range" id="size-range" class="range" min="14" max="24" step="1" value="18" />
+                </div>
+                <div class="subfield">
+                  <span class="field__sublabel" data-i18n="type.lineHeight">Line spacing</span>
+                  <div class="segmented segmented--sm" role="group" data-i18n-attr="aria-label:type.lineHeight">
+                    <button type="button" class="segmented__btn" data-line-height="compact" data-i18n="lineHeight.compact"></button>
+                    <button type="button" class="segmented__btn" data-line-height="comfortable" data-i18n="lineHeight.comfortable"></button>
+                    <button type="button" class="segmented__btn" data-line-height="relaxed" data-i18n="lineHeight.relaxed"></button>
+                  </div>
+                </div>
+                <div class="subfield">
+                  <span class="field__sublabel" data-i18n="type.width">Reading width</span>
+                  <div class="segmented segmented--sm" role="group" data-i18n-attr="aria-label:type.width">
+                    <button type="button" class="segmented__btn" data-width="narrow" data-i18n="width.narrow"></button>
+                    <button type="button" class="segmented__btn" data-width="comfortable" data-i18n="width.comfortable"></button>
+                    <button type="button" class="segmented__btn" data-width="wide" data-i18n="width.wide"></button>
+                  </div>
+                </div>
+                <div class="subfield">
+                  <span class="field__sublabel" data-i18n="type.align">Alignment</span>
+                  <div class="segmented segmented--sm" role="group" data-i18n-attr="aria-label:type.align">
+                    <button type="button" class="segmented__btn" data-align="left" data-i18n="align.left"></button>
+                    <button type="button" class="segmented__btn" data-align="center" data-i18n="align.center"></button>
+                    <button type="button" class="segmented__btn" data-align="justify" data-i18n="align.justify"></button>
+                  </div>
+                </div>
+              </details>
+
+              <section class="field">
+                <div class="switch-row">
+                  <label class="switch">
+                    <input type="checkbox" id="focus-enabled" />
+                    <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+                    <span class="switch__text" data-i18n="focus.enable">Enable Focus Reading</span>
+                  </label>
+                </div>
+                <p class="field__hint" data-i18n="focus.description"></p>
+                <div class="subfield" id="focus-controls">
+                  <span class="field__sublabel" data-i18n="focus.intensity">Intensity</span>
+                  <div class="segmented segmented--sm" role="group" data-i18n-attr="aria-label:focus.intensity">
+                    <button type="button" class="segmented__btn" data-intensity="low" data-i18n="intensity.low"></button>
+                    <button type="button" class="segmented__btn" data-intensity="medium" data-i18n="intensity.medium"></button>
+                    <button type="button" class="segmented__btn" data-intensity="high" data-i18n="intensity.high"></button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="field">
+                <button type="button" class="btn btn--ghost btn--sm btn--block" id="reset-styles" data-i18n="action.resetStyles">
+                  Reset styles
+                </button>
+              </section>
+            </div>
+
+            <!-- Panel: documento -->
+            <div class="inspector__panel" id="panel-document" role="tabpanel" aria-labelledby="tab-inspector-document" data-panel="document" hidden>
+              <section class="field">
+                <label class="field__sublabel" for="lang-select" data-i18n="insights.language">Analysis language</label>
+                <select id="lang-select" class="input select">
+                  <option value="auto" data-i18n="lang.auto"></option>
+                  <option value="es" data-i18n="lang.es"></option>
+                  <option value="en" data-i18n="lang.en"></option>
+                </select>
+              </section>
+
+              <section class="field">
+                <div class="stats" id="stats"></div>
+                <p class="field__hint" data-i18n="stats.readingNote"></p>
+              </section>
+
+              <section class="field">
+                <h3 class="field__label" data-i18n="repeat.section">Repetition</h3>
+                <div id="repetitions" class="insight-list"></div>
+              </section>
+
+              <section class="field">
+                <h3 class="field__label" data-i18n="fillers.section">Possible fillers</h3>
+                <div id="fillers" class="insight-list"></div>
+                <p class="field__hint" data-i18n="fillers.note"></p>
+              </section>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <div class="inspector-backdrop" id="inspector-backdrop" hidden></div>
+
+      <!-- ---------- Contenido ---------- -->
+      <section class="prose" id="how">
+        <h2 class="prose__title" data-i18n="steps.title">How it works</h2>
+        <ol class="steps">
+          <li class="step">
+            <span class="step__n" aria-hidden="true">1</span>
+            <h3 class="step__title" data-i18n="steps.1.title"></h3>
+            <p class="step__body" data-i18n="steps.1.body"></p>
+          </li>
+          <li class="step">
+            <span class="step__n" aria-hidden="true">2</span>
+            <h3 class="step__title" data-i18n="steps.2.title"></h3>
+            <p class="step__body" data-i18n="steps.2.body"></p>
+          </li>
+          <li class="step">
+            <span class="step__n" aria-hidden="true">3</span>
+            <h3 class="step__title" data-i18n="steps.3.title"></h3>
+            <p class="step__body" data-i18n="steps.3.body"></p>
+          </li>
+        </ol>
+
+        <div class="demo">
+          <h3 class="demo__title" data-i18n="demo.title"></h3>
+          <div class="demo__grid">
+            <figure class="demo__side">
+              <figcaption class="demo__label" data-i18n="demo.before"></figcaption>
+              <pre class="demo__text demo__text--raw" id="demo-raw"></pre>
+            </figure>
+            <figure class="demo__side">
+              <figcaption class="demo__label demo__label--after" data-i18n="demo.after"></figcaption>
+              <p class="demo__text demo__text--clean" id="demo-clean"></p>
+            </figure>
+          </div>
+          <p class="demo__note" data-i18n="demo.note"></p>
+        </div>
+      </section>
+
+      <section class="prose" id="what">
+        <h2 class="prose__title" data-i18n="seo.title">What this tool does</h2>
+        <div class="prose__grid">
+          <article class="prose__item">
+            <svg class="spot" viewBox="0 0 120 76" aria-hidden="true">
+              <g class="spot__messy">
+                <path d="M14 16h58" />
+                <path d="M20 26h36" />
+                <path d="M12 36h64" />
+                <path d="M24 46h28" />
+                <path d="M16 56h48" />
+              </g>
+              <g class="spot__clean">
+                <path d="M84 16h24" />
+                <path d="M84 26h24" />
+                <path d="M84 36h24" />
+                <path d="M84 46h24" />
+                <path d="M84 56h16" />
+              </g>
+            </svg>
+            <h3 data-i18n="seo.clean.title"></h3>
+            <p data-i18n="seo.clean.body"></p>
+          </article>
+
+          <article class="prose__item">
+            <svg class="spot" viewBox="0 0 120 76" aria-hidden="true">
+              <g class="spot__lines">
+                <path d="M18 16h84" />
+                <path d="M18 26h60" />
+                <path d="M18 46h84" />
+                <path d="M18 56h48" />
+              </g>
+              <rect class="spot__mark" x="17" y="31" width="42" height="9" rx="2.5" />
+              <path class="spot__marked" d="M21 36h34" />
+            </svg>
+            <h3 data-i18n="seo.highlight.title"></h3>
+            <p data-i18n="seo.highlight.body"></p>
+          </article>
+
+          <article class="prose__item">
+            <svg class="spot" viewBox="0 0 120 76" aria-hidden="true">
+              <rect class="spot__frame" x="22" y="12" width="76" height="48" rx="5" />
+              <path class="spot__stand" d="M50 66h20" />
+              <g class="spot__lines">
+                <path d="M34 26h40" />
+                <path d="M34 34h52" />
+                <path d="M34 42h30" />
+              </g>
+              <circle class="spot__dot" cx="86" cy="49" r="3.5" />
+            </svg>
+            <h3 data-i18n="seo.local.title"></h3>
+            <p data-i18n="seo.local.body"></p>
+          </article>
+        </div>
+      </section>
+
+      <section class="faq" id="faq">
+        <h2 class="prose__title" data-i18n="faq.title">Questions</h2>
+        <div class="faq__list">
+          <details class="faq__item">
+            <summary data-i18n="faq.q1"></summary>
+            <p data-i18n="faq.a1"></p>
+          </details>
+          <details class="faq__item">
+            <summary data-i18n="faq.q2"></summary>
+            <p data-i18n="faq.a2"></p>
+          </details>
+          <details class="faq__item">
+            <summary data-i18n="faq.q3"></summary>
+            <p data-i18n="faq.a3"></p>
+          </details>
+          <details class="faq__item">
+            <summary data-i18n="faq.q4"></summary>
+            <p data-i18n="faq.a4"></p>
+          </details>
+          <details class="faq__item">
+            <summary data-i18n="faq.q5"></summary>
+            <p data-i18n="faq.a5"></p>
+          </details>
+          <details class="faq__item">
+            <summary data-i18n="faq.q6"></summary>
+            <p data-i18n="faq.a6"></p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__brand">
+        <svg class="brand__mark" viewBox="0 0 32 32" width="20" height="20" aria-hidden="true">
+          <path d="M5.5 16.6 26 13.4" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" opacity=".9" />
+          <path d="M5 8.5h9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".45" />
+          <path d="M5 23.5h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+        </svg>
+        <span class="brand__word"><strong>MAI</strong><span>Clarity</span></span>
+        <span class="site-footer__tagline" data-i18n="footer.tagline"></span>
+      </div>
+      <div class="site-footer__links">
+        <a href="./privacy.html" data-i18n="footer.privacy">Privacy</a>
+        <span class="site-footer__project" data-i18n="footer.project"></span>
+      </div>
+    </footer>
+
+    <div class="toaster" id="toaster" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>

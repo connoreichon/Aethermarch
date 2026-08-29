@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="MAIClarity">
+  <style>
+    .ink { stroke: #17202a; }
+    .ink-soft { stroke: #17202a; opacity: 0.45; }
+    .swipe { stroke: #148f84; opacity: 0.9; }
+    @media (prefers-color-scheme: dark) {
+      .ink { stroke: #f4f7fb; }
+      .ink-soft { stroke: #f4f7fb; opacity: 0.5; }
+      .swipe { stroke: #2ec4b6; }
+    }
+  </style>
+  <!-- Trazo de rotulador: el gesto de la marca. -->
+  <path class="swipe" d="M5.5 16.6 26 13.4" stroke-width="7" stroke-linecap="round" />
+  <!-- Lineas de texto: una corta arriba, una larga abajo. -->
+  <path class="ink-soft" d="M5 8.5h9.5" stroke-width="2.4" stroke-linecap="round" />
+  <path class="ink" d="M5 23.5h16" stroke-width="2.4" stroke-linecap="round" />
+</svg>
