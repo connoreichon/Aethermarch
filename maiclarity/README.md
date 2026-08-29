@@ -101,6 +101,30 @@ Dos familias distintas, porque responden a preguntas distintas:
 Ambas son reglas y listas locales: mismo texto, mismo resultado, cero
 llamadas a ningún sitio y cero coste por uso.
 
+### El modo estilo
+
+La vista *Limpio* es texto plano a propósito, así que los ajustes visuales no
+se ven allí. En vez de esconder eso detrás de una pestaña pequeña, el modo
+tiene su propia puerta:
+
+- **«Dale tu estilo»**, botón principal a la derecha del resultado. Al pulsarlo
+  el trazo de rotulador cruza el texto, los ajustes se **desbloquean** (hasta
+  ese momento están velados, con su explicación) y aparece el par
+  *Limpio / Con estilo* para ir y volver.
+- **Marcar seleccionando:** selecciona una palabra o una frase corta en el
+  texto y sale el marcador con los seis colores. Crea una regla propia, así que
+  se resalta en todas sus apariciones. La selección se ajusta sola a palabras
+  completas.
+- **Ayudas de lectura:** *solo lo destacado* (esconde las frases sin nada
+  marcado, para repasar un documento largo de un vistazo), *aviso de frases
+  largas* (más de 30 palabras), *numerar párrafos* y *espaciado del texto*
+  (letras y palabras, útil también para leer con más comodidad).
+
+**El ajuste rápido no se recalcula solo.** Antes saltaba de «Estudio» a «A
+medida» y a «Términos» con cada clic y mareaba. Ahora el preset elegido se
+queda donde lo pusiste y lo único que cambia es la nota: *«Estudio · con tus
+ajustes»*.
+
 ### Decisiones de usabilidad
 
 - **Un ajuste de estilo te lleva a donde se ve.** Los colores, la negrita o el

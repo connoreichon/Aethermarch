@@ -17,6 +17,7 @@ function cloneStyleConfig(config = DEFAULT_STYLE_CONFIG) {
     ...config,
     keywords: { ...config.keywords },
     entities: { ...config.entities },
+    reading: { ...config.reading },
     focus: { ...config.focus },
     customRules: config.customRules.map((rule) => ({ ...rule })),
   };
@@ -34,6 +35,9 @@ export function createInitialState() {
     analysisLang: 'auto', // 'auto' | 'es' | 'en'
     styleConfig: cloneStyleConfig(),
     view: 'cleaned', // 'cleaned' | 'styled'
+    // El ajuste rapido elegido no se recalcula solo; esto marca si ademas
+    // lo has retocado a mano.
+    presetTouched: false,
     status: { kind: 'idle', params: null },
     locatedTerm: null,
     history: null, // instantanea para deshacer

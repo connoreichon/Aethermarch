@@ -59,14 +59,32 @@ export const DEFAULT_STYLE_CONFIG = Object.freeze({
     underline: false,
   }),
   focus: Object.freeze({ enabled: false, intensity: 'medium' }),
+  // Ayudas de lectura: no cambian el texto, cambian como se recorre.
+  reading: Object.freeze({
+    onlyHighlighted: false,
+    longSentences: false,
+    spacing: 'normal',
+    numbered: false,
+  }),
   customRules: Object.freeze([]),
 });
+
+/** A partir de cuantas palabras una frase se considera larga. */
+export const LONG_SENTENCE_WORDS = 30;
+
+/** Espaciado extra entre letras y palabras, para leer mas comodo. */
+export const TEXT_SPACING = {
+  normal: { letter: '0', word: '0' },
+  amplio: { letter: '0.02em', word: '0.08em' },
+  maximo: { letter: '0.05em', word: '0.18em' },
+};
 
 export const PRESETS = {
   clean: {
     keywords: { enabled: false },
     entities: { enabled: false },
     focus: { enabled: false },
+    reading: { onlyHighlighted: false, longSentences: false, spacing: 'normal', numbered: false },
     lineHeight: 'comfortable',
     width: 'comfortable',
   },
@@ -74,6 +92,7 @@ export const PRESETS = {
     keywords: { enabled: true, amount: 'medium', color: 'accent', bold: false, underline: true, italic: false },
     entities: { enabled: true },
     focus: { enabled: false },
+    reading: { onlyHighlighted: false, longSentences: true, spacing: 'amplio', numbered: false },
     lineHeight: 'relaxed',
     width: 'comfortable',
   },
@@ -81,6 +100,7 @@ export const PRESETS = {
     keywords: { enabled: false },
     entities: { enabled: false },
     focus: { enabled: true, intensity: 'medium' },
+    reading: { onlyHighlighted: false, longSentences: false, spacing: 'amplio', numbered: false },
     lineHeight: 'relaxed',
     width: 'comfortable',
   },
@@ -88,6 +108,7 @@ export const PRESETS = {
     keywords: { enabled: true, amount: 'high', color: 'accent', bold: true, underline: false, italic: false },
     entities: { enabled: true },
     focus: { enabled: false },
+    reading: { onlyHighlighted: true, longSentences: false, spacing: 'normal', numbered: false },
     lineHeight: 'comfortable',
     width: 'comfortable',
   },
@@ -104,6 +125,7 @@ export function applyPreset(config, presetId) {
     keywords: { ...config.keywords, ...preset.keywords },
     entities: { ...config.entities, ...preset.entities },
     focus: { ...config.focus, ...preset.focus },
+    reading: { ...config.reading, ...preset.reading },
   };
 }
 
@@ -235,28 +257,84 @@ export function mergeMatches(matches) {
   return out;
 }
 
-/** Corta una linea en segmentos {text, mark}. */
-export function buildLineSegments(line, rules) {
-  if (!line) return [];
-  if (rules.length === 0) return [{ text: line, mark: null }];
+/** Corta un fragmento en segmentos {text, mark}. */
+function segmentsOf(text, rules) {
+  if (!text) return [];
+  if (rules.length === 0) return [{ text, mark: null }];
 
-  const matches = mergeMatches(rules.flatMap((rule) => collectMatches(line, rule)));
-  if (matches.length === 0) return [{ text: line, mark: null }];
+  const matches = mergeMatches(rules.flatMap((rule) => collectMatches(text, rule)));
+  if (matches.length === 0) return [{ text, mark: null }];
 
   const segments = [];
   let cursor = 0;
   for (const match of matches) {
     if (match.start > cursor) {
-      segments.push({ text: line.slice(cursor, match.start), mark: null });
+      segments.push({ text: text.slice(cursor, match.start), mark: null });
     }
     segments.push({
-      text: line.slice(match.start, match.end),
+      text: text.slice(match.start, match.end),
       mark: { ruleId: match.rule.id, kind: match.rule.kind, ...match.rule.style },
     });
     cursor = match.end;
   }
-  if (cursor < line.length) segments.push({ text: line.slice(cursor), mark: null });
+  if (cursor < text.length) segments.push({ text: text.slice(cursor), mark: null });
   return segments;
+}
+
+/**
+ * Corta una linea en segmentos, frase a frase.
+ *
+ * Trabajar por frases permite dos cosas que por linea no se pueden: avisar
+ * de las frases demasiado largas y quedarse solo con las que llevan algo
+ * destacado.
+ */
+export function buildLineSegments(line, rules, reading = {}) {
+  if (!line) return [];
+  const needsSentences = Boolean(reading.longSentences || reading.onlyHighlighted);
+  if (!needsSentences) return segmentsOf(line, rules);
+
+  const out = [];
+  let omitted = false;
+
+  for (const sentence of splitSentences(line)) {
+    const segments = segmentsOf(sentence.text, rules);
+    const hasMark = segments.some((segment) => segment.mark);
+
+    if (reading.onlyHighlighted && !hasMark) {
+      omitted = true;
+      continue;
+    }
+    if (omitted) {
+      out.push({ text: '… ', mark: null, omitted: true });
+      omitted = false;
+    }
+    const isLong = reading.longSentences && countWords(sentence.text) > LONG_SENTENCE_WORDS;
+    for (const segment of segments) out.push(isLong ? { ...segment, long: true } : segment);
+  }
+
+  if (omitted && out.length > 0) out.push({ text: ' …', mark: null, omitted: true });
+  return out;
+}
+
+/**
+ * Divide una linea en frases, conservando el desplazamiento de cada una.
+ * Es la unidad que usan "solo lo destacado" y el aviso de frases largas.
+ */
+export function splitSentences(text) {
+  if (!text) return [];
+  const sentences = [];
+  const pattern = /[^.!?…]*[.!?…]+["'»”’)\]]*\s*|[^.!?…]+$/gy;
+  let match = pattern.exec(text);
+  while (match !== null && match[0].length > 0) {
+    sentences.push({ text: match[0], start: match.index });
+    match = pattern.exec(text);
+  }
+  if (sentences.length === 0) sentences.push({ text, start: 0 });
+  return sentences;
+}
+
+export function countWords(text) {
+  return (text.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu) || []).length;
 }
 
 /* ------------------------------------------------------------------ *
@@ -274,6 +352,8 @@ const LIST_LINE = /^\s*(?:[-*+•·▪◦‣–—]\s+|\d+[.)]\s+|[a-zA-Z][.)]\s
 export function buildStyledBlocks(text, styleConfig, keywords = [], entities = []) {
   if (!text) return [];
   const rules = buildRules(styleConfig, keywords, entities);
+  const reading = styleConfig.reading || {};
+
   return text
     .split(/\n{2,}/)
     .map((block) => block.replace(/\s+$/, ''))
@@ -283,19 +363,29 @@ export function buildStyledBlocks(text, styleConfig, keywords = [], entities = [
       const isList = rawLines.length > 0 && rawLines.every((line) => LIST_LINE.test(line));
       return {
         type: isList ? 'list' : 'paragraph',
-        lines: rawLines.map((line) => buildLineSegments(line, rules)),
+        lines: rawLines.map((line) => buildLineSegments(line, rules, reading)),
       };
-    });
+    })
+    // Con "solo lo destacado" hay bloques que se quedan sin nada que decir.
+    .filter((block) =>
+      reading.onlyHighlighted
+        ? block.lines.some((line) => line.some((segment) => segment.mark))
+        : true
+    );
 }
 
 /** Estilo de contenedor derivado de la configuracion (compartido app/export). */
 export function containerStyle(styleConfig) {
+  const reading = styleConfig.reading || {};
+  const spacing = TEXT_SPACING[reading.spacing] || TEXT_SPACING.normal;
   return {
     fontFamily: FONT_STACKS[styleConfig.font] || FONT_STACKS.system,
     fontSize: `${styleConfig.size}px`,
     lineHeight: String(LINE_HEIGHTS[styleConfig.lineHeight] || LINE_HEIGHTS.comfortable),
     maxWidth: READING_WIDTHS[styleConfig.width] || READING_WIDTHS.comfortable,
     textAlign: styleConfig.align || 'left',
+    letterSpacing: spacing.letter,
+    wordSpacing: spacing.word,
   };
 }
 

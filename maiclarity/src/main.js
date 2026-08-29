@@ -114,7 +114,23 @@ const dom = {
   viewTabs: $('.panel--output .tabs'),
   inspectorTabs: $('.tabs--inspector'),
   styleDot: $('#style-dot'),
+  ctaStyle: $('#cta-style'),
+  lockCta: $('#lock-cta'),
+  lock: $('#inspector-lock'),
+  panelStyle: $('#panel-style'),
+  viewLabel: $('#view-label'),
+  modeSwitch: $('#mode-switch'),
+  readerSweep: $('#reader-sweep'),
+  selTools: $('#sel-tools'),
+  selColors: $('#sel-colors'),
+  selAdd: $('#sel-add'),
+  readingOnly: $('#reading-only'),
+  readingLong: $('#reading-long'),
+  readingNumbered: $('#reading-numbered'),
 };
+
+/** Texto que el usuario tiene seleccionado en la vista con estilo. */
+let selectedText = '';
 
 /** Hoja de estilo minuscula para encender las apariciones al pasar el raton. */
 const hoverStyle = document.createElement('style');
@@ -159,6 +175,7 @@ function boot() {
   wireEvents();
 
   syncStyleControls();
+  syncModeChrome(store.state);
   renderDemo();
   renderKeywords();
   renderEntities();
@@ -497,6 +514,42 @@ function renderKeywords() {
 }
 
 /**
+ * Entrar en el modo estilo. Es LA accion de la herramienta, asi que se
+ * nota: barrido de rotulador sobre el texto, ajustes desbloqueados y un
+ * aviso que lo dice con palabras.
+ */
+function enterStyleMode() {
+  if (store.state.view === 'styled') {
+    revealStyleTools();
+    return;
+  }
+  withViewTransition(() => store.set({ view: 'styled' }, 'view'));
+  runUnlockSweep();
+  revealStyleTools();
+  toaster.success(i18n.t('toast.styleOn'));
+}
+
+/** El trazo de rotulador cruza el texto: el gesto de la marca, a tamano real. */
+function runUnlockSweep() {
+  const sweep = dom.readerSweep;
+  if (!sweep) return;
+  sweep.classList.remove('is-running');
+  void sweep.offsetWidth;
+  sweep.classList.add('is-running');
+  setTimeout(() => sweep.classList.remove('is-running'), 900);
+}
+
+/** Cabecera y candado segun el modo. */
+function syncModeChrome(state) {
+  const styled = state.view === 'styled';
+  dom.ctaStyle.hidden = styled;
+  dom.modeSwitch.hidden = !styled;
+  dom.viewLabel.textContent = i18n.t(styled ? 'tab.styled' : 'tab.cleaned');
+  dom.lock.hidden = styled;
+  dom.panelStyle.classList.toggle('is-locked', !styled);
+}
+
+/**
  * "Con estilo" no sirve de nada si no ves con que jugar: la primera vez
  * se abre el panel (en pantallas estrechas) o se subraya (en anchas).
  */
@@ -507,6 +560,89 @@ function revealStyleTools() {
   stylePanelIntroduced = true;
   if (window.matchMedia('(max-width: 1180px)').matches) openInspector(true);
   else pulse(dom.inspector);
+}
+
+/**
+ * Marcar lo que acabas de seleccionar.
+ *
+ * Es el gesto natural con un texto delante: seleccionas y marcas. Crea una
+ * regla propia con ese texto, asi que se resalta en todas sus apariciones.
+ */
+function hideSelectionTools() {
+  if (dom.selTools) dom.selTools.hidden = true;
+  selectedText = '';
+}
+
+/**
+ * Ajusta la seleccion a palabras completas.
+ *
+ * Con el raton es facil pillar media palabra, y una regla como "ste docum"
+ * no casaria con nada: el resaltado va siempre por palabra entera.
+ */
+function selectionWords(selection) {
+  const range = selection.getRangeAt(0);
+  const WORD = /[\p{L}\p{N}]/u;
+  let text = selection.toString();
+
+  const before =
+    range.startContainer.nodeType === 3
+      ? range.startContainer.textContent[range.startOffset - 1]
+      : '';
+  const after =
+    range.endContainer.nodeType === 3 ? range.endContainer.textContent[range.endOffset] : '';
+
+  if (before && WORD.test(before)) text = text.replace(/^[\p{L}\p{N}'\u2019-]+/u, '');
+  if (after && WORD.test(after)) text = text.replace(/[\p{L}\p{N}'\u2019-]+$/u, '');
+
+  return text
+    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function showSelectionTools() {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return hideSelectionTools();
+  if (!dom.styledOutput.contains(selection.anchorNode)) return hideSelectionTools();
+
+  const text = selectionWords(selection);
+  if (!text || !/[\p{L}\p{N}]/u.test(text) || text.length > 60) return hideSelectionTools();
+
+  selectedText = text;
+  dom.selTools.hidden = false;
+
+  const rect = selection.getRangeAt(0).getBoundingClientRect();
+  const host = dom.styledOutput.parentElement.getBoundingClientRect();
+  const width = dom.selTools.offsetWidth;
+  const height = dom.selTools.offsetHeight;
+  const left = Math.max(
+    8,
+    Math.min(rect.left - host.left + rect.width / 2 - width / 2, host.width - width - 8)
+  );
+  const top = Math.max(4, rect.top - host.top - height - 8);
+  dom.selTools.style.left = `${left}px`;
+  dom.selTools.style.top = `${top}px`;
+}
+
+function buildSelectionColors() {
+  if (!dom.selColors) return;
+  dom.selColors.replaceChildren();
+  for (const color of HIGHLIGHT_COLORS) {
+    const button = el('button', {
+      type: 'button',
+      class: 'swatch',
+      'aria-label': color.id,
+      title: color.id,
+    });
+    button.style.background = `var(--hl-${color.id})`;
+    button.addEventListener('mousedown', (event) => event.preventDefault());
+    button.addEventListener('click', () => {
+      const term = selectedText;
+      hideSelectionTools();
+      if (term) addRule(term, color.id);
+    });
+    dom.selColors.appendChild(button);
+  }
 }
 
 /** Enciende en el texto las apariciones del termino que estas mirando. */
@@ -640,7 +776,7 @@ function renderCustomRules() {
   }
 }
 
-function addRule(rawText) {
+function addRule(rawText, color = 'amber') {
   const text = rawText.trim().replace(/\s+/g, ' ');
   if (!text) return;
   const existing = store.state.styleConfig.customRules.some(
@@ -651,7 +787,7 @@ function addRule(rawText) {
     return;
   }
   const id = `rule-${store.state.nextRuleId}`;
-  const rule = { id, text, color: 'amber', bold: true, italic: false, underline: false, font: null };
+  const rule = { id, text, color, bold: true, italic: false, underline: false, font: null };
   store.set({ nextRuleId: store.state.nextRuleId + 1 }, 'silent');
   setStyleConfig({ customRules: [...store.state.styleConfig.customRules, rule] }, true);
 }
@@ -778,16 +914,27 @@ function announceStyledJump() {
 
 /** @param {boolean} affectsMarks true si hay que reconstruir los segmentos */
 function setStyleConfig(patch, affectsMarks) {
+  // El ajuste rapido NO se recalcula en cada cambio: elegiste uno y ahi se
+  // queda. Antes saltaba de "Estudio" a "A medida" y a "Terminos" con cada
+  // clic, y eso marea. Lo que cambia es la nota de "con tus ajustes".
   const next = { ...store.state.styleConfig, ...patch };
-  // Cualquier ajuste manual deja de coincidir con el preset elegido.
-  if (!('preset' in patch)) next.preset = matchPreset(next);
 
   if (shouldJumpToStyled()) {
-    withViewTransition(() => store.set({ styleConfig: next, view: 'styled' }, 'style-jump'));
+    withViewTransition(() =>
+      store.set({ styleConfig: next, view: 'styled', presetTouched: true }, 'style-jump')
+    );
     announceStyledJump();
     return;
   }
-  store.set({ styleConfig: next }, affectsMarks ? 'style-marks' : 'style-box');
+  store.set(
+    { styleConfig: next, presetTouched: true },
+    affectsMarks ? 'style-marks' : 'style-box'
+  );
+}
+
+/** Ayudas de lectura: no cambian el texto, cambian como se recorre. */
+function setReading(patch) {
+  setStyleConfig({ reading: { ...store.state.styleConfig.reading, ...patch } }, true);
 }
 
 function setKeywordStyle(patch) {
@@ -831,7 +978,10 @@ function syncStyleControls() {
     if (button.dataset.preset === 'custom') button.disabled = config.preset !== 'custom';
   });
 
-  dom.presetDesc.textContent = i18n.t(`preset.${config.preset}.desc`);
+  const presetName = i18n.t(`preset.${config.preset}`);
+  dom.presetDesc.textContent = store.state.presetTouched
+    ? i18n.t('preset.touched', { preset: presetName })
+    : i18n.t(`preset.${config.preset}.desc`);
   dom.styleDot.hidden = !(
     config.keywords.enabled ||
     config.entities.enabled ||
@@ -840,6 +990,12 @@ function syncStyleControls() {
   );
   dom.keywordsEnabled.checked = config.keywords.enabled;
   dom.keywordControls.classList.toggle('is-disabled', !config.keywords.enabled);
+  dom.readingOnly.checked = config.reading.onlyHighlighted;
+  dom.readingLong.checked = config.reading.longSentences;
+  dom.readingNumbered.checked = config.reading.numbered;
+  document.querySelectorAll('[data-spacing]').forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.spacing === config.reading.spacing);
+  });
   dom.entitiesEnabled.checked = config.entities.enabled;
   dom.entityControls.classList.toggle('is-disabled', !config.entities.enabled);
   dom.focusEnabled.checked = config.focus.enabled;
@@ -1143,6 +1299,27 @@ function wireEvents() {
     handleFile(event.dataTransfer.files[0]);
   });
 
+  // --- Modo estilo ---
+  dom.ctaStyle.addEventListener('click', enterStyleMode);
+  dom.lockCta.addEventListener('click', enterStyleMode);
+  dom.lock.addEventListener('click', (event) => {
+    if (event.target === dom.lock) enterStyleMode();
+  });
+
+  buildSelectionColors();
+  dom.styledOutput.addEventListener('mouseup', () => setTimeout(showSelectionTools, 0));
+  dom.styledOutput.addEventListener('keyup', (event) => {
+    if (event.shiftKey || event.key === 'Shift') setTimeout(showSelectionTools, 0);
+  });
+  dom.selAdd.addEventListener('click', () => {
+    const term = selectedText;
+    hideSelectionTools();
+    if (term) addRule(term, 'accent');
+  });
+  document.addEventListener('mousedown', (event) => {
+    if (!dom.selTools.hidden && !dom.selTools.contains(event.target)) hideSelectionTools();
+  });
+
   // --- Vistas ---
   document.querySelectorAll('[data-view]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -1213,6 +1390,18 @@ function wireEvents() {
       setEntityStyle({ [key]: !store.state.styleConfig.entities[key] });
     });
   });
+  dom.readingOnly.addEventListener('change', (event) =>
+    setReading({ onlyHighlighted: event.target.checked })
+  );
+  dom.readingLong.addEventListener('change', (event) =>
+    setReading({ longSentences: event.target.checked })
+  );
+  dom.readingNumbered.addEventListener('change', (event) =>
+    setReading({ numbered: event.target.checked })
+  );
+  document.querySelectorAll('[data-spacing]').forEach((button) => {
+    button.addEventListener('click', () => setReading({ spacing: button.dataset.spacing }));
+  });
   dom.focusEnabled.addEventListener('change', (event) =>
     setFocus({ enabled: event.target.checked })
   );
@@ -1251,7 +1440,9 @@ function wireEvents() {
       const jump = shouldJumpToStyled();
       const apply = () =>
         store.set(
-          jump ? { styleConfig: next, view: 'styled' } : { styleConfig: next },
+          jump
+            ? { styleConfig: next, view: 'styled', presetTouched: false }
+            : { styleConfig: next, presetTouched: false },
           jump ? 'style-jump' : 'style-marks'
         );
       if (jump) {
@@ -1345,6 +1536,8 @@ function syncViewTabs(state) {
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-selected', active ? 'true' : 'false');
   });
+  syncModeChrome(state);
+  if (state.view !== 'styled') hideSelectionTools();
 }
 
 store.subscribe((state, reason) => {
@@ -1373,6 +1566,7 @@ store.subscribe((state, reason) => {
   }
 
   if (reason === 'style-jump') {
+    syncModeChrome(state);
     syncStyleControls();
     renderCustomRules();
     renderKeywords();

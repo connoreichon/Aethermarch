@@ -11,7 +11,7 @@ export const LOCALES = {
     'nav.how': 'How it works',
     'nav.faq': 'FAQ',
     'nav.privacy': 'Privacy',
-    'header.local': 'LOCAL',
+    'header.local': 'local',
     'header.localTooltip': 'Your text is processed on this device.',
     'header.theme': 'Theme',
     'header.language': 'Language',
@@ -88,6 +88,32 @@ export const LOCALES = {
 
     'workspace.label': 'Text workspace',
     'inspector.label': 'Style and document panel',
+    'cta.style': 'Give it your style',
+    'action.tune': 'Adjust',
+    'header.localShort': 'nothing leaves this tab',
+
+    'lock.title': 'Your style, unlocked',
+    'lock.body':
+      'Colours, key terms, your own words, focus reading and the reading aids. Nothing here changes the clean text.',
+    'toast.styleOn': 'Style mode on — everything below is yours to play with',
+
+    'selection.title': 'Highlight',
+    'selection.add': 'Add to my words',
+    'selection.added': 'Added: “{term}”',
+    'selection.tooLong': 'Select a word or a short phrase',
+
+    'reading.section': 'Reading aids',
+    'reading.only': 'Only what is highlighted',
+    'reading.onlyHint': 'Hides the sentences with nothing marked, to skim a long document.',
+    'reading.long': 'Flag long sentences',
+    'reading.numbered': 'Number the paragraphs',
+    'reading.spacing': 'Text spacing',
+    'spacing.normal': 'Normal',
+    'spacing.wide': 'Wide',
+    'spacing.max': 'Maximum',
+
+    'preset.touched': '{preset} · with your changes',
+
     'inspector.title': 'Style',
     'inspector.subtitle': 'Set it up before or after loading text.',
     'inspector.preset': 'Preset',
@@ -286,7 +312,7 @@ export const LOCALES = {
     'nav.how': 'Cómo funciona',
     'nav.faq': 'Preguntas',
     'nav.privacy': 'Privacidad',
-    'header.local': 'LOCAL',
+    'header.local': 'local',
     'header.localTooltip': 'Tu texto se procesa en este dispositivo.',
     'header.theme': 'Tema',
     'header.language': 'Idioma',
@@ -363,6 +389,32 @@ export const LOCALES = {
 
     'workspace.label': 'Area de trabajo del texto',
     'inspector.label': 'Panel de estilo y documento',
+    'cta.style': 'Dale tu estilo',
+    'action.tune': 'Ajustes',
+    'header.localShort': 'nada sale de esta pestaña',
+
+    'lock.title': 'Tu estilo, desbloqueado',
+    'lock.body':
+      'Colores, términos clave, tus palabras, lectura enfocada y las ayudas de lectura. Nada de esto toca el texto limpio.',
+    'toast.styleOn': 'Modo estilo activado: todo lo de abajo es tuyo',
+
+    'selection.title': 'Marcar',
+    'selection.add': 'Añadir a mis palabras',
+    'selection.added': 'Añadido: «{term}»',
+    'selection.tooLong': 'Selecciona una palabra o una frase corta',
+
+    'reading.section': 'Ayudas de lectura',
+    'reading.only': 'Solo lo destacado',
+    'reading.onlyHint': 'Esconde las frases que no llevan nada marcado, para repasar un documento largo de un vistazo.',
+    'reading.long': 'Avisar de frases largas',
+    'reading.numbered': 'Numerar los párrafos',
+    'reading.spacing': 'Espaciado del texto',
+    'spacing.normal': 'Normal',
+    'spacing.wide': 'Amplio',
+    'spacing.max': 'Máximo',
+
+    'preset.touched': '{preset} · con tus ajustes',
+
     'inspector.title': 'Estilo',
     'inspector.subtitle': 'Puedes ajustarlo antes o después de cargar el texto.',
     'inspector.preset': 'Ajuste rápido',

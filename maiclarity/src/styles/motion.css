@@ -263,6 +263,35 @@
   transition: transform 180ms var(--ease-spring), box-shadow var(--t-fast);
 }
 
+/* --- La llamada a la accion se presenta y se calla ------------------- */
+
+@keyframes mc-cta-shine {
+  from {
+    transform: translateX(-130%);
+  }
+  to {
+    transform: translateX(230%);
+  }
+}
+
+.cta-style::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 55%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: translateX(-130%);
+  /* Dos pasadas y punto: llamar la atencion no es parpadear sin parar. */
+  animation: mc-cta-shine 2.6s var(--ease-out) 2;
+  animation-delay: 700ms;
+  pointer-events: none;
+}
+
+.cta-style:hover::after {
+  animation: mc-cta-shine 900ms var(--ease-out);
+}
+
 /* --- Lista de terminos ---------------------------------------------- */
 
 .keyword {

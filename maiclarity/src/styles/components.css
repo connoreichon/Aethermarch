@@ -388,26 +388,25 @@
 }
 
 /* --- Etiquetas --- */
-.local-badge {
+
+/* La promesa de que nada sale de aqui se escribe; no se enciende un LED
+   verde como en cualquier panel de estado. */
+.local-note {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.375rem;
-  padding: 0.1875rem 0.4375rem;
-  border-radius: var(--r-sm);
-  background: var(--marker);
-  color: color-mix(in srgb, var(--accent) 70%, var(--text));
   font-family: var(--font-mono);
   font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
+  color: var(--muted);
   cursor: default;
+  white-space: nowrap;
 }
 
-.local-badge__dot {
-  width: 0.375rem;
-  height: 0.375rem;
-  border-radius: 50%;
-  background: var(--accent);
+.local-note__mark {
+  color: var(--text);
+  padding: 0.1em 0.25em;
+  background: linear-gradient(var(--marker), var(--marker));
 }
 
 .file-badge {

@@ -188,14 +188,13 @@
 
       <div class="header-tools">
         <span
-          class="local-badge"
+          class="local-note"
           id="local-badge"
-          tabindex="0"
           role="note"
-          data-i18n-attr="aria-label:header.localTooltip;title:header.localTooltip"
+          data-i18n-attr="title:header.localTooltip"
         >
-          <span class="local-badge__dot" aria-hidden="true"></span>
-          <span data-i18n="header.local">LOCAL</span>
+          <span class="local-note__mark" data-i18n="header.local">local</span>
+          <span class="local-note__rest" data-i18n="header.localShort"></span>
         </span>
 
         <div class="segmented segmented--icons" role="group" data-i18n-attr="aria-label:header.theme">
@@ -285,32 +284,46 @@
         <section class="panel panel--output" aria-labelledby="output-title">
           <div class="panel__head">
             <h2 class="visually-hidden" id="output-title" data-i18n="output.title">Result</h2>
-            <div class="tabs" role="tablist" aria-labelledby="output-title">
+            <span class="view-label" id="view-label" data-i18n="tab.cleaned">Cleaned</span>
+
+            <div class="mode-switch" id="mode-switch" hidden>
+              <div class="tabs" role="tablist" aria-labelledby="output-title">
+                <button
+                  type="button"
+                  class="tabs__btn is-active"
+                  role="tab"
+                  aria-selected="true"
+                  id="tab-cleaned"
+                  aria-controls="clean-output"
+                  data-view="cleaned"
+                  data-i18n="tab.cleaned"
+                >
+                  Cleaned
+                </button>
+                <button
+                  type="button"
+                  class="tabs__btn"
+                  role="tab"
+                  aria-selected="false"
+                  id="tab-styled"
+                  aria-controls="styled-output"
+                  data-view="styled"
+                >
+                  <span data-i18n="tab.styled">Styled</span>
+                  <span class="tabs__dot" id="styled-dot" hidden>
+                    <span class="visually-hidden" data-i18n="tab.unseen"></span>
+                  </span>
+                </button>
+              </div>
               <button
                 type="button"
-                class="tabs__btn is-active"
-                role="tab"
-                aria-selected="true"
-                id="tab-cleaned"
-                aria-controls="clean-output"
-                data-view="cleaned"
-                data-i18n="tab.cleaned"
+                class="btn btn--soft btn--sm inspector-toggle"
+                id="open-inspector"
+                aria-controls="inspector"
+                aria-expanded="false"
               >
-                Cleaned
-              </button>
-              <button
-                type="button"
-                class="tabs__btn"
-                role="tab"
-                aria-selected="false"
-                id="tab-styled"
-                aria-controls="styled-output"
-                data-view="styled"
-              >
-                <span data-i18n="tab.styled">Styled</span>
-                <span class="tabs__dot" id="styled-dot" hidden>
-                  <span class="visually-hidden" data-i18n="tab.unseen"></span>
-                </span>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-sliders" /></svg>
+                <span data-i18n="action.tune">Adjust</span>
               </button>
             </div>
             <div class="status-wrap">
@@ -327,15 +340,16 @@
                 <ul class="fixes-list" id="fixes-list"></ul>
               </div>
             </div>
-            <button
-              type="button"
-              class="btn btn--soft btn--sm inspector-toggle"
-              id="open-inspector"
-              aria-controls="inspector"
-              aria-expanded="false"
-            >
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-sliders" /></svg>
-              <span data-i18n="action.style">Style</span>
+
+            <button type="button" class="cta-style" id="cta-style" aria-controls="styled-output">
+              <span class="cta-style__mark" aria-hidden="true">
+                <svg viewBox="0 0 32 32" width="20" height="20">
+                  <path d="M5.5 16.6 26 13.4" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity=".85" />
+                  <path d="M5 8.5h9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".45" />
+                  <path d="M5 23.5h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+                </svg>
+              </span>
+              <span class="cta-style__text" data-i18n="cta.style">Give it your style</span>
             </button>
           </div>
 
@@ -356,6 +370,14 @@
               tabindex="0"
               hidden
             ></div>
+            <div class="reader-sweep" id="reader-sweep" aria-hidden="true"></div>
+            <div class="sel-tools" id="sel-tools" hidden role="toolbar" data-i18n-attr="aria-label:selection.title">
+              <span class="sel-tools__label" data-i18n="selection.title">Highlight</span>
+              <div class="sel-tools__colors" id="sel-colors"></div>
+              <button type="button" class="btn btn--ghost btn--sm" id="sel-add" data-i18n="selection.add">
+                Add to my words
+              </button>
+            </div>
             <p class="panel__hint">
               <span id="panel-hint"></span>
               <span class="meta-stats" id="meta-stats" hidden></span>
@@ -431,6 +453,19 @@
           <div class="inspector__scroll">
             <!-- Panel: estilo -->
             <div class="inspector__panel" id="panel-style" role="tabpanel" aria-labelledby="tab-inspector-style" data-panel="style">
+              <div class="lock" id="inspector-lock">
+                <span class="lock__mark" aria-hidden="true">
+                  <svg viewBox="0 0 32 32" width="26" height="26">
+                    <path d="M5.5 16.6 26 13.4" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" opacity=".85" />
+                    <path d="M5 8.5h9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".4" />
+                    <path d="M5 23.5h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".7" />
+                  </svg>
+                </span>
+                <p class="lock__title" data-i18n="lock.title"></p>
+                <p class="lock__body" data-i18n="lock.body"></p>
+                <button type="button" class="btn btn--primary btn--sm" id="lock-cta" data-i18n="cta.style"></button>
+              </div>
+
               <section class="field">
                 <h3 class="field__label" data-i18n="inspector.preset">Preset</h3>
                 <div class="segmented segmented--wrap" role="group" data-i18n-attr="aria-label:inspector.preset">
@@ -438,7 +473,6 @@
                   <button type="button" class="segmented__btn" data-preset="study" data-i18n="preset.study"></button>
                   <button type="button" class="segmented__btn" data-preset="focus" data-i18n="preset.focus"></button>
                   <button type="button" class="segmented__btn" data-preset="keywords" data-i18n="preset.keywords"></button>
-                  <button type="button" class="segmented__btn is-custom" data-preset="custom" data-i18n="preset.custom" disabled></button>
                 </div>
                 <p class="field__hint" id="preset-desc"></p>
               </section>
@@ -536,6 +570,44 @@
                 </form>
                 <p class="field__hint" data-i18n="custom.hint"></p>
                 <div class="rules" id="custom-rules"></div>
+              </section>
+
+              <section class="field">
+                <h3 class="field__label" data-i18n="reading.section">Reading</h3>
+
+                <div class="switch-row">
+                  <label class="switch">
+                    <input type="checkbox" id="reading-only" />
+                    <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+                    <span class="switch__text" data-i18n="reading.only">Only what is highlighted</span>
+                  </label>
+                </div>
+                <p class="field__hint" data-i18n="reading.onlyHint"></p>
+
+                <div class="switch-row" style="margin-top: var(--sp-4)">
+                  <label class="switch">
+                    <input type="checkbox" id="reading-long" />
+                    <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+                    <span class="switch__text" data-i18n="reading.long">Flag long sentences</span>
+                  </label>
+                </div>
+
+                <div class="switch-row" style="margin-top: var(--sp-4)">
+                  <label class="switch">
+                    <input type="checkbox" id="reading-numbered" />
+                    <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+                    <span class="switch__text" data-i18n="reading.numbered">Number the paragraphs</span>
+                  </label>
+                </div>
+
+                <div class="subfield" style="margin-top: var(--sp-4)">
+                  <span class="field__sublabel" data-i18n="reading.spacing">Text spacing</span>
+                  <div class="segmented segmented--sm" role="group" data-i18n-attr="aria-label:reading.spacing">
+                    <button type="button" class="segmented__btn" data-spacing="normal" data-i18n="spacing.normal"></button>
+                    <button type="button" class="segmented__btn" data-spacing="amplio" data-i18n="spacing.wide"></button>
+                    <button type="button" class="segmented__btn" data-spacing="maximo" data-i18n="spacing.max"></button>
+                  </div>
+                </div>
               </section>
 
               <details class="field field--fold">

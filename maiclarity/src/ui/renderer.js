@@ -34,8 +34,24 @@ function appendPieces(parent, text, focus) {
 }
 
 function appendSegment(parent, segment, focus) {
-  if (!segment.mark) {
+  // Frase larga o tramo omitido: van en su propia envoltura para poder
+  // pintarlos sin tocar el texto.
+  if (segment.omitted) {
+    const gap = document.createElement("span");
+    gap.className = "mc-gap";
+    gap.appendChild(document.createTextNode(segment.text));
+    parent.appendChild(gap);
+    return;
+  }
+  if (!segment.mark && !segment.long) {
     appendPieces(parent, segment.text, focus);
+    return;
+  }
+  if (!segment.mark && segment.long) {
+    const long = document.createElement("span");
+    long.className = "mc-long";
+    appendPieces(long, segment.text, focus);
+    parent.appendChild(long);
     return;
   }
   const span = document.createElement('span');
@@ -52,6 +68,7 @@ function appendSegment(parent, segment, focus) {
     if (segment.mark.underline) span.style.textDecoration = 'underline';
     if (segment.mark.font) span.style.fontFamily = segment.mark.font;
   }
+  if (segment.long) span.classList.add("mc-long");
   appendPieces(span, segment.text, focus);
   parent.appendChild(span);
 }
@@ -87,6 +104,9 @@ export function applyContainerStyle(container, styleConfig) {
   container.style.lineHeight = box.lineHeight;
   container.style.maxWidth = box.maxWidth;
   container.style.textAlign = box.textAlign;
+  container.style.letterSpacing = box.letterSpacing;
+  container.style.wordSpacing = box.wordSpacing;
+  container.classList.toggle("is-numbered", Boolean(styleConfig.reading && styleConfig.reading.numbered));
 }
 
 export default renderStyledBlocks;
