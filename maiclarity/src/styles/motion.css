@@ -321,6 +321,24 @@
   animation: mc-fresh 260ms var(--ease-out) both;
 }
 
+/* --- Desplegables ------------------------------------------------------ *
+ *  Los <details> abren al instante, a proposito. Animar su altura exige
+ *  que el navegador este pintando: si la animacion se queda a medias, la
+ *  respuesta no se ve. Una pregunta sin respuesta es peor que una
+ *  pregunta que abre de golpe, asi que aqui no hay animacion.
+ *  Lo que si se anima es la flecha, que no esconde nada.
+ * ---------------------------------------------------------------------- */
+
+.faq__item summary::after,
+.field--fold > summary::after {
+  transition: transform 240ms var(--ease-spring);
+}
+
+.faq__item summary,
+.field--fold > summary {
+  transition: color var(--t-fast);
+}
+
 /* --- Panel lateral ---------------------------------------------------- */
 
 .inspector-backdrop {
