@@ -412,6 +412,17 @@ main,
   font-weight: 700;
 }
 
+/* Al pasar por un termino de la lista, sus apariciones se encienden. */
+.mc-hl {
+  border-radius: 3px;
+  transition: background 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+
+.mc-hl.is-previewed {
+  background: var(--marker-strong);
+  box-shadow: 0 0 0 2px var(--marker-strong);
+}
+
 .mc-locate {
   border-radius: var(--r-xs);
   background: var(--marker-strong);

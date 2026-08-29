@@ -43,6 +43,8 @@ function appendSegment(parent, segment, focus) {
     span.className = 'mc-locate';
   } else {
     span.className = 'mc-hl';
+    // El termino viaja en el nodo para poder encenderlo desde la lista.
+    span.dataset.term = segment.text.toLowerCase();
     const color = colorToCss(segment.mark.color);
     if (color) span.style.color = color;
     if (segment.mark.bold) span.style.fontWeight = '700';

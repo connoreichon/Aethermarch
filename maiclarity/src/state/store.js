@@ -16,6 +16,7 @@ function cloneStyleConfig(config = DEFAULT_STYLE_CONFIG) {
   return {
     ...config,
     keywords: { ...config.keywords },
+    entities: { ...config.entities },
     focus: { ...config.focus },
     customRules: config.customRules.map((rule) => ({ ...rule })),
   };

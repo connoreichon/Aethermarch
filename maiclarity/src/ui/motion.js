@@ -24,37 +24,45 @@ export function prefersReducedMotion() {
  * Sustituye el subrayado por pestana por uno compartido que viaja de una
  * a otra: el ojo sigue el trazo en lugar de verlo aparecer y desaparecer.
  */
-export function trackTabs(container) {
+/**
+ * @param {HTMLElement} container
+ * @param {{item: string, ink: string}} options selector del boton e clase de la tinta
+ */
+export function trackSelection(
+  container,
+  { item = '.tabs__btn', ink: inkClass = 'tabs__ink', matchHeight = true } = {}
+) {
   if (!container) return () => {};
 
   const ink = document.createElement('span');
-  ink.className = 'tabs__ink';
+  ink.className = inkClass;
   ink.setAttribute('aria-hidden', 'true');
   container.appendChild(ink);
 
   let ready = false;
 
   const update = () => {
-    const active = container.querySelector('.tabs__btn.is-active');
+    const active = container.querySelector(`${item}.is-active`);
     if (!active) {
       ink.style.opacity = '0';
       return;
     }
-    const left = active.offsetLeft;
-    const width = active.offsetWidth;
-    if (!width) return;
+    const { offsetLeft, offsetTop, offsetWidth, offsetHeight } = active;
+    if (!offsetWidth) return;
     ink.style.opacity = '1';
-    ink.style.transform = `translateX(${left}px)`;
-    ink.style.width = `${width}px`;
+    ink.style.transform = `translate(${offsetLeft}px, ${offsetTop}px)`;
+    ink.style.width = `${offsetWidth}px`;
+    // El subrayado de las pestanas tiene su propia altura fija.
+    if (matchHeight) ink.style.height = `${offsetHeight}px`;
     // El primer posicionamiento no se anima: no viene de ninguna parte.
     if (!ready) {
       ready = true;
-      requestAnimationFrame(() => ink.classList.add('is-ready'));
+      setTimeout(() => ink.classList.add('is-ready'), 60);
     }
   };
 
   const observer = new MutationObserver((records) => {
-    if (records.some((record) => record.target.classList.contains('tabs__btn'))) update();
+    if (records.some((record) => record.target !== ink)) update();
   });
   observer.observe(container, { subtree: true, attributes: true, attributeFilter: ['class'] });
 
@@ -64,10 +72,24 @@ export function trackTabs(container) {
   window.addEventListener('resize', update);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(update).catch(() => {});
   update();
-  // Segunda pasada por si la tipografia cambia el ancho de las pestanas.
+  // Segunda pasada por si la tipografia cambia el ancho de los botones.
   setTimeout(update, 120);
 
   return update;
+}
+
+/** Compatibilidad: las pestanas son un caso particular de seleccion. */
+export function trackTabs(container) {
+  return trackSelection(container, { item: '.tabs__btn', ink: 'tabs__ink', matchHeight: false });
+}
+
+/** Llama la atencion sobre un panel sin robar el foco ni tapar nada. */
+export function pulse(node, duration = 1100) {
+  if (!node || prefersReducedMotion()) return;
+  node.classList.remove('is-attention');
+  void node.offsetWidth;
+  node.classList.add('is-attention');
+  setTimeout(() => node.classList.remove('is-attention'), duration);
 }
 
 /* ------------------------------------------------------------------ *

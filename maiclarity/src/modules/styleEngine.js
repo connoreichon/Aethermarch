@@ -36,16 +36,24 @@ export const HIGHLIGHT_COLORS = [
 ];
 
 export const DEFAULT_STYLE_CONFIG = Object.freeze({
-  preset: 'clean',
+  preset: 'study',
   font: 'system',
   size: 18,
-  lineHeight: 'comfortable',
+  lineHeight: 'relaxed',
   width: 'comfortable',
   align: 'left',
   keywords: Object.freeze({
-    enabled: false,
+    enabled: true,
     amount: 'medium',
     color: 'accent',
+    bold: false,
+    italic: false,
+    underline: true,
+  }),
+  // Fechas, importes, plazos y nombres: se marcan aunque salgan una vez.
+  entities: Object.freeze({
+    enabled: true,
+    color: 'amber',
     bold: true,
     italic: false,
     underline: false,
@@ -57,24 +65,28 @@ export const DEFAULT_STYLE_CONFIG = Object.freeze({
 export const PRESETS = {
   clean: {
     keywords: { enabled: false },
+    entities: { enabled: false },
     focus: { enabled: false },
     lineHeight: 'comfortable',
     width: 'comfortable',
   },
   study: {
     keywords: { enabled: true, amount: 'medium', color: 'accent', bold: false, underline: true, italic: false },
+    entities: { enabled: true },
     focus: { enabled: false },
     lineHeight: 'relaxed',
     width: 'comfortable',
   },
   focus: {
     keywords: { enabled: false },
+    entities: { enabled: false },
     focus: { enabled: true, intensity: 'medium' },
     lineHeight: 'relaxed',
     width: 'comfortable',
   },
   keywords: {
     keywords: { enabled: true, amount: 'high', color: 'accent', bold: true, underline: false, italic: false },
+    entities: { enabled: true },
     focus: { enabled: false },
     lineHeight: 'comfortable',
     width: 'comfortable',
@@ -90,6 +102,7 @@ export function applyPreset(config, presetId) {
     ...preset,
     preset: presetId,
     keywords: { ...config.keywords, ...preset.keywords },
+    entities: { ...config.entities, ...preset.entities },
     focus: { ...config.focus, ...preset.focus },
   };
 }
@@ -120,7 +133,7 @@ function styleOf(source) {
  * Construye la lista de reglas activas. Las personalizadas tienen
  * prioridad sobre los terminos clave detectados automaticamente.
  */
-export function buildRules(styleConfig, keywords = []) {
+export function buildRules(styleConfig, keywords = [], entities = []) {
   const rules = [];
   const customRules = styleConfig.customRules || [];
 
@@ -135,6 +148,18 @@ export function buildRules(styleConfig, keywords = []) {
       style: styleOf(rule),
     });
   });
+
+  // Los datos van por delante de los terminos: una fecha concreta manda
+  // sobre una palabra que se repite.
+  if (styleConfig.entities && styleConfig.entities.enabled && entities.length > 0) {
+    rules.push({
+      id: 'entities',
+      kind: 'entity',
+      priority: 500,
+      terms: entities.map((entity) => entity.text),
+      style: styleOf(styleConfig.entities),
+    });
+  }
 
   if (styleConfig.keywords.enabled && keywords.length > 0) {
     rules.push({
@@ -246,9 +271,9 @@ const LIST_LINE = /^\s*(?:[-*+•·▪◦‣–—]\s+|\d+[.)]\s+|[a-zA-Z][.)]\s
  * @param {Array} keywords
  * @returns {{type: string, lines: Array<Array<{text:string, mark:object|null}>>}[]}
  */
-export function buildStyledBlocks(text, styleConfig, keywords = []) {
+export function buildStyledBlocks(text, styleConfig, keywords = [], entities = []) {
   if (!text) return [];
-  const rules = buildRules(styleConfig, keywords);
+  const rules = buildRules(styleConfig, keywords, entities);
   return text
     .split(/\n{2,}/)
     .map((block) => block.replace(/\s+$/, ''))

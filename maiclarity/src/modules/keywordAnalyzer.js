@@ -13,11 +13,25 @@
  */
 import { isWordy } from './tokenizer.js';
 import { getStopwords } from './language.js';
+import { getVagueWords } from '../data/vague.js';
 
 /** Cuantos terminos proponer segun tamano del documento y preferencia. */
 export const AMOUNT_MULTIPLIER = { low: 0.6, medium: 1, high: 1.5 };
 
 const BUCKETS = 10;
+
+/** Marcas tras las que una mayuscula inicial no significa nada. */
+const SENTENCE_EDGE = /[.!?:;\n\u2022\u00b7)\]-]/;
+const LEADING_NOISE = /[\s"'\u00ab\u00bb(\u00a1\u00bf]/;
+
+/** True si el token abre frase, parrafo o punto de lista. */
+function startsSentence(text, index) {
+  if (!text) return false;
+  let cursor = index - 1;
+  while (cursor >= 0 && LEADING_NOISE.test(text[cursor])) cursor -= 1;
+  if (cursor < 0) return true;
+  return SENTENCE_EDGE.test(text[cursor]);
+}
 
 export function targetKeywordCount(wordCount, amount = 'medium') {
   let base;
@@ -35,9 +49,10 @@ export function targetKeywordCount(wordCount, amount = 'medium') {
  * @param {{lang: string, amount?: string}} options
  * @returns {{term: string, display: string, count: number, score: number, weight: number}[]}
  */
-export function analyzeKeywords(tokens, { lang = 'en', amount = 'medium' } = {}) {
+export function analyzeKeywords(tokens, { lang = 'en', amount = 'medium', leadEnd = 0, text = '' } = {}) {
   if (!tokens || tokens.length === 0) return [];
   const stopwords = getStopwords(lang);
+  const vague = getVagueWords(lang);
   const total = tokens.length;
   const bucketSize = Math.max(1, Math.ceil(total / BUCKETS));
 
@@ -53,10 +68,19 @@ export function analyzeKeywords(tokens, { lang = 'en', amount = 'medium' } = {})
 
     let entry = entries.get(key);
     if (!entry) {
-      entry = { count: 0, surfaces: new Map(), buckets: new Set() };
+      entry = { count: 0, surfaces: new Map(), buckets: new Set(), lead: false, caps: 0 };
       entries.set(key, entry);
     }
     entry.count += 1;
+    // Lo que aparece en el titulo o la entradilla describe el documento.
+    if (leadEnd > 0 && token.start < leadEnd) entry.lead = true;
+    // Escrito con mayuscula inicial a media frase: suele ser un nombre.
+    // Mayuscula a media frase: probablemente un nombre propio. La
+    // primera palabra de una frase o de un punto de lista tambien va en
+    // mayuscula y no dice nada, asi que no cuenta.
+    if (i > 0 && /^\p{Lu}/u.test(token.value) && !startsSentence(text, token.start)) {
+      entry.caps += 1;
+    }
     entry.surfaces.set(token.value, (entry.surfaces.get(token.value) || 0) + 1);
     entry.buckets.add(Math.floor(i / bucketSize));
   }
@@ -76,7 +100,20 @@ export function analyzeKeywords(tokens, { lang = 'en', amount = 'medium' } = {})
     // Un termino que ocupa mas del 5% del texto describe poco: es relleno.
     const noisePenalty = density > 0.05 ? 0.55 : 1;
 
-    const score = (1 + Math.log(entry.count)) * lengthFactor * spreadFactor * noisePenalty;
+    // Palabras comodin ("cosa", "linea", "tema"): suben en cualquier
+    // recuento y no dicen nada del documento.
+    const vaguePenalty = vague.has(term) ? 0.35 : 1;
+    const leadBoost = entry.lead ? 1.25 : 1;
+    const properBoost = entry.count > 0 && entry.caps / entry.count > 0.6 ? 1.22 : 1;
+
+    const score =
+      (1 + Math.log(entry.count)) *
+      lengthFactor *
+      spreadFactor *
+      noisePenalty *
+      vaguePenalty *
+      leadBoost *
+      properBoost;
 
     let display = term;
     let best = 0;
@@ -87,7 +124,7 @@ export function analyzeKeywords(tokens, { lang = 'en', amount = 'medium' } = {})
       }
     }
 
-    results.push({ term, display, count: entry.count, score, spread });
+    results.push({ term, display, count: entry.count, score, spread, lead: entry.lead });
   }
 
   results.sort((a, b) => b.score - a.score || b.count - a.count || a.term.localeCompare(b.term));

@@ -80,11 +80,41 @@ src/
 tests/                   Vitest + fixtures de texto sucio
 ```
 
+### Lo que detecta (sin IA y sin API)
+
+Dos familias distintas, porque responden a preguntas distintas:
+
+- **Términos clave** — de qué va el texto. Puntuación determinista con
+  frecuencia, longitud, reparto por el documento, penalización de lo
+  omnipresente, **penalización de palabras comodín** ("cosa", "línea",
+  "tema": suben en cualquier recuento y no dicen nada), **empuje de lo que
+  aparece en el título o la entradilla** y **empuje de las mayúsculas a
+  media frase** (descartando las de principio de frase o de punto de lista,
+  que no significan nada).
+- **Datos importantes** ([`entityFinder.js`](src/modules/entityFinder.js)) —
+  qué hay que no se te puede escapar: fechas (`12/03/2025`, `12 de marzo de
+  2025`, `octubre`, `lunes`, `2026`), importes y cifras (`12.500 €`, `20%`,
+  `3 meses`), plazos (`fecha límite`, `urgente`, `a más tardar`), siglas y
+  nombres propios. **Se detectan por su forma, no por cuántas veces salen**,
+  así que una fecha de entrega que aparece una sola vez se marca igual.
+
+Ambas son reglas y listas locales: mismo texto, mismo resultado, cero
+llamadas a ningún sitio y cero coste por uso.
+
 ### Decisiones de usabilidad
 
+- **Un ajuste de estilo te lleva a donde se ve.** Los colores, la negrita o el
+  tamaño no se aplican a la vista *Limpio* (ahí el texto es plano a propósito).
+  Antes podías cambiar cosas sin que pasara nada visible; ahora tocar cualquier
+  ajuste salta a *Con estilo* y lo explica la primera vez. Excepción: si el
+  cursor está dentro del texto limpio, no se te mueve la vista debajo.
+- **Abrir *Con estilo* enseña las herramientas:** la primera vez despliega el
+  panel (en pantallas estrechas) o lo subraya (en anchas).
 - **Pegar funciona en toda la página.** `Ctrl+V` en cualquier sitio carga el
   texto; no hace falta acertar dentro del cuadro. Si ya había documento, queda
   recuperable con *Deshacer*.
+- **Pasar el ratón por un término enciende sus apariciones** en el texto antes
+  de pulsar nada.
 - **El estado vacío es la primera pantalla y trae acciones**, no solo un
   placeholder: probar un ejemplo, elegir archivo y el atajo de teclado.
 - **Se puede ver qué se ha arreglado.** El contador de arreglos es un botón:

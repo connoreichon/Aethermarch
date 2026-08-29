@@ -145,6 +145,19 @@ export const LOCALES = {
     'keywords.locate': 'Locate “{term}” in the text',
     'keywords.count': '{n}×',
 
+    'style.active': 'with styles applied',
+    'toast.styledJump': 'Styles show up here, in “Styled”',
+
+    'entities.enable': 'Highlight key details',
+    'entities.hint':
+      'Dates, amounts, deadlines and names. They are marked even if they appear only once.',
+    'entities.empty': 'No dates, amounts or names found in this text.',
+    'entity.date': 'Dates',
+    'entity.deadline': 'Deadlines',
+    'entity.amount': 'Amounts and figures',
+    'entity.acronym': 'Acronyms',
+    'entity.name': 'Names',
+
     'custom.section': 'Custom highlights',
     'custom.placeholder': 'word or short phrase',
     'custom.add': 'Add',
@@ -406,6 +419,19 @@ export const LOCALES = {
     'keywords.empty': 'Los términos aparecen en cuanto hay texto.',
     'keywords.locate': 'Localizar «{term}» en el texto',
     'keywords.count': '{n}×',
+
+    'style.active': 'con estilos aplicados',
+    'toast.styledJump': 'Los estilos se ven aquí, en «Con estilo»',
+
+    'entities.enable': 'Destacar datos importantes',
+    'entities.hint':
+      'Fechas, importes, plazos y nombres. Se marcan aunque aparezcan una sola vez.',
+    'entities.empty': 'No se han encontrado fechas, importes ni nombres en este texto.',
+    'entity.date': 'Fechas',
+    'entity.deadline': 'Plazos',
+    'entity.amount': 'Importes y cifras',
+    'entity.acronym': 'Siglas',
+    'entity.name': 'Nombres',
 
     'custom.section': 'Palabras propias',
     'custom.placeholder': 'palabra o frase corta',

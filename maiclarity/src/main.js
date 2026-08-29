@@ -16,6 +16,7 @@ import { createI18n, detectUiLang } from './modules/i18n.js';
 import { createTheme, THEMES } from './modules/theme.js';
 import { cleanText as runCleaner, CLEAN_STAT_KEYS } from './modules/textCleaner.js';
 import { analyzeText } from './modules/analysis.js';
+import { ENTITY_KINDS } from './modules/entityFinder.js';
 import {
   DEFAULT_STYLE_CONFIG,
   HIGHLIGHT_COLORS,
@@ -42,10 +43,12 @@ import { createToaster } from './ui/toast.js';
 import { renderStyledBlocks, applyContainerStyle, colorToCss } from './ui/renderer.js';
 import {
   trackTabs,
+  trackSelection,
   setupReveals,
   setupHeaderScroll,
   withViewTransition,
   markFresh,
+  pulse,
 } from './ui/motion.js';
 
 /* ------------------------------------------------------------------ *
@@ -76,6 +79,10 @@ const dom = {
   openInspector: $('#open-inspector'),
   closeInspector: $('#close-inspector'),
   keywordSwatches: $('#keyword-swatches'),
+  entitiesEnabled: $('#entities-enabled'),
+  entityControls: $('#entity-controls'),
+  entitySwatches: $('#entity-swatches'),
+  entityList: $('#entity-list'),
   keywordList: $('#keyword-list'),
   keywordControls: $('#keyword-controls'),
   keywordsEnabled: $('#keywords-enabled'),
@@ -106,7 +113,19 @@ const dom = {
   outputPanel: $('.panel--output'),
   viewTabs: $('.panel--output .tabs'),
   inspectorTabs: $('.tabs--inspector'),
+  styleDot: $('#style-dot'),
 };
+
+/** Hoja de estilo minuscula para encender las apariciones al pasar el raton. */
+const hoverStyle = document.createElement('style');
+document.head.appendChild(hoverStyle);
+
+/** Abre o cierra el panel lateral. Se define al cablear los eventos. */
+let openInspector = () => {};
+/** El panel de estilo solo se presenta una vez por sesion. */
+let stylePanelIntroduced = false;
+/** El aviso de donde se ven los estilos tambien se da una sola vez. */
+let styledJumpAnnounced = false;
 
 /** Cache del ultimo analisis para reutilizar la tokenizacion. */
 let analysisCache = null;
@@ -132,6 +151,9 @@ function boot() {
   setupReveals();
   trackTabs(dom.viewTabs);
   trackTabs(dom.inspectorTabs);
+  document
+    .querySelectorAll('.segmented')
+    .forEach((group) => trackSelection(group, { item: '.segmented__btn', ink: 'segmented__ink' }));
   buildSwatches();
   injectFaqSchema();
   wireEvents();
@@ -139,6 +161,7 @@ function boot() {
   syncStyleControls();
   renderDemo();
   renderKeywords();
+  renderEntities();
   renderCustomRules();
   renderInsights();
   renderOutput();
@@ -237,7 +260,8 @@ function renderStyled() {
     : styleConfig;
 
   const keywords = analysis ? analysis.keywords : [];
-  const blocks = buildStyledBlocks(cleanText, config, keywords);
+  const entities = analysis ? analysis.entities || [] : [];
+  const blocks = buildStyledBlocks(cleanText, config, keywords, entities);
   if (locatedTerm) {
     // La regla temporal de localizacion se pinta con su propia clase.
     for (const block of blocks) {
@@ -395,8 +419,7 @@ function renderSourceMeta() {
  *  Inspector: terminos clave
  * ------------------------------------------------------------------ */
 
-function buildSwatches() {
-  const container = dom.keywordSwatches;
+function buildSwatchRow(container, onPick, customDefault) {
   container.replaceChildren();
   for (const color of HIGHLIGHT_COLORS) {
     const button = el('button', {
@@ -407,7 +430,7 @@ function buildSwatches() {
       title: color.id,
     });
     button.style.background = `var(--hl-${color.id})`;
-    button.addEventListener('click', () => setKeywordStyle({ color: color.id }));
+    button.addEventListener('click', () => onPick(color.id));
     container.appendChild(button);
   }
 
@@ -417,12 +440,17 @@ function buildSwatches() {
   });
   const input = el('input', {
     type: 'color',
-    value: '#7c5cff',
+    value: customDefault,
     'aria-label': i18n.t('keywords.customColor'),
   });
-  input.addEventListener('input', (event) => setKeywordStyle({ color: event.target.value }));
+  input.addEventListener('input', (event) => onPick(event.target.value));
   wrapper.appendChild(input);
   container.appendChild(wrapper);
+}
+
+function buildSwatches() {
+  buildSwatchRow(dom.keywordSwatches, (color) => setKeywordStyle({ color }), '#7c5cff');
+  buildSwatchRow(dom.entitySwatches, (color) => setEntityStyle({ color }), '#b4541f');
 }
 
 function renderKeywords() {
@@ -458,10 +486,67 @@ function renderKeywords() {
       el('span', { class: 'keyword__count', text: i18n.t('keywords.count', { n: keyword.count }) })
     );
     button.addEventListener('click', () => locateTerm(keyword.term));
+    button.addEventListener('mouseenter', () => previewTerm(keyword.term));
+    button.addEventListener('mouseleave', () => previewTerm(null));
+    button.addEventListener('focus', () => previewTerm(keyword.term));
+    button.addEventListener('blur', () => previewTerm(null));
     container.appendChild(button);
   });
 
   dom.keywordControls.classList.toggle('is-disabled', !styleConfig.keywords.enabled);
+}
+
+/**
+ * "Con estilo" no sirve de nada si no ves con que jugar: la primera vez
+ * se abre el panel (en pantallas estrechas) o se subraya (en anchas).
+ */
+function revealStyleTools() {
+  const styleTab = document.querySelector('[data-inspector="style"]');
+  if (styleTab && !styleTab.classList.contains('is-active')) styleTab.click();
+  if (stylePanelIntroduced) return;
+  stylePanelIntroduced = true;
+  if (window.matchMedia('(max-width: 1180px)').matches) openInspector(true);
+  else pulse(dom.inspector);
+}
+
+/** Enciende en el texto las apariciones del termino que estas mirando. */
+function previewTerm(term) {
+  if (!term) {
+    hoverStyle.textContent = '';
+    return;
+  }
+  const safe = String(term).slice(0, 80).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  hoverStyle.textContent = `.mc-hl[data-term="${safe}"]{background:var(--marker-strong);box-shadow:0 0 0 2px var(--marker-strong)}`;
+}
+
+/** Datos detectados, agrupados por tipo y pulsables como los terminos. */
+function renderEntities() {
+  const { analysis, styleConfig } = store.state;
+  const container = dom.entityList;
+  container.replaceChildren();
+  dom.entityControls.classList.toggle('is-disabled', !styleConfig.entities.enabled);
+
+  const entities = analysis ? analysis.entities || [] : [];
+  if (entities.length === 0) {
+    container.appendChild(el('p', { class: 'empty-note' }, [i18n.t('entities.empty')]));
+    return;
+  }
+
+  for (const kind of ENTITY_KINDS) {
+    const group = entities.filter((entity) => entity.kind === kind);
+    if (group.length === 0) continue;
+    const chips = group.map((entity) => {
+      const chip = buildChip(entity.text, entity.count > 1 ? entity.count : '', false);
+      chip.classList.add('chip--entity');
+      return chip;
+    });
+    container.appendChild(
+      el('div', { class: 'insight-group' }, [
+        el('p', { class: 'insight-group__title', text: i18n.t(`entity.${kind}`) }),
+        el('div', { class: 'chips' }, chips),
+      ])
+    );
+  }
 }
 
 function locateTerm(term) {
@@ -674,16 +759,43 @@ function buildChip(label, count, warn) {
  *  Configuracion visual
  * ------------------------------------------------------------------ */
 
+/**
+ * Un ajuste de estilo no se ve en la vista "Limpio", asi que tocarlo
+ * lleva alli directamente. Excepcion: si el cursor esta dentro del texto
+ * limpio, es que estas editando y no se te mueve la vista debajo.
+ */
+function shouldJumpToStyled() {
+  if (store.state.view === 'styled') return false;
+  if (document.activeElement === dom.cleanOutput) return false;
+  return true;
+}
+
+function announceStyledJump() {
+  if (styledJumpAnnounced) return;
+  styledJumpAnnounced = true;
+  toaster.info(i18n.t('toast.styledJump'));
+}
+
 /** @param {boolean} affectsMarks true si hay que reconstruir los segmentos */
 function setStyleConfig(patch, affectsMarks) {
   const next = { ...store.state.styleConfig, ...patch };
   // Cualquier ajuste manual deja de coincidir con el preset elegido.
   if (!('preset' in patch)) next.preset = matchPreset(next);
+
+  if (shouldJumpToStyled()) {
+    withViewTransition(() => store.set({ styleConfig: next, view: 'styled' }, 'style-jump'));
+    announceStyledJump();
+    return;
+  }
   store.set({ styleConfig: next }, affectsMarks ? 'style-marks' : 'style-box');
 }
 
 function setKeywordStyle(patch) {
   setStyleConfig({ keywords: { ...store.state.styleConfig.keywords, ...patch } }, true);
+}
+
+function setEntityStyle(patch) {
+  setStyleConfig({ entities: { ...store.state.styleConfig.entities, ...patch } }, true);
 }
 
 function setFocus(patch) {
@@ -696,12 +808,15 @@ function matchPreset(config) {
     const keywordsMatch = Object.entries(preset.keywords).every(
       ([key, value]) => config.keywords[key] === value
     );
+    const entitiesMatch = Object.entries(preset.entities || {}).every(
+      ([key, value]) => config.entities[key] === value
+    );
     const focusMatch = Object.entries(preset.focus).every(
       ([key, value]) => config.focus[key] === value
     );
     const boxMatch =
       config.lineHeight === preset.lineHeight && config.width === preset.width;
-    if (keywordsMatch && focusMatch && boxMatch) return id;
+    if (keywordsMatch && entitiesMatch && focusMatch && boxMatch) return id;
   }
   return 'custom';
 }
@@ -717,8 +832,16 @@ function syncStyleControls() {
   });
 
   dom.presetDesc.textContent = i18n.t(`preset.${config.preset}.desc`);
+  dom.styleDot.hidden = !(
+    config.keywords.enabled ||
+    config.entities.enabled ||
+    config.focus.enabled ||
+    config.customRules.length > 0
+  );
   dom.keywordsEnabled.checked = config.keywords.enabled;
   dom.keywordControls.classList.toggle('is-disabled', !config.keywords.enabled);
+  dom.entitiesEnabled.checked = config.entities.enabled;
+  dom.entityControls.classList.toggle('is-disabled', !config.entities.enabled);
   dom.focusEnabled.checked = config.focus.enabled;
   dom.focusControls.classList.toggle('is-disabled', !config.focus.enabled);
 
@@ -744,6 +867,14 @@ function syncStyleControls() {
   });
   document.querySelectorAll('#keyword-swatches .swatch[data-color]').forEach((button) => {
     button.classList.toggle('is-active', button.dataset.color === config.keywords.color);
+  });
+  document.querySelectorAll('#entity-swatches .swatch[data-color]').forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.color === config.entities.color);
+  });
+  document.querySelectorAll('[data-entity-style]').forEach((button) => {
+    const active = Boolean(config.entities[button.dataset.entityStyle]);
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
 
   dom.fontSelect.value = config.font;
@@ -808,7 +939,12 @@ async function handleFile(file) {
 
 function currentBlocks() {
   const { cleanText, styleConfig, analysis } = store.state;
-  return buildStyledBlocks(cleanText, styleConfig, analysis ? analysis.keywords : []);
+  return buildStyledBlocks(
+    cleanText,
+    styleConfig,
+    analysis ? analysis.keywords : [],
+    analysis ? analysis.entities || [] : []
+  );
 }
 
 async function copyClean() {
@@ -1012,6 +1148,7 @@ function wireEvents() {
     button.addEventListener('click', () => {
       if (store.state.view === button.dataset.view) return;
       withViewTransition(() => store.set({ view: button.dataset.view }, 'view'));
+      if (button.dataset.view === 'styled') revealStyleTools();
     });
   });
 
@@ -1024,7 +1161,7 @@ function wireEvents() {
 
   // --- Inspector ---
   let focusBeforeInspector = null;
-  const openInspector = (open) => {
+  openInspector = (open) => {
     document.body.classList.toggle('is-inspector-open', open);
     dom.inspectorBackdrop.hidden = !open;
     dom.openInspector.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1067,6 +1204,15 @@ function wireEvents() {
   dom.keywordsEnabled.addEventListener('change', (event) =>
     setKeywordStyle({ enabled: event.target.checked })
   );
+  dom.entitiesEnabled.addEventListener('change', (event) =>
+    setEntityStyle({ enabled: event.target.checked })
+  );
+  document.querySelectorAll('[data-entity-style]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const key = button.dataset.entityStyle;
+      setEntityStyle({ [key]: !store.state.styleConfig.entities[key] });
+    });
+  });
   dom.focusEnabled.addEventListener('change', (event) =>
     setFocus({ enabled: event.target.checked })
   );
@@ -1102,7 +1248,18 @@ function wireEvents() {
     button.addEventListener('click', () => {
       if (button.dataset.preset === 'custom') return;
       const next = applyPreset(store.state.styleConfig, button.dataset.preset);
-      store.set({ styleConfig: next }, 'style-marks');
+      const jump = shouldJumpToStyled();
+      const apply = () =>
+        store.set(
+          jump ? { styleConfig: next, view: 'styled' } : { styleConfig: next },
+          jump ? 'style-jump' : 'style-marks'
+        );
+      if (jump) {
+        withViewTransition(apply);
+        announceStyledJump();
+      } else {
+        apply();
+      }
       const analysis = analyze(store.state.cleanText, analysisCache);
       store.set({ analysis }, 'analysis');
     });
@@ -1160,6 +1317,7 @@ function wireEvents() {
     injectFaqSchema();
     renderDemo();
     renderKeywords();
+    renderEntities();
     renderCustomRules();
     renderInsights();
     renderSourceMeta();
@@ -1180,6 +1338,15 @@ function wireEvents() {
  *  Reaccion a los cambios de estado
  * ------------------------------------------------------------------ */
 
+/** Marca en las pestanas cual es la vista visible. */
+function syncViewTabs(state) {
+  document.querySelectorAll('[data-view]').forEach((button) => {
+    const active = button.dataset.view === state.view;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+}
+
 store.subscribe((state, reason) => {
   if (reason === 'silent') return;
 
@@ -1188,6 +1355,7 @@ store.subscribe((state, reason) => {
     renderSourceMeta();
     renderOutput();
     renderKeywords();
+    renderEntities();
     renderInsights();
     updateStatus();
     dom.undoButton.hidden = !state.history;
@@ -1196,6 +1364,7 @@ store.subscribe((state, reason) => {
 
   if (reason === 'clean-edit' || reason === 'analysis') {
     renderKeywords();
+    renderEntities();
     renderInsights();
     updateStatus();
     if (state.view === 'styled') renderStyled();
@@ -1203,10 +1372,21 @@ store.subscribe((state, reason) => {
     return;
   }
 
+  if (reason === 'style-jump') {
+    syncStyleControls();
+    renderCustomRules();
+    renderKeywords();
+    renderEntities();
+    syncViewTabs(state);
+    renderOutput();
+    return;
+  }
+
   if (reason === 'style-marks') {
     syncStyleControls();
     renderCustomRules();
     renderKeywords();
+    renderEntities();
     if (state.view === 'styled') renderStyled();
     return;
   }
@@ -1219,21 +1399,13 @@ store.subscribe((state, reason) => {
 
   if (reason === 'view') {
     if (state.view === 'styled') dom.styledDot.hidden = true;
-    document.querySelectorAll('[data-view]').forEach((button) => {
-      const active = button.dataset.view === state.view;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-selected', active ? 'true' : 'false');
-    });
+    syncViewTabs(state);
     renderOutput();
     return;
   }
 
   if (reason === 'locate') {
-    document.querySelectorAll('[data-view]').forEach((button) => {
-      const active = button.dataset.view === state.view;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-selected', active ? 'true' : 'false');
-    });
+    syncViewTabs(state);
     renderKeywords();
     renderOutput();
     return;

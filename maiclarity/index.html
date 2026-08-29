@@ -401,9 +401,11 @@
                 role="tab"
                 aria-selected="true"
                 id="tab-inspector-style" aria-controls="panel-style" data-inspector="style"
-                data-i18n="inspector.title"
               >
-                Style
+                <span data-i18n="inspector.title">Style</span>
+                <span class="tabs__dot" id="style-dot" hidden>
+                  <span class="visually-hidden" data-i18n="style.active"></span>
+                </span>
               </button>
               <button
                 type="button"
@@ -483,6 +485,40 @@
 
                 <p class="field__hint" id="keywords-hint"></p>
                 <div class="keyword-list" id="keyword-list" aria-live="polite"></div>
+              </section>
+
+              <section class="field">
+                <div class="switch-row">
+                  <label class="switch">
+                    <input type="checkbox" id="entities-enabled" />
+                    <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+                    <span class="switch__text" data-i18n="entities.enable">Highlight key details</span>
+                  </label>
+                </div>
+                <p class="field__hint" data-i18n="entities.hint"></p>
+
+                <div class="subfields" id="entity-controls">
+                  <div class="subfield">
+                    <span class="field__sublabel" data-i18n="keywords.color">Colour</span>
+                    <div class="swatches" id="entity-swatches" role="group" data-i18n-attr="aria-label:keywords.color"></div>
+                  </div>
+                  <div class="subfield">
+                    <span class="field__sublabel" data-i18n="keywords.bold">Style</span>
+                    <div class="toggle-group" role="group">
+                      <button type="button" class="toggle" data-entity-style="bold" data-i18n-attr="title:keywords.bold;aria-label:keywords.bold">
+                        <b>B</b>
+                      </button>
+                      <button type="button" class="toggle" data-entity-style="italic" data-i18n-attr="title:keywords.italic;aria-label:keywords.italic">
+                        <i>I</i>
+                      </button>
+                      <button type="button" class="toggle" data-entity-style="underline" data-i18n-attr="title:keywords.underline;aria-label:keywords.underline">
+                        <u>U</u>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="insight-list entity-list" id="entity-list" aria-live="polite"></div>
               </section>
 
               <section class="field">

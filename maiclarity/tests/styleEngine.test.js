@@ -90,8 +90,8 @@ describe('terminos clave resaltados', () => {
   });
 
   it('no resalta nada si estan desactivados', () => {
-    const blocks = buildStyledBlocks('El presupuesto', config(), keywords);
-    expect(marks(blocks)).toHaveLength(0);
+    const apagado = config({ keywords: { enabled: false } });
+    expect(marks(buildStyledBlocks('El presupuesto', apagado, keywords))).toHaveLength(0);
   });
 
   it('cambiar el color no toca el texto limpio', () => {
