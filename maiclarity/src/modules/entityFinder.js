@@ -62,6 +62,37 @@ const DEADLINE_EN = [
   'top priority',
 ];
 
+/**
+ * Lineas que van "a voces": titulos en MAYUSCULAS o en Mayusculas
+ * Iniciales, como los titulares. Dentro de ellas una mayuscula no dice
+ * nada, asi que no se sacan ni nombres propios ni siglas: si no, un titular
+ * como "Gran Exito En El Teatro" produce cinco nombres inventados.
+ */
+function shoutyRanges(text) {
+  const ranges = [];
+  let offset = 0;
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    const words = trimmed.split(/\s+/).filter((word) => /\p{L}/u.test(word));
+    if (words.length > 0 && trimmed.length <= 90) {
+      const capitalised = words.filter((word) => /^\p{Lu}/u.test(word)).length;
+      const letters = trimmed.replace(/[^\p{L}]/gu, '');
+      const upper = letters.replace(/[^\p{Lu}]/gu, '');
+      // Con menos palabras no hay muestra suficiente: "Contrato con
+      // Vodafone" no es un titular, es una frase con un nombre dentro.
+      const allCaps = words.length >= 2 && letters.length > 3 && upper.length / letters.length > 0.7;
+      const titleCase = words.length >= 4 && capitalised / words.length > 0.6;
+      if (allCaps || titleCase) ranges.push([offset, offset + line.length]);
+    }
+    offset += line.length + 1;
+  }
+  return ranges;
+}
+
+function inRanges(ranges, index) {
+  return ranges.some(([start, end]) => index >= start && index < end);
+}
+
 /** Siglas que no aportan nada como dato. */
 const ACRONYM_NOISE = new Set(['OK', 'TV', 'PC', 'ID', 'AM', 'PM', 'CV', 'IT', 'NO', 'SI', 'SÍ']);
 
@@ -84,7 +115,17 @@ function patternsFor(lang) {
     { kind: 'date', re: /\b(?:19|20)\d{2}\b/g },
 
     // --- Importes y cifras ---
-    { kind: 'amount', re: /[€$£]\s?\d[\d.,]*/g },
+    {
+      kind: 'amount',
+      re: /[€$£]\s?\d[\d.,]*/g,
+      // "34.018 € 32,4 %" no contiene el importe "€ 32,4": ese simbolo
+      // pertenece al numero de antes. Se descarta si viene detras de cifra.
+      guard: (text, index) => {
+        let cursor = index - 1;
+        while (cursor >= 0 && /\s/.test(text[cursor])) cursor -= 1;
+        return cursor < 0 || !/[\d%]/.test(text[cursor]);
+      },
+    },
     {
       kind: 'amount',
       // El \b solo vale detras de letras: tras un simbolo como € nunca casa.
@@ -110,7 +151,7 @@ function pushMatch(found, seen, kind, raw) {
 }
 
 /** Nombres propios: mayuscula inicial sin ser principio de frase. */
-function findNames(text, lang, found, seen) {
+function findNames(text, lang, found, seen, shouty) {
   const stopwords = getStopwords(lang);
   const pattern =
     /(\p{Lu}[\p{Ll}'’-]{1,}(?:[ \t]+(?:de|del|la|los|las|y|of|the|and)[ \t]+\p{Lu}[\p{Ll}'’-]+|[ \t]+\p{Lu}[\p{Ll}'’-]+)*)/gu;
@@ -121,24 +162,86 @@ function findNames(text, lang, found, seen) {
     const value = match[0];
     // Que hay antes: si es principio de frase, la mayuscula no dice nada.
     let cursor = start - 1;
-    while (cursor >= 0 && /[\s"'«»(¡¿]/.test(text[cursor])) cursor -= 1;
+    // El salto de linea NO se salta: empezar linea es empezar frase, y una
+    // etiqueta suelta como 'Salario' no es un nombre propio.
+    while (cursor >= 0 && /[ \t"'\u00ab\u00bb(\u00a1\u00bf]/.test(text[cursor])) cursor -= 1;
     const previous = cursor >= 0 ? text[cursor] : '';
     const sentenceStart = previous === '' || /[.!?:;\n•·-]/.test(previous);
 
     const firstWord = value.split(/\s+/)[0].toLowerCase();
-    if (!sentenceStart && !stopwords.has(firstWord) && value.length > 2) {
+    if (!sentenceStart && !stopwords.has(firstWord) && value.length > 2 && !inRanges(shouty, start)) {
       pushMatch(found, seen, 'name', value);
     }
     match = pattern.exec(text);
   }
 }
 
-function findAcronyms(text, found, seen) {
-  const pattern = /\b[\p{Lu}]{2,6}\b/gu;
+/**
+ * Siglas de verdad.
+ *
+ * Cuidado con \b: en JavaScript solo conoce letras ASCII, asi que dentro de
+ * "ESCENICOS" con tilde o "DIPUTACION" con tilde la propia tilde crea una
+ * frontera falsa y salen siglas inventadas ("ESCE", "ON"). Por eso los
+ * limites se comprueban a mano contra letras y numeros Unicode.
+ */
+const WORD_CHAR = /[\p{L}\p{N}]/u;
+
+function isWholeWord(text, start, end) {
+  const before = start > 0 ? text[start - 1] : '';
+  const after = end < text.length ? text[end] : '';
+  return !(before && WORD_CHAR.test(before)) && !(after && WORD_CHAR.test(after));
+}
+
+/** Palabras que en algun sitio del texto van en minuscula: no son siglas. */
+function lowercaseVocabulary(text) {
+  const words = new Set();
+  for (const match of text.matchAll(/\p{L}[\p{L}\p{N}]*/gu)) {
+    const word = match[0];
+    if (word !== word.toUpperCase()) words.add(word.toLowerCase());
+  }
+  return words;
+}
+
+/**
+ * Proporcion de palabras que van enteras en mayusculas. En un pliego
+ * tecnico o un cartel casi todo grita: ahi "estar en mayusculas" no
+ * distingue una sigla de una palabra normal, asi que no se buscan siglas.
+ */
+function shoutyDocument(text) {
+  const words = text.match(/\p{L}{2,}/gu) || [];
+  if (words.length < 20) return false;
+  const shouted = words.filter((word) => word === word.toUpperCase()).length;
+  return shouted / words.length > 0.25;
+}
+
+function findAcronyms(text, found, seen, shouty, lang) {
+  if (shoutyDocument(text)) return;
+  const stopwords = getStopwords(lang);
+  const lowercase = lowercaseVocabulary(text);
+  const pattern = /\p{Lu}{2,6}/gu;
   let match = pattern.exec(text);
+
   while (match !== null) {
     const value = match[0];
-    if (!ACRONYM_NOISE.has(value)) pushMatch(found, seen, 'acronym', value);
+    const start = match.index;
+    const end = start + value.length;
+    const lower = value.toLowerCase();
+
+    const esSigla =
+      isWholeWord(text, start, end) &&
+      !ACRONYM_NOISE.has(value) &&
+      // Un titulo en mayusculas no esta lleno de siglas, esta gritando.
+      !inRanges(shouty, start) &&
+      // "DE", "LOS", "ESTA": palabras vacias a voces, no siglas.
+      !stopwords.has(lower) &&
+      // Las siglas del castellano no llevan tilde (IVA, IRPF, SGAE, RGPD).
+      !/[^\u0000-\u007F]/.test(value) &&
+      // Si esa misma palabra aparece en minuscula en el texto, es una
+      // palabra normal gritando, no una sigla.
+      !lowercase.has(lower);
+
+    if (esSigla) pushMatch(found, seen, 'acronym', value);
+    pattern.lastIndex = end;
     match = pattern.exec(text);
   }
 }
@@ -171,23 +274,24 @@ export function findEntities(text, lang = 'es') {
   const found = [];
   const seen = new Map();
 
-  for (const { kind, re } of patternsFor(lang)) {
+  for (const { kind, re, guard } of patternsFor(lang)) {
     re.lastIndex = 0;
     let match = re.exec(text);
     while (match !== null) {
       if (match[0].length === 0) {
         re.lastIndex += 1;
       } else {
-        pushMatch(found, seen, kind, match[0]);
+        if (!guard || guard(text, match.index)) pushMatch(found, seen, kind, match[0]);
         re.lastIndex = match.index + match[0].length;
       }
       match = re.exec(text);
     }
   }
 
+  const shouty = shoutyRanges(text);
   findDeadlines(text, lang, found, seen);
-  findAcronyms(text, found, seen);
-  findNames(text, lang, found, seen);
+  findAcronyms(text, found, seen, shouty, lang);
+  findNames(text, lang, found, seen, shouty);
 
   return prioritise(found);
 }

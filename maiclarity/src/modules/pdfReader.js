@@ -9,6 +9,7 @@
  */
 import * as pdfjs from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { itemsToLines, pagesToText } from './pdfLayout.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -30,18 +31,15 @@ export async function extractPdfText(buffer, onProgress) {
 
   const doc = await task.promise;
   const pages = doc.numPages;
-  const chunks = [];
+  const pageLines = [];
 
   try {
     for (let pageNumber = 1; pageNumber <= pages; pageNumber += 1) {
       const page = await doc.getPage(pageNumber);
       const content = await page.getTextContent();
-      let pageText = '';
-      for (const item of content.items) {
-        if (typeof item.str === 'string') pageText += item.str;
-        if (item.hasEOL) pageText += '\n';
-      }
-      chunks.push(pageText.replace(/[ \t]+\n/g, '\n'));
+      // La posicion de cada fragmento es lo que permite recuperar parrafos,
+      // titulos y columnas; concatenar a pelo los funde todos.
+      pageLines.push(itemsToLines(content.items));
       page.cleanup();
       if (onProgress) onProgress(pageNumber, pages);
     }
@@ -50,7 +48,7 @@ export async function extractPdfText(buffer, onProgress) {
     await task.destroy();
   }
 
-  const text = chunks.join('\n\n');
+  const text = pagesToText(pageLines);
   const density = text.replace(/\s/g, '').length / Math.max(1, pages);
   return { text, pages, scanned: density < SCANNED_CHARS_PER_PAGE };
 }

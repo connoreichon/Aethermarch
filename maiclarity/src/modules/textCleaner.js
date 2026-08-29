@@ -193,6 +193,18 @@ export function shouldJoinLines(rawA, rawB, wrapWidth) {
 
   const endsSentence = ENDS_SENTENCE.test(a);
   const startsLower = /^[\p{Ll}\d,;)]/u.test(b);
+  const startsSentence = /^[\p{Lu}¿¡"«]/u.test(b);
+
+  // Frase cerrada y lo siguiente empieza como frase nueva: no se tocan.
+  // Aqui es donde antes se pegaba la etiqueta de la ficha o de la tarjeta
+  // al final del parrafo anterior ("...Seguridad Social. Salario bruto").
+  // Lo peor que puede pasar ahora es dejar un salto de mas dentro de un
+  // parrafo, que se lee igual; lo otro cambiaba el sentido.
+  if (endsSentence && startsSentence) return false;
+
+  // "Etiqueta: valor" en la linea siguiente: es un campo, no una
+  // continuacion de la frase anterior.
+  if (/^[^:\n]{1,40}:(\s|$)/.test(b)) return false;
 
   if (wrapWidth >= MIN_WRAP_WIDTH) {
     // Linea corta terminada en punto: final de parrafo real.
@@ -253,7 +265,9 @@ export function collapseSpaces(text, stats = emptyStats()) {
 
 const PUNCTUATION_RULES = [
   // "hola , mundo" -> "hola, mundo"   |   "mundo ." -> "mundo."
-  [/ +([,;:.!?%])/g, '$1'],
+  // El % se queda fuera a proposito: "32,4 %" es la forma correcta en
+  // espanol y quitarle el espacio seria empeorar el original.
+  [/ +([,;:.!?])/g, '$1'],
   // "( texto )" -> "(texto)"
   [/\( +/g, '('],
   [/ +\)/g, ')'],

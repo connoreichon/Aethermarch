@@ -22,7 +22,7 @@ const BUCKETS = 10;
 
 /** Marcas tras las que una mayuscula inicial no significa nada. */
 const SENTENCE_EDGE = /[.!?:;\n\u2022\u00b7)\]-]/;
-const LEADING_NOISE = /[\s"'\u00ab\u00bb(\u00a1\u00bf]/;
+const LEADING_NOISE = /[ \t"'\u00ab\u00bb(\u00a1\u00bf]/;
 
 /** True si el token abre frase, parrafo o punto de lista. */
 function startsSentence(text, index) {
@@ -49,12 +49,27 @@ export function targetKeywordCount(wordCount, amount = 'medium') {
  * @param {{lang: string, amount?: string}} options
  * @returns {{term: string, display: string, count: number, score: number, weight: number}[]}
  */
+/** Tramos ocupados por URLs, correos y rutas: su interior no es vocabulario. */
+const LINK_PATTERN =
+  /(?:https?:\/\/|www\.)[^\s<>"')\]]+|[\w.%+-]+@[\w-]+\.[a-z]{2,}|\b[a-zA-Z]:\\[^\s"'<>|]+/gi;
+
+function linkRanges(text) {
+  if (!text) return [];
+  const ranges = [];
+  for (const match of text.matchAll(LINK_PATTERN)) {
+    ranges.push([match.index, match.index + match[0].length]);
+  }
+  return ranges;
+}
+
 export function analyzeKeywords(tokens, { lang = 'en', amount = 'medium', leadEnd = 0, text = '' } = {}) {
   if (!tokens || tokens.length === 0) return [];
   const stopwords = getStopwords(lang);
   const vague = getVagueWords(lang);
   const total = tokens.length;
   const bucketSize = Math.max(1, Math.ceil(total / BUCKETS));
+  const links = linkRanges(text);
+  const insideLink = (index) => links.some(([start, end]) => index >= start && index < end);
 
   /** @type {Map<string, {count:number, surfaces:Map<string,number>, buckets:Set<number>}>} */
   const entries = new Map();
@@ -65,6 +80,8 @@ export function analyzeKeywords(tokens, { lang = 'en', amount = 'medium', leadEn
     if (stopwords.has(key)) continue;
     if (!isWordy(token)) continue;
     if (/^\d+$/.test(key)) continue;
+    // "https", "com", "teatroamateur": trozos de una direccion, no palabras.
+    if (links.length > 0 && insideLink(token.start)) continue;
 
     let entry = entries.get(key);
     if (!entry) {
