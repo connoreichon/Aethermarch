@@ -40,6 +40,13 @@ import { createStore, cloneStyleConfig } from './state/store.js';
 import { $, el, icon, debounce, formatNumber } from './ui/dom.js';
 import { createToaster } from './ui/toast.js';
 import { renderStyledBlocks, applyContainerStyle, colorToCss } from './ui/renderer.js';
+import {
+  trackTabs,
+  setupReveals,
+  setupHeaderScroll,
+  withViewTransition,
+  markFresh,
+} from './ui/motion.js';
 
 /* ------------------------------------------------------------------ *
  *  Arranque
@@ -95,6 +102,10 @@ const dom = {
   styledDot: $('#styled-dot'),
   demoRaw: $('#demo-raw'),
   demoClean: $('#demo-clean'),
+  header: $('.site-header'),
+  outputPanel: $('.panel--output'),
+  viewTabs: $('.panel--output .tabs'),
+  inspectorTabs: $('.tabs--inspector'),
 };
 
 /** Cache del ultimo analisis para reutilizar la tokenizacion. */
@@ -117,6 +128,10 @@ function boot() {
 
   theme.apply();
   i18n.apply();
+  setupHeaderScroll(dom.header);
+  setupReveals();
+  trackTabs(dom.viewTabs);
+  trackTabs(dom.inspectorTabs);
   buildSwatches();
   injectFaqSchema();
   wireEvents();
@@ -244,6 +259,13 @@ function renderStyled() {
 function updateStatus() {
   updateStatusText();
   syncFixesButton();
+  const kind = store.state.status.kind;
+  dom.outputPanel.classList.toggle('is-working', kind === 'processing' || kind === 'pdf');
+}
+
+/** Marca como recien llegada la vista que se este mirando. */
+function freshResult() {
+  markFresh(store.state.view === 'styled' ? dom.styledOutput : dom.cleanOutput);
 }
 
 function updateStatusText() {
@@ -423,27 +445,31 @@ function renderKeywords() {
     el('p', { class: 'keyword-list__title' }, [i18n.t('keywords.detected')])
   );
 
-  for (const keyword of analysis.keywords) {
+  analysis.keywords.forEach((keyword, index) => {
     const button = el('button', {
       type: 'button',
       class: `keyword${locatedTerm === keyword.term ? ' is-located' : ''}`,
       title: i18n.t('keywords.locate', { term: keyword.display }),
     });
     button.style.setProperty('--weight', String(Math.max(0.08, keyword.weight)));
+    button.style.setProperty('--i', String(index));
     button.append(
       el('span', { class: 'keyword__term', text: keyword.display }),
       el('span', { class: 'keyword__count', text: i18n.t('keywords.count', { n: keyword.count }) })
     );
     button.addEventListener('click', () => locateTerm(keyword.term));
     container.appendChild(button);
-  }
+  });
 
   dom.keywordControls.classList.toggle('is-disabled', !styleConfig.keywords.enabled);
 }
 
 function locateTerm(term) {
   const next = store.state.locatedTerm === term ? null : term;
-  store.set({ locatedTerm: next, view: next ? 'styled' : store.state.view }, 'locate');
+  const view = next ? 'styled' : store.state.view;
+  const apply = () => store.set({ locatedTerm: next, view }, 'locate');
+  if (view !== store.state.view) withViewTransition(apply);
+  else apply();
 }
 
 /* ------------------------------------------------------------------ *
@@ -757,6 +783,7 @@ async function handleFile(file) {
 
     dom.sourceInput.value = result.text;
     processNow(result.text);
+    freshResult();
     store.set(
       {
         source: { name: result.name, kind: result.kind, pages: result.pages || null },
@@ -872,6 +899,7 @@ function loadExample() {
   const example = getExample(i18n.lang);
   dom.sourceInput.value = example;
   processNow(example);
+  freshResult();
   toaster.success(i18n.t('toast.exampleLoaded'));
 }
 
@@ -940,6 +968,7 @@ function wireEvents() {
     }
     dom.sourceInput.value = text;
     processNow(text);
+    freshResult();
   });
 
   // --- Archivos ---
@@ -981,7 +1010,8 @@ function wireEvents() {
   // --- Vistas ---
   document.querySelectorAll('[data-view]').forEach((button) => {
     button.addEventListener('click', () => {
-      store.set({ view: button.dataset.view }, 'view');
+      if (store.state.view === button.dataset.view) return;
+      withViewTransition(() => store.set({ view: button.dataset.view }, 'view'));
     });
   });
 
@@ -993,11 +1023,23 @@ function wireEvents() {
   });
 
   // --- Inspector ---
+  let focusBeforeInspector = null;
   const openInspector = (open) => {
     document.body.classList.toggle('is-inspector-open', open);
     dom.inspectorBackdrop.hidden = !open;
     dom.openInspector.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) dom.inspector.focus?.();
+    if (open) {
+      focusBeforeInspector = document.activeElement;
+      const first = dom.inspector.querySelector(
+        'button:not([disabled]), input, select, summary, [href]'
+      );
+      if (first) first.focus();
+      return;
+    }
+    if (focusBeforeInspector && typeof focusBeforeInspector.focus === 'function') {
+      focusBeforeInspector.focus();
+    }
+    focusBeforeInspector = null;
   };
   dom.openInspector.addEventListener('click', () => openInspector(true));
   dom.closeInspector.addEventListener('click', () => openInspector(false));

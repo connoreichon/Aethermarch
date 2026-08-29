@@ -141,6 +141,16 @@ de `robots.txt`.
   (`#148F84` / `#2EC4B6` en oscuro) y terracota (`#A8461A`) como segundo
   marcador. Modo oscuro con tinta profunda (`#101318`).
 - **Tipografías del sistema.** No se descarga ninguna fuente.
+- **Movimiento** ([`src/styles/motion.css`](src/styles/motion.css) +
+  [`src/ui/motion.js`](src/ui/motion.js)): todo lo que se mueve explica algo.
+  El trazo de marca se dibuja al abrir, el subrayado de las pestañas viaja de
+  una a otra, la barra de peso de cada término crece hasta su valor, el panel
+  de resultado muestra un barrido mientras trabaja y el cambio entre *Limpio* y
+  *Con estilo* usa la View Transitions API cuando el navegador la tiene. Nada
+  dura más de 340 ms y con `prefers-reduced-motion` se apaga entero.
+- **Falla abriendo:** la aparición al hacer scroll no depende de
+  `IntersectionObserver` ni de `requestAnimationFrame`. Si el navegador no está
+  pintando, el contenido se muestra igualmente en lugar de quedarse invisible.
 - Logotipo en [`public/logo.svg`](public/logo.svg),
   [`public/logo-mark.svg`](public/logo-mark.svg) y favicon derivado.
 

@@ -1,0 +1,334 @@
+/* ------------------------------------------------------------------ *
+ *  Movimiento.
+ *
+ *  Todo lo que se mueve esta aqui, para poder leerlo (y quitarlo) de una
+ *  vez. Cada animacion explica algo: de donde sale un panel, que pestana
+ *  esta activa, que el texto acaba de llegar. Nada decorativo.
+ *
+ *  Con "prefers-reduced-motion" el archivo entero queda neutralizado por
+ *  la regla global de base.css.
+ * ------------------------------------------------------------------ */
+
+@keyframes mc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mc-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mc-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mc-bar-grow {
+  from {
+    background-size: 0 1.15em;
+  }
+  to {
+    background-size: calc(var(--weight, 0.2) * 100%) 1.15em;
+  }
+}
+
+@keyframes mc-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mc-fresh {
+  from {
+    opacity: 0.25;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mc-sweep {
+  from {
+    background-position: -40% 0;
+  }
+  to {
+    background-position: 140% 0;
+  }
+}
+
+@keyframes mc-draw {
+  from {
+    opacity: 0;
+    transform: translateX(-8px) scaleX(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- Entrada de la pagina ------------------------------------------ */
+
+.site-header {
+  animation: mc-fade 420ms var(--ease-out) both;
+}
+
+.hero {
+  animation: mc-rise 620ms var(--ease-out) both 60ms;
+}
+
+/* El trazo de marca se dibuja: es la firma abriendo la pagina. */
+.hero::before {
+  transform-origin: left center;
+  animation: mc-draw 520ms var(--ease-out) both 220ms;
+}
+
+/* La hoja solo aparece: moverla crearia un marco de referencia para el
+   panel lateral fijo mientras dura la animacion. */
+.workspace {
+  animation: mc-fade 520ms var(--ease-out) both 140ms;
+}
+
+/* El estado vacio se presenta con el mismo gesto: primero el trazo. */
+.dropzone.is-empty .dropzone__mark path:first-child {
+  transform-origin: left center;
+  animation: mc-draw 560ms var(--ease-out) both 260ms;
+}
+
+.dropzone.is-empty .dropzone__title,
+.dropzone.is-empty .dropzone__hint,
+.dropzone.is-empty .dropzone__actions,
+.dropzone.is-empty .dropzone__kbd {
+  animation: mc-rise 520ms var(--ease-out) both;
+}
+
+.dropzone.is-empty .dropzone__title {
+  animation-delay: 320ms;
+}
+
+.dropzone.is-empty .dropzone__hint {
+  animation-delay: 380ms;
+}
+
+.dropzone.is-empty .dropzone__actions {
+  animation-delay: 440ms;
+}
+
+.dropzone.is-empty .dropzone__kbd {
+  animation-delay: 500ms;
+}
+
+/* --- Aparicion al llegar con el scroll ------------------------------ */
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+}
+
+[data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* Escalonado dentro de cada grupo: se lee en orden, no de golpe. */
+[data-reveal] > * {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 520ms var(--ease-out), transform 520ms var(--ease-out);
+}
+
+[data-reveal].is-revealed > * {
+  opacity: 1;
+  transform: none;
+}
+
+[data-reveal].is-revealed > *:nth-child(2) {
+  transition-delay: 80ms;
+}
+
+[data-reveal].is-revealed > *:nth-child(3) {
+  transition-delay: 160ms;
+}
+
+[data-reveal].is-revealed > *:nth-child(4) {
+  transition-delay: 240ms;
+}
+
+[data-reveal].is-revealed > *:nth-child(5) {
+  transition-delay: 320ms;
+}
+
+[data-reveal].is-revealed > *:nth-child(6) {
+  transition-delay: 400ms;
+}
+
+/* --- Subrayado compartido de las pestanas --------------------------- */
+
+.tabs {
+  position: relative;
+}
+
+.tabs__ink {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 0;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tabs__ink.is-ready {
+  transition: transform 340ms var(--ease-spring), width 340ms var(--ease-spring),
+    opacity 160ms linear;
+}
+
+/* Con la tinta compartida sobra el subrayado por pestana. */
+.tabs__btn.is-active::after {
+  display: none;
+}
+
+/* --- Botones y controles -------------------------------------------- */
+
+.btn {
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast),
+    transform 140ms var(--ease-out), box-shadow var(--t-base), opacity var(--t-fast);
+}
+
+.btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -10px rgba(0, 0, 0, 0.6);
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+  transition-duration: 60ms;
+}
+
+.toggle:active,
+.swatch:active,
+.segmented__btn:active {
+  transform: scale(0.94);
+  transition-duration: 60ms;
+}
+
+.swatch {
+  transition: transform 180ms var(--ease-spring), box-shadow var(--t-fast);
+}
+
+/* --- Lista de terminos ---------------------------------------------- */
+
+.keyword {
+  animation: mc-row-in 380ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 22ms);
+}
+
+/* La barra de peso crece: se ve cuanto pesa cada termino, no solo donde. */
+.keyword__term {
+  animation: mc-bar-grow 560ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 22ms + 80ms);
+}
+
+.rule {
+  animation: mc-row-in 320ms var(--ease-out) both;
+}
+
+/* --- Avisos y desglose ---------------------------------------------- */
+
+.toast {
+  transform: translateY(10px) scale(0.98);
+  transition: opacity 200ms linear, transform 340ms var(--ease-spring);
+}
+
+.toast.is-visible {
+  transform: none;
+}
+
+.fixes-popover {
+  transform-origin: top left;
+  animation: mc-pop-in 200ms var(--ease-out) both;
+}
+
+/* --- Trabajo en curso ------------------------------------------------ */
+
+.panel--output.is-working .panel__body::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 5;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent) 45%,
+    var(--accent) 55%,
+    transparent 100%
+  );
+  background-size: 45% 100%;
+  background-repeat: no-repeat;
+  animation: mc-sweep 1.15s linear infinite;
+}
+
+/* --- Contenido recien llegado ---------------------------------------- */
+
+.is-fresh {
+  animation: mc-fresh 420ms var(--ease-out) both;
+}
+
+/* --- Cambio entre "Limpio" y "Con estilo" ---------------------------- */
+
+/* Solo una de las dos vistas esta renderizada a la vez, asi que pueden
+   compartir identidad: el navegador funde una en la otra. */
+#clean-output,
+#styled-output {
+  view-transition-name: mc-result;
+}
+
+::view-transition-old(mc-result) {
+  animation: mc-fade 120ms var(--ease-out) reverse both;
+}
+
+::view-transition-new(mc-result) {
+  animation: mc-fresh 260ms var(--ease-out) both;
+}
+
+/* --- Panel lateral ---------------------------------------------------- */
+
+.inspector-backdrop {
+  animation: mc-fade 200ms linear both;
+}
+
+/* --- Cabecera al bajar ------------------------------------------------ */
+
+.site-header {
+  transition: background var(--t-base), border-color var(--t-base), box-shadow var(--t-base);
+}

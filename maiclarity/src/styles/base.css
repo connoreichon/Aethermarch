@@ -32,6 +32,18 @@ blockquote {
   margin: 0;
 }
 
+/* Titulares que reparten bien las lineas y parrafos sin huerfanas. */
+h1,
+h2,
+h3,
+summary {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
 ul,
 ol {
   margin: 0;
@@ -74,6 +86,42 @@ svg {
   width: 1rem;
   height: 1rem;
   flex: none;
+}
+
+/* Barras de desplazamiento discretas, sin robar ancho al texto. */
+.editor,
+.reader,
+.inspector__scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.editor::-webkit-scrollbar,
+.reader::-webkit-scrollbar,
+.inspector__scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.editor::-webkit-scrollbar-track,
+.reader::-webkit-scrollbar-track,
+.inspector__scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.editor::-webkit-scrollbar-thumb,
+.reader::-webkit-scrollbar-thumb,
+.inspector__scroll::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--r-pill);
+}
+
+.editor::-webkit-scrollbar-thumb:hover,
+.reader::-webkit-scrollbar-thumb:hover,
+.inspector__scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted);
 }
 
 ::selection {
