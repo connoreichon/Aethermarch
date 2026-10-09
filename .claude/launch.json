@@ -145,7 +145,7 @@
       "port": 4425
     },
     {
-      "name": "mitoma-web",
+      "name": "maipill-web",
       "runtimeExecutable": "node",
       "runtimeArgs": [
         "C:/Users/Usuario/Desktop/medication-companion/scripts/preview-web.mjs",
@@ -154,7 +154,7 @@
       "port": 4394
     },
     {
-      "name": "mitoma-web-4399",
+      "name": "maipill-web-4399",
       "runtimeExecutable": "node",
       "runtimeArgs": [
         "C:/Users/Usuario/Desktop/medication-companion/scripts/preview-web.mjs",
@@ -407,6 +407,80 @@
         "C:\\Users\\Usuario\\Desktop\\calcuplusvalia"
       ],
       "port": 4399
+    },
+    {
+      "name": "mai-live",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "C:/Users/Usuario/Desktop/mai-live",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3400"
+      ],
+      "port": 3400
+    },
+    {
+      "name": "mai-rutas",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/MAI-Burocracia",
+        "--",
+        "--port",
+        "4450",
+        "--strictPort"
+      ],
+      "port": 4450
+    },
+    {
+      "name": "mai-rutas-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/MAI-Burocracia",
+        "--",
+        "--port",
+        "4451",
+        "--strictPort"
+      ],
+      "port": 4451
+    },
+    {
+      "name": "mipunto",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "dev",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/Aethermarch_Clean/mi-punto"
+      ],
+      "port": 4460
+    },
+    {
+      "name": "mipunto-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "npm",
+        "run",
+        "preview",
+        "--prefix",
+        "C:/Users/Usuario/Desktop/Aethermarch_Clean/mi-punto"
+      ],
+      "port": 4461
     }
   ]
 }

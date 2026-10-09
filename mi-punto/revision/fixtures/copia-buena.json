@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "propietario": "invitado",
+  "actualizado": 1791500000000,
+  "perfil": { "nombre": "Prueba Importación" },
+  "grupos": [{ "id": "gi1", "nombre": "Importado", "color": "terracota" }],
+  "accesos": [
+    { "id": "ai1", "nombre": "BOE", "url": "https://www.boe.es/", "grupoId": "gi1", "usos": 4, "ultimoUso": 1791500000000 },
+    { "id": "ai2", "nombre": "Sitio inválido", "url": "javascript:alert(1)", "grupoId": "gi1", "usos": 1, "ultimoUso": null }
+  ],
+  "retomar": [{ "id": "ri1", "titulo": "Algo a medias", "url": "https://example.com/x", "nota": "Con acentuación", "creado": 1791500000000 }],
+  "tareas": [{ "id": "ti1", "texto": "Tarea importada", "hecha": false, "prioridad": true, "creada": 1791500000000, "completada": null }],
+  "nota": "Nota importada con tildes: ñ á é í ó ú"
+}

@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "propietario": "invitado",
+  "actualizado": 1791600000000,
+  "perfil": { "nombre": "Importada" },
+  "preferencias": { "fondo": "alba", "efectos": "normales", "presentado": true },
+  "grupos": [{ "id": "gi1", "nombre": "Traído", "color": "ciruela" }],
+  "accesos": [
+    { "id": "ai1", "nombre": "BOE", "url": "https://www.boe.es/", "grupoId": "gi1", "favorito": true, "usos": 4, "ultimoUso": 1791600000000 },
+    { "id": "ai2", "nombre": "Malo", "url": "javascript:alert(1)", "grupoId": "gi1", "favorito": true, "usos": 1, "ultimoUso": null }
+  ],
+  "retomar": [{ "id": "ri1", "titulo": "A medias", "url": "https://example.com/x", "nota": "Con acentuación", "creado": 1791600000000, "terminado": false }],
+  "notas": [{ "id": "ni1", "titulo": "Nota traída", "texto": "Ñandú, cigüeña, árbol.", "creada": 1791600000000, "actualizada": 1791600000000 }],
+  "tareas": [{ "id": "ti1", "texto": "Tarea traída", "hecha": false, "prioridad": true, "creada": 1791600000000, "completada": null }]
+}

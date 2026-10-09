@@ -1,0 +1,149 @@
+/* ============================================================
+   Mi Punto — tokens
+   Direccion «Ventana personal»: un fondo ambiental propio y, encima,
+   superficies claras y opacas donde se lee y se trabaja.
+
+   Contrastes medidos sobre la superficie clara (#F8F8F4):
+     texto principal   14,2:1
+     texto secundario   5,8:1
+     azul de apoyo      5,5:1
+     error              6,1:1
+     exito              6,5:1
+     canto de control   3,2:1   (minimo 3 para contornos)
+     mandarina          3,0:1   -> NO vale para texto: se usa
+                                   #B3421A (5,3:1) cuando hay que
+                                   escribir en naranja
+   Y sobre la mandarina: tinta 5,1:1  ·  blanco 3,2:1
+     por eso el boton principal lleva texto oscuro, no blanco.
+   ============================================================ */
+
+:root {
+  /* --- Paleta base (encargo) ------------------------------- */
+  --c-tinta:       #182B43;
+  --c-superficie:  #F8F8F4;
+  --c-texto:       #1D2734;
+  --c-texto-2:     #566373;
+  --c-mandarina:   #F66A38;
+  --c-azul:        #3559D8;
+  --c-separador:   #DDE2E7;
+  --c-error:       #AC3035;
+  --c-exito:       #27654C;
+
+  /* --- Derivados comprobados ------------------------------- */
+  --c-mandarina-texto: #B3421A;  /* 5,3:1 sobre superficie */
+  --c-mandarina-alta:  #FF7D4F;  /* luz del boton           */
+  --c-mandarina-honda: #D9542A;  /* canto y pulsado         */
+  --c-canto:           #7E8C9B;  /* 3,2:1: contorno de control */
+  --c-hueso:           #FFFFFF;
+
+  /* --- Fondo ------------------------------------------------ */
+  --fondo-liso: linear-gradient(170deg, #22384F 0%, #3A5670 46%, #6E8496 100%);
+  --velo-lectura: linear-gradient(
+      180deg,
+      rgba(24, 43, 67, 0.46) 0%,
+      rgba(24, 43, 67, 0.26) 34%,
+      rgba(24, 43, 67, 0.08) 62%,
+      rgba(24, 43, 67, 0) 100%);
+
+  /* --- Tokens semanticos: superficie ------------------------ */
+  --sup:            var(--c-superficie);
+  --sup-alta:       #FFFFFF;
+  --sup-hundida:    #EEEFEA;
+  --sup-campo:      #FFFFFF;
+  --sup-sobre-foto: rgba(248, 248, 244, 0.94);
+  --sup-velo:       rgba(24, 43, 67, 0.44);
+
+  /* --- Tokens semanticos: texto ----------------------------- */
+  --txt:            var(--c-texto);
+  --txt-2:          var(--c-texto-2);
+  --txt-off:        #8A94A0;
+  --txt-error:      var(--c-error);
+  --txt-exito:      var(--c-exito);
+  --txt-claro:      #F4F6F8;        /* sobre el fondo ambiental */
+  --txt-claro-2:    rgba(244, 246, 248, 0.78);
+
+  /* --- Bordes ------------------------------------------------ */
+  --sep:            var(--c-separador);
+  --canto:          var(--c-canto);
+
+  /* --- Accion ------------------------------------------------ */
+  --accion:         var(--c-mandarina);
+  --accion-alta:    var(--c-mandarina-alta);
+  --accion-honda:   var(--c-mandarina-honda);
+  --accion-txt:     #231206;        /* tinta calida: 5,8:1 sobre mandarina */
+  --accion-off:     #E7E8E3;
+  --foco:           var(--c-azul);
+  --sel:            rgba(53, 89, 216, 0.1);
+
+  /* --- Escala de espacio ------------------------------------ */
+  --e1: 4px;  --e2: 8px;  --e3: 12px; --e4: 16px;
+  --e5: 20px; --e6: 24px; --e8: 32px; --e10: 40px; --e12: 48px;
+
+  /* --- Radios por funcion ----------------------------------- */
+  --r-control: 12px;
+  --r-campo: 16px;
+  --r-panel: 20px;
+  --r-etiqueta: 8px;
+
+  /* --- Tipografia -------------------------------------------- */
+  --fuente: 'Manrope', ui-sans-serif, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --t-hora: 64px;
+  --t-saludo: 40px;
+  --t-panel: 23px;
+  --t-cuerpo: 16px;
+  --t-menor: 14px;
+
+  /* --- Material ---------------------------------------------- */
+  --s-contacto: 0 1px 2px rgba(24, 43, 67, 0.10);
+  --s-panel:
+      0 1px 0 rgba(255, 255, 255, 0.7) inset,
+      0 2px 6px -2px rgba(24, 43, 67, 0.14),
+      0 14px 34px -22px rgba(24, 43, 67, 0.45);
+  --s-flotante:
+      0 2px 6px -2px rgba(24, 43, 67, 0.2),
+      0 24px 52px -20px rgba(24, 43, 67, 0.55);
+  --s-accion:
+      inset 0 1px 0 rgba(255, 255, 255, 0.42),
+      0 1px 0 rgba(24, 43, 67, 0.22),
+      0 3px 8px -3px rgba(217, 84, 42, 0.5);
+  --s-accion-pulsada:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 1px 0 rgba(24, 43, 67, 0.18);
+  --s-hundido: inset 0 1px 2px rgba(24, 43, 67, 0.08);
+
+  /* --- Movimiento --------------------------------------------- */
+  --curva: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-tacto: 90ms;
+  --t-estado: 150ms;
+  --t-panel-ms: 210ms;
+
+  /* --- Composicion -------------------------------------------- */
+  --ancho-inicio: 880px;
+  --ancho-buscar: 680px;
+  --ancho-vista: 1080px;
+  --margen: 48px;
+  --cabecera: 72px;
+}
+
+@media (max-width: 1100px) { :root { --margen: 32px; } }
+
+@media (max-width: 720px) {
+  :root {
+    --t-hora: 44px;
+    --t-saludo: 30px;
+    --t-panel: 20px;
+    --margen: 18px;
+    --cabecera: 60px;
+  }
+}
+
+/* Menos efectos: lo activa la persona en Ajustes. Quita el fondo
+   ambiental y aplana el material, sin tocar la informacion. */
+:root[data-efectos='pocos'] {
+  --s-panel: 0 1px 0 rgba(24, 43, 67, 0.08);
+  --s-flotante: 0 2px 10px -4px rgba(24, 43, 67, 0.4);
+  --s-accion: 0 1px 0 rgba(24, 43, 67, 0.2);
+  --s-accion-pulsada: none;
+  --s-contacto: none;
+}

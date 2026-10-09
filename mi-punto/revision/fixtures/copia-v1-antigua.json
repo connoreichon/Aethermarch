@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "perfil": { "nombre": "De la v1" },
+  "grupos": [{ "id": "g1", "nombre": "Cada dia", "color": "niebla" }],
+  "accesos": [{ "id": "a1", "nombre": "Wikipedia", "url": "https://es.wikipedia.org/", "grupoId": "g1", "usos": 3, "ultimoUso": 1791500000000 }],
+  "retomar": [],
+  "tareas": [{ "id": "t1", "texto": "Tarea vieja", "hecha": false, "prioridad": true, "creada": 1791500000000, "completada": null }],
+  "nota": "Esta era la nota unica del esquema viejo."
+}

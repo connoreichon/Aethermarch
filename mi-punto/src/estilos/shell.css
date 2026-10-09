@@ -1,0 +1,437 @@
+/* ============================================================
+   Ventana personal. Tres niveles: fondo ambiental, superficies
+   funcionales, controles. No hay barra lateral permanente.
+   ============================================================ */
+
+.marco {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ------------------------------------------------------ CABECERA */
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--e4);
+  height: var(--cabecera);
+  padding: 0 var(--margen);
+  flex: none;
+}
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--txt-claro);
+  background: none;
+  border: 0;
+  padding: 6px 8px 6px 0;
+}
+.marca__punto {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accion);
+  box-shadow: 0 0 0 3px rgba(246, 106, 56, 0.2);
+  flex: none;
+}
+
+.nav { display: flex; align-items: center; gap: 2px; margin-left: var(--e6); }
+.nav__enlace {
+  padding: 8px var(--e3);
+  min-height: 38px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--txt-claro-2);
+  font-size: var(--t-menor);
+  font-weight: 700;
+  transition: background-color var(--t-estado) var(--curva), color var(--t-estado) var(--curva);
+}
+.nav__enlace:hover { background: rgba(255, 255, 255, 0.14); color: var(--txt-claro); }
+.nav__enlace[aria-current] { background: rgba(255, 255, 255, 0.2); color: var(--txt-claro); }
+.cabecera__fin { margin-left: auto; display: flex; align-items: center; gap: var(--e1); }
+
+/* Botón de icono sobre el fondo ambiental */
+.icono-claro {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--txt-claro);
+  transition: background-color var(--t-estado) var(--curva), transform var(--t-tacto) var(--curva);
+}
+.icono-claro:hover { background: rgba(255, 255, 255, 0.22); }
+.icono-claro:active { transform: translateY(1px); }
+
+/* --------------------------------------------------------- INICIO
+   Composición algo por encima del centro: en 1440x900 entran
+   buscador, favoritos y la zona de abajo sin desplazarse. */
+.inicio {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--e8);
+  width: 100%;
+  max-width: calc(var(--ancho-inicio) + var(--margen) * 2);
+  margin: 0 auto;
+  padding: var(--e4) var(--margen) var(--e10);
+  /* Algo por encima del centro: el bloque respira mejor y deja ver
+     el horizonte del fondo por debajo. */
+  padding-bottom: calc(var(--e12) + 7vh);
+}
+
+.reloj { color: var(--txt-claro); text-align: center; }
+.reloj__hora {
+  display: block;
+  font-size: var(--t-hora);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.reloj__fecha {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--t-menor);
+  color: var(--txt-claro-2);
+}
+.reloj__fecha::first-letter { text-transform: uppercase; }
+.reloj h1 { margin-top: var(--e4); color: var(--txt-claro); }
+
+/* ------------------------------------------------------ BUSCADOR */
+.buscador {
+  width: 100%;
+  max-width: var(--ancho-buscar);
+  margin: 0 auto;
+}
+/* Los accesos van encima: el buscador es ayuda, no protagonista.
+   Por eso es mas bajo, mas estrecho y menos blanco que ellos. */
+.buscador { max-width: 560px; }
+.buscador__caja {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  height: 50px;
+  padding: 0 var(--e3) 0 var(--e4);
+  background: rgba(248, 248, 244, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--r-campo);
+  box-shadow: 0 2px 10px -6px rgba(24, 43, 67, 0.5);
+  transition: border-color var(--t-estado) var(--curva), box-shadow var(--t-estado) var(--curva);
+}
+.buscador__caja:focus-within {
+  background: var(--sup-alta);
+  border-color: var(--foco);
+  box-shadow: 0 2px 10px -6px rgba(24, 43, 67, 0.5), 0 0 0 3px rgba(53, 89, 216, 0.3);
+}
+/* Distintivo: a primera vista no es una barra de internet */
+.buscador__insignia {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: rgba(24, 43, 67, 0.08);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--txt-2);
+  letter-spacing: 0.01em;
+}
+.buscador__caja input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  font-size: var(--t-cuerpo);
+  text-overflow: ellipsis;
+}
+.buscador__caja input::placeholder { color: var(--txt-off); }
+.buscador__caja > svg { flex: none; color: var(--txt-2); }
+
+/* ------------------------------------------------------ FAVORITOS */
+.favoritos {
+  order: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 88px));
+  justify-content: center;
+  gap: var(--e4) var(--e1);
+  width: 100%;
+  max-width: var(--ancho-inicio);
+  margin: 0 auto;
+}
+/* En la primera visita la rejilla reparte el ancho: con columnas de
+   tamano fijo quedaba un hueco muerto a la derecha. */
+.favoritos--elegir {
+  max-width: none;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+}
+
+.favorito {
+  display: grid;
+  justify-items: center;
+  gap: var(--e2);
+  padding: var(--e2) 4px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  text-decoration: none;
+  color: var(--txt-claro);
+  background: none;
+  transition: background-color var(--t-estado) var(--curva);
+}
+.favorito:hover { background: rgba(255, 255, 255, 0.14); }
+.favorito__ficha {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 15px;
+  background: var(--sup-sobre-foto);
+  box-shadow: var(--s-contacto), 0 4px 12px -6px rgba(24, 43, 67, 0.5);
+  transition: transform var(--t-tacto) var(--curva), box-shadow var(--t-tacto) var(--curva);
+  overflow: hidden;
+}
+.favorito:hover .favorito__ficha {
+  transform: translateY(-2px);
+  box-shadow: var(--s-contacto), 0 10px 20px -8px rgba(24, 43, 67, 0.55);
+}
+.favorito:active .favorito__ficha { transform: translateY(1px); box-shadow: var(--s-contacto); }
+.favorito__ficha img { width: 30px; height: 30px; object-fit: contain; }
+.favorito__inicial { font-size: 20px; font-weight: 800; color: var(--txt); }
+.favorito__nombre {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.25;
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 3px rgba(24, 43, 67, 0.45);
+}
+.favorito--anadir .favorito__ficha {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4);
+  color: var(--txt-claro);
+}
+.favorito--anadir:hover .favorito__ficha { background: rgba(255, 255, 255, 0.26); }
+
+/* --------------------------------------------- ZONA CONTEXTUAL */
+.contexto {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--e3);
+  width: 100%;
+}
+.contexto--unico { grid-template-columns: minmax(0, 1fr); max-width: 520px; margin: 0 auto; }
+.tarjeta {
+  display: grid;
+  /* min-width:auto es el valor por defecto de un item de grid y le
+     impide encoger por debajo de su contenido: sin esto el texto
+     largo se sale de la tarjeta. Hace falta en cada nivel. */
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--e2);
+  min-width: 0;
+  padding: var(--e4);
+  background: var(--sup-sobre-foto);
+  border-radius: var(--r-panel);
+  box-shadow: var(--s-panel);
+}
+.tarjeta__titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  min-width: 0;
+  font-size: var(--t-menor);
+  font-weight: 800;
+}
+.tarjeta__titulo button { margin-left: auto; }
+.tarjeta__lista { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; }
+.tarjeta__fila {
+  display: flex;
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  align-items: baseline;
+  gap: var(--e2);
+  padding: 5px 6px;
+  margin: 0 -6px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: var(--t-menor);
+  transition: background-color var(--t-estado) var(--curva);
+}
+.tarjeta__fila:hover { background: var(--sup-hundida); }
+.tarjeta__fila strong {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+/* Solo el dato de la derecha se separa; antes esto apuntaba a
+   cualquier <span> de la fila y empujaba tambien la casilla. */
+.tarjeta__dato {
+  margin-left: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--txt-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tarjeta__vacio { font-size: var(--t-menor); color: var(--txt-2); }
+
+/* ------------------------------------------------- VISTAS INTERNAS */
+.vista {
+  flex: 1;
+  width: 100%;
+  max-width: calc(var(--ancho-vista) + var(--margen) * 2);
+  margin: 0 auto;
+  padding: var(--e2) var(--margen) var(--e12);
+}
+.vista__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--e2) var(--e4);
+  margin-bottom: var(--e5);
+  color: var(--txt-claro);
+}
+.vista__cabeza h1 { font-size: 30px; }
+.vista__cabeza p { color: var(--txt-claro-2); font-size: var(--t-menor); flex: 1 1 200px; }
+
+.panel {
+  padding: var(--e6);
+  background: var(--sup);
+  border-radius: var(--r-panel);
+  box-shadow: var(--s-panel);
+}
+.panel + .panel { margin-top: var(--e4); }
+.panel__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--e2) var(--e4);
+  margin-bottom: var(--e4);
+  padding-bottom: var(--e3);
+  border-bottom: 1px solid var(--sep);
+}
+.panel__cabeza h2 { flex: 1 1 auto; }
+.panel__cabeza .suave { font-size: var(--t-menor); }
+.panel__acciones { display: flex; gap: var(--e2); flex: none; }
+
+/* 340 px: es lo que piden el nombre editable, la cuenta y los tres
+   controles de la fila de grupo sin pisarse. */
+.dos-columnas { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: var(--e4); align-items: start; }
+.dos-columnas .panel { overflow: hidden; }
+
+/* ------------------------------------------------ NAVEGACION MOVIL */
+.barra-movil { display: none; }
+.solo-movil { display: none; }
+
+@media (max-width: 860px) {
+  .nav { display: none; }
+  .solo-movil { display: grid; }
+  .inicio { gap: var(--e6); padding-bottom: calc(var(--e10) + 76px); justify-content: flex-start; padding-top: var(--e6); }
+  .vista { padding-bottom: calc(var(--e12) + 76px); }
+  .contexto { grid-template-columns: minmax(0, 1fr); }
+  .dos-columnas { grid-template-columns: minmax(0, 1fr); }
+  .panel { padding: var(--e4); border-radius: 18px; }
+  .favoritos { max-width: none; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); }
+
+  .barra-movil {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    background: rgba(24, 43, 67, 0.92);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .barra-movil__boton {
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    min-height: 54px;
+    padding: 7px 2px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--txt-claro-2);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .barra-movil__boton[aria-current] { background: rgba(255, 255, 255, 0.14); color: var(--accion); }
+}
+
+/* Pantallas de escritorio bajas: se recorta el aire, no el contenido */
+@media (min-height: 0px) and (max-height: 780px) and (min-width: 861px) {
+  .inicio { gap: var(--e5); padding-bottom: var(--e6); }
+  :root { --t-hora: 52px; --t-saludo: 32px; }
+}
+
+/* -------------------------------------------- PASTILLA DE EJEMPLO */
+.pastilla-ejemplo {
+  position: fixed;
+  right: var(--e6);
+  bottom: var(--e6);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  min-height: 42px;
+  padding: 0 var(--e4);
+  border: 1px solid var(--sep);
+  border-radius: 999px;
+  background: var(--sup-alta);
+  box-shadow: var(--s-flotante);
+  font-size: var(--t-menor);
+  color: var(--txt-2);
+}
+.pastilla-ejemplo strong { color: var(--c-mandarina-texto); }
+@media (max-width: 860px) {
+  .pastilla-ejemplo { bottom: calc(80px + env(safe-area-inset-bottom)); right: var(--e4); }
+  .pastilla-ejemplo__texto { display: none; }
+}
+
+/* El fondo ambiental: dos recortes, uno por orientacion */
+.ambiente[data-con-imagen] { background-image: var(--img-escritorio); }
+@media (max-aspect-ratio: 1/1) {
+  .ambiente[data-con-imagen] { background-image: var(--img-movil); }
+}
+
+/* ------------------------------------------- AREAS TACTILES
+   En movil ningun control baja de 44x44, aunque su dibujo sea
+   menor. Medido en la web real: la cabecera iba a 40, las filas
+   de las tarjetas a 31 y los botones compactos a 42. */
+@media (max-width: 860px) {
+  .icono-claro { width: 44px; height: 44px; }
+  .marca { min-height: 44px; }
+  .tarjeta__fila { min-height: 44px; align-items: center; padding-top: 9px; padding-bottom: 9px; }
+  .boton--discreto,
+  .boton--compacto { min-height: 44px; }
+  .pastilla-ejemplo { min-height: 44px; }
+  .icono-boton--mini { width: 44px; height: 44px; border-radius: 11px; }
+  .casilla { width: 26px; height: 26px; }
+}

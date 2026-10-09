@@ -1,0 +1,25 @@
+{
+  "name": "mi-punto",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Abre. Encuentra lo tuyo. Sigue. Pagina de inicio personal que funciona entera en tu navegador.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "fondos": "python scripts/generar_fondo.py"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@fontsource/manrope": "^5.2.5",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.14"
+  }
+}

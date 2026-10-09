@@ -1,0 +1,33 @@
+/* Todo el movimiento de Mi Punto pasa por aqui.
+   Regla: solo opacity, transform y box-shadow. Nunca layout. */
+
+@keyframes entra-velo { from { opacity: 0 } to { opacity: 1 } }
+@keyframes entra-dialogo {
+  from { opacity: 0; transform: translateY(8px) scale(0.985) }
+  to   { opacity: 1; transform: none }
+}
+@keyframes entra-hoja {
+  from { transform: translateY(14px) }
+  to   { transform: none }
+}
+@keyframes entra-aviso {
+  from { opacity: 0; transform: translateY(10px) }
+  to   { opacity: 1; transform: none }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .velo    { animation: entra-velo var(--t-panel) var(--curva) both; }
+  .dialogo { animation: entra-dialogo var(--t-panel) var(--curva) both; }
+  .hoja    { animation: entra-hoja var(--t-panel) var(--curva) both; }
+  .aviso   { animation: entra-aviso var(--t-panel) var(--curva) both; }
+  .marca-check path { transition: stroke-dashoffset var(--t-estado) var(--curva); }
+}
+
+/* Movimiento reducido: los estados siguen cambiando, el viaje no existe. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

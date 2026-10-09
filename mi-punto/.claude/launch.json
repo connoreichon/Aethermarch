@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mipunto",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "npm", "run", "dev", "--prefix", "C:/Users/Usuario/Desktop/Aethermarch_Clean/mi-punto"],
+      "port": 4460
+    },
+    {
+      "name": "mipunto-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "npm", "run", "preview", "--prefix", "C:/Users/Usuario/Desktop/Aethermarch_Clean/mi-punto"],
+      "port": 4461
+    }
+  ]
+}
