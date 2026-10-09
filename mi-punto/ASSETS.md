@@ -37,16 +37,34 @@ Se usan a 18–20 px dentro de áreas táctiles de 44×44 como mínimo.
 ## Marca
 
 El distintivo es un punto en mandarina (`--accion`) junto al nombre, hecho en
-CSS. No hay archivo de logotipo ni favicon propio todavía: **el `index.html` no
-declara `<link rel="icon">`**, así que el navegador muestra su icono por
-defecto. Queda pendiente.
+CSS. El favicon es `public/icono.svg`: el mismo punto sobre un cuadrado de
+tinta, SVG de dos formas y 180 bytes, declarado en `index.html`. Original.
 
 ## Iconos de los accesos — de terceros, no redistribuidos
 
 Los iconos que se ven en los accesos son **el favicon de cada sitio**, pedido en
-tiempo de ejecución al propio dominio (`/apple-touch-icon.png` y, si falla,
-`/favicon.ico`). No se descargan, no se guardan y no se incluyen en el
-repositorio.
+tiempo de ejecución al propio dominio. No se descargan, no se guardan y no se
+incluyen en el repositorio.
+
+Orden de intentos, porque cada sitio publica el suyo en un sitio distinto:
+
+1. El icono que la persona haya puesto a mano en el acceso, si lo hay.
+2. `{origen}/apple-touch-icon.png`
+3. `{origen}/favicon.svg`
+4. `{origen}/favicon.ico`
+5. El dominio raíz: `mail.google.com` → `google.com/favicon.ico` y
+   `www.google.com/favicon.ico`. Muchos subdominios (correo, sede, app) no
+   sirven icono pero su dominio principal sí.
+6. La inicial del nombre.
+
+**Lo que esto implica y hay que saber:** cuando se llega al paso 5, dos accesos
+de la misma casa comparten icono. Gmail y Calendario acaban los dos con la G de
+Google, porque ninguno de sus subdominios publica un icono accesible. No es un
+error: es lo que hay disponible. El remedio está en el propio formulario del
+acceso, campo «Icono», donde se pega la dirección de la imagen que se quiera.
+
+Hay sitios que no dan ninguno de los cinco (Notion es uno): ahí queda la
+inicial, que también es un resultado correcto.
 
 - **Por qué al propio dominio y no a un servicio de favicons:** un agregador
   recibiría de golpe la lista entera de sitios que tienes guardados. Pidiéndolo
@@ -72,5 +90,5 @@ de la persona: entrar y salir del ejemplo no los toca.
 
 ## Pendiente
 
-- Favicon y marca de la web (no hay archivo).
 - Datos del titular para los documentos legales, si se publica.
+- Un logotipo más trabajado que el punto, si el producto llega a tener marca.

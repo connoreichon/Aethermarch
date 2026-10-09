@@ -90,6 +90,8 @@ export const sanear = (bruto: unknown): Datos | null => {
         id: texto(a.id, 64) || nuevoId(),
         nombre,
         url,
+        // El icono propio tambien es una URL que viene de fuera
+        icono: normalizarUrl(texto(a.icono, 2048)) ?? '',
         grupoId: idsGrupo.has(grupoId) ? grupoId : grupos[0].id,
         favorito: a.favorito === true,
         usos: typeof a.usos === 'number' && a.usos >= 0 ? Math.min(a.usos, 1e6) : 0,

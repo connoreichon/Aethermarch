@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Boton } from '../componentes/Boton'
+import { olvidarIconosFallidos } from '../componentes/FichaSitio'
 import { Campo } from '../componentes/Campo'
 import { Icono } from '../componentes/Iconos'
 import { Panel, Vista } from '../componentes/Marco'
@@ -202,6 +203,21 @@ export const Ajustes = ({
             </span>
           </div>
         )}
+      </Panel>
+
+      <Panel titulo={T.ajustes.iconos} nota={T.ajustes.iconosAyuda} id="t-iconos">
+        <Boton
+          tono="secundario"
+          icono="volver"
+          onClick={() => {
+            const cuantos = olvidarIconosFallidos()
+            avisar(T.ajustes.iconosOlvidados(cuantos))
+            // Un repintado basta: las fichas vuelven a pedir el icono
+            aplicar((d) => ({ ...d }))
+          }}
+        >
+          {T.ajustes.reintentarIconos}
+        </Boton>
       </Panel>
 
       <Panel titulo={T.ajustes.verEjemplo} nota={T.ajustes.verEjemploAyuda} id="t-ejemplo">

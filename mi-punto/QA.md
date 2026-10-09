@@ -25,7 +25,11 @@ cual.
 | 15 | Calculadora | Pasa. `12,5 × 4 = 50`; `8 ÷ 0 = —`; `9 + 1 = 10`; `200 − 50 = 150`; `50 % = 0,5`; retroceso vuelve a 0. |
 | 16 | Porcentajes con decimales y con error | Pasa. 21 % de `1.234,50` = `259,245`; con letras, «Escribe un número». |
 | 17 | Teclado: Escape en diálogo | Pasa. Cierra, **el foco vuelve al botón que lo abrió** y se libera el scroll. |
-| 18 | Build de producción | Pasa. `tsc` limpio y `vite build` correcto. |
+| 18 | Build de producción | Pasa. `tsc` limpio y `vite build` correcto; comprobado sirviendo `dist/` y repitiendo la primera visita sobre él. |
+| 19 | Cadena de iconos | Pasa. De 8 accesos del ejemplo, 7 con icono real: El País y Wikipedia por `apple-touch-icon`, Drive, YouTube y Spotify por `favicon.ico`, Gmail y Calendario por el dominio raíz. Notion no publica ninguno y queda con su inicial. |
+| 20 | Icono propio por acceso | Pasa. Con texto que no es una dirección: «Esa no es una dirección de imagen válida». Con una URL buena: vista previa en el propio campo y guardado en disco. |
+| 21 | «Volver a buscar los iconos» | Pasa. Había 3 dominios recordados como fallidos; el aviso dice «Se volverán a buscar 3 sitios» y Gmail y Calendario pasan a mostrar icono. |
+| 22 | Color de grupo desde la web | Pasa. El punto abre las seis opciones, se elige una, el menú se cierra y el color cambia también en la ficha del inicio. |
 
 ## Adaptación
 

@@ -70,6 +70,10 @@ export const T = {
     campoUrl: 'Dirección',
     campoGrupo: 'Grupo',
     campoFavorito: 'Mostrar en el inicio',
+    campoIcono: 'Icono (opcional)',
+    campoIconoAyuda:
+      'Déjalo vacío y se busca en el propio sitio. Si ese sitio no publica ninguno, pega aquí la dirección de una imagen.',
+    errorIcono: 'Esa no es una dirección de imagen válida.',
     guardar: 'Guardar acceso',
     editar: 'Editar',
     borrar: 'Borrar',
@@ -209,6 +213,12 @@ export const T = {
     datos: 'Tus datos',
     exportar: 'Descargar una copia',
     importar: 'Restaurar desde un archivo',
+    iconos: 'Iconos de los accesos',
+    iconosAyuda:
+      'Se piden al propio sitio. Cuando uno no responde se recuerda para no insistir en cada carga y se usa su inicial. Si crees que ya los sirve, puedes volver a intentarlo.',
+    reintentarIconos: 'Volver a buscar los iconos',
+    iconosOlvidados: (n: number) =>
+      n === 0 ? 'No había ninguno pendiente.' : `Se volverán a buscar ${n === 1 ? '1 sitio' : `${n} sitios`}.`,
     restablecer: 'Restablecer todo',
     restablecerAviso:
       'Se borran tus accesos, tus notas, tus tareas y tus enlaces guardados. No hay vuelta atrás.',

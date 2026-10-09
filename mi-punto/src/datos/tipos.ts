@@ -8,6 +8,8 @@ export interface Acceso {
   id: string
   nombre: string
   url: string
+  /** Icono puesto a mano. Vacio = se busca en el propio sitio. */
+  icono: string
   grupoId: string
   favorito: boolean
   usos: number

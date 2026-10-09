@@ -36,11 +36,14 @@ autorización para subirlo.
 
 ## Alcance de esta versión
 
-**Hace:** accesos con grupos, favoritos y orden; enlaces guardados para retomar
-con nota y marca de terminado; notas con guardado automático; tareas con hasta
-tres prioridades; búsqueda interna; calculadora y porcentajes; copia de
-seguridad y restauración; primera visita con accesos sugeridos; fondo y nivel de
-efectos configurables.
+**Hace:** accesos con grupos, favoritos, orden, color de grupo e icono propio;
+enlaces guardados para retomar con nota y marca de terminado; notas con guardado
+automático; tareas con hasta tres prioridades; búsqueda interna; calculadora y
+porcentajes; copia de seguridad y restauración; primera visita con accesos
+sugeridos; fondo y nivel de efectos configurables.
+
+Todo se gestiona desde la propia web: no hay nada que requiera editar un archivo
+a mano.
 
 **No hace, y no lo aparenta:** inicio de sesión, sincronización, lectura de
 correo o calendario, acceso al historial o a las pestañas, avisos con la web

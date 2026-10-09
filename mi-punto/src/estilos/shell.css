@@ -188,6 +188,7 @@
 }
 .favorito:hover { background: rgba(255, 255, 255, 0.14); }
 .favorito__ficha {
+  position: relative;
   display: grid;
   place-items: center;
   width: 54px;
@@ -204,6 +205,19 @@
 }
 .favorito:active .favorito__ficha { transform: translateY(1px); box-shadow: var(--s-contacto); }
 .favorito__ficha img { width: 30px; height: 30px; object-fit: contain; }
+/* Pie del color de su grupo: tres pixeles, lo justo para agrupar de
+   un vistazo sin pintar la pantalla de colores. */
+.favorito__ficha::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  right: 11px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: var(--color-grupo, transparent);
+  opacity: 0.9;
+}
 .favorito__inicial { font-size: 20px; font-weight: 800; color: var(--txt); }
 .favorito__nombre {
   font-size: 13px;

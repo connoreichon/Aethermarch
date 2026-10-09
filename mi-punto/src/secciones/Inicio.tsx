@@ -3,7 +3,7 @@ import { BotonIcono } from '../componentes/Boton'
 import { FichaSitio } from '../componentes/FichaSitio'
 import { Icono } from '../componentes/Iconos'
 import type { Vista } from '../componentes/Marco'
-import { MAX_FAVORITOS } from '../config/ajustes'
+import { MAX_FAVORITOS, colorDeGrupo } from '../config/ajustes'
 import { T } from '../config/textos'
 import type { Datos, Tarea } from '../datos/tipos'
 import { dominio, fechaLarga, horaCorta, saludoDeLaHora, sinAcentos } from '../datos/util'
@@ -71,6 +71,7 @@ export const Inicio = ({
     () => datos.accesos.filter((a) => a.favorito).slice(0, MAX_FAVORITOS),
     [datos.accesos],
   )
+  const grupoDe = (id: string) => datos.grupos.find((g) => g.id === id)?.color ?? ''
   const pendientes = datos.tareas.filter((t) => !t.hecha)
   const prioridades = pendientes.filter((t) => t.prioridad)
   const retomar = datos.retomar.filter((r) => !r.terminado).slice(0, 3)
@@ -100,8 +101,13 @@ export const Inicio = ({
             rel="noreferrer noopener"
             onClick={() => alAbrirAcceso(a.id)}
           >
-            <span className="favorito__ficha">
-              <FichaSitio nombre={a.nombre} url={a.url} />
+            {/* El color del grupo aparece aquí: si no, elegirlo en
+                Colecciones no serviría para nada. */}
+            <span
+              className="favorito__ficha"
+              style={{ '--color-grupo': colorDeGrupo(grupoDe(a.grupoId)) } as React.CSSProperties}
+            >
+              <FichaSitio nombre={a.nombre} url={a.url} icono={a.icono} />
             </span>
             <span className="favorito__nombre">{a.nombre}</span>
           </a>

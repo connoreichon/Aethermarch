@@ -62,7 +62,7 @@ export const Resultados = ({ datos, consulta, alAbrirAcceso, alAlternarTarea, al
                 onClick={() => alAbrirAcceso(a.id)}
               >
                 <span style={{ display: 'grid', placeItems: 'center', width: 20, height: 20, flex: 'none' }}>
-                  <FichaSitio nombre={a.nombre} url={a.url} tamano={18} />
+                  <FichaSitio nombre={a.nombre} url={a.url} icono={a.icono} tamano={18} />
                 </span>
                 <strong>{a.nombre}</strong>
                 <span className="tarjeta__dato">{dominio(a.url)}</span>

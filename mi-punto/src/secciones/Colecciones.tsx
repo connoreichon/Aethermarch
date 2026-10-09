@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Boton, BotonIcono } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
 import { Dialogo } from '../componentes/Dialogo'
@@ -164,7 +164,16 @@ export const Colecciones = ({ datos, aplicar, avisar, pedir, alAtender }: Props)
               const cuantos = datos.accesos.filter((a) => a.grupoId === g.id).length
               return (
                 <div key={g.id} className="fila" style={{ alignItems: 'center', background: grupoActivo === g.id ? 'var(--sup-hundida)' : undefined }}>
-                  <span className="punto-color" style={{ background: colorDeGrupo(g.color) }} aria-hidden="true" />
+                  <SelectorColor
+                    color={g.color}
+                    nombre={g.nombre}
+                    alElegir={(clave) =>
+                      aplicar((d) => ({
+                        ...d,
+                        grupos: d.grupos.map((x) => (x.id === g.id ? { ...x, color: clave } : x)),
+                      }))
+                    }
+                  />
                   <label className="oculto-visual" htmlFor={`g-${g.id}`}>
                     {T.grupos.renombrar(g.nombre)}
                   </label>
@@ -229,7 +238,7 @@ export const Colecciones = ({ datos, aplicar, avisar, pedir, alAtender }: Props)
                 {visibles.map((a, i) => (
                   <div className="fila" key={a.id}>
                     <span className="favorito__ficha" style={{ width: 38, height: 38, borderRadius: 11, boxShadow: 'none', background: 'var(--sup-hundida)' }}>
-                      <FichaSitio nombre={a.nombre} url={a.url} tamano={22} />
+                      <FichaSitio nombre={a.nombre} url={a.url} icono={a.icono} tamano={22} />
                     </span>
                     <div className="fila__cuerpo">
                       <a className="fila__titulo" href={a.url} target="_blank" rel="noreferrer noopener">
@@ -383,7 +392,7 @@ const FilaEnlace = ({
 
 /* ------------------------------------------------------ formularios */
 
-type CamposAcceso = { nombre: string; url: string; grupoId: string; favorito: boolean }
+type CamposAcceso = { nombre: string; url: string; icono: string; grupoId: string; favorito: boolean }
 
 const FormularioAcceso = ({
   abierto,
@@ -404,9 +413,10 @@ const FormularioAcceso = ({
 }) => {
   const [nombre, setNombre] = useState('')
   const [url, setUrl] = useState('')
+  const [icono, setIcono] = useState('')
   const [grupoId, setGrupoId] = useState('')
   const [favorito, setFavorito] = useState(true)
-  const [errores, setErrores] = useState<{ nombre?: string; url?: string }>({})
+  const [errores, setErrores] = useState<{ nombre?: string; url?: string; icono?: string }>({})
   const esperado = acceso?.id ?? 'nuevo'
   const [visto, setVisto] = useState(esperado)
 
@@ -414,6 +424,7 @@ const FormularioAcceso = ({
     setVisto(esperado)
     setNombre(acceso?.nombre ?? '')
     setUrl(acceso?.url ?? '')
+    setIcono(acceso?.icono ?? '')
     setGrupoId(acceso?.grupoId ?? grupoSugerido ?? datos.grupos[0]?.id ?? '')
     setFavorito(acceso ? acceso.favorito : puedeFavorito)
     setErrores({})
@@ -422,14 +433,22 @@ const FormularioAcceso = ({
   const enviar = () => {
     const limpio = nombre.trim()
     const destino = normalizarUrl(url)
+    const imagen = icono.trim() ? normalizarUrl(icono) : ''
     const fallos: typeof errores = {}
     if (!limpio) fallos.nombre = T.accesos.errorNombre
     if (!destino) fallos.url = T.accesos.errorUrl
     else if (datos.accesos.some((a) => a.id !== acceso?.id && mismaUrl(a.url, destino)))
       fallos.url = T.accesos.duplicado
+    if (icono.trim() && !imagen) fallos.icono = T.accesos.errorIcono
     setErrores(fallos)
     if (Object.keys(fallos).length > 0 || !destino) return
-    alGuardar({ nombre: limpio, url: destino, grupoId: grupoId || datos.grupos[0].id, favorito })
+    alGuardar({
+      nombre: limpio,
+      url: destino,
+      icono: imagen ?? '',
+      grupoId: grupoId || datos.grupos[0].id,
+      favorito,
+    })
   }
 
   return (
@@ -455,6 +474,24 @@ const FormularioAcceso = ({
       >
         <Campo etiqueta={T.accesos.campoUrl} placeholder="correo.google.com" value={url} onChange={(e) => setUrl(e.target.value)} error={errores.url} inputMode="url" maxLength={2048} autoComplete="off" />
         <Campo etiqueta={T.accesos.campoNombre} ayuda={T.accesos.campoNombreAyuda} value={nombre} onChange={(e) => setNombre(e.target.value)} error={errores.nombre} maxLength={80} autoComplete="off" />
+        <Campo
+          etiqueta={T.accesos.campoIcono}
+          ayuda={T.accesos.campoIconoAyuda}
+          placeholder="https://..."
+          value={icono}
+          onChange={(e) => setIcono(e.target.value)}
+          error={errores.icono}
+          inputMode="url"
+          maxLength={2048}
+          autoComplete="off"
+          accesorio={
+            icono.trim() ? (
+              <span className="vista-icono" aria-hidden="true">
+                <FichaSitio nombre={nombre} url={url || 'https://ejemplo.com'} icono={icono.trim()} tamano={22} />
+              </span>
+            ) : undefined
+          }
+        />
         <div className="campo">
           <label className="campo__etiqueta" htmlFor="grupo-acceso">
             {T.accesos.campoGrupo}
@@ -548,5 +585,69 @@ const FormularioEnlace = ({
         </button>
       </form>
     </Dialogo>
+  )
+}
+
+/* ----------------------------------------------------- color ----- */
+
+/** El punto de color del grupo es un boton: al pulsarlo salen las
+ *  seis opciones. Antes el color solo se podia cambiar editando el
+ *  JSON a mano, que no es gestionar nada desde la web. */
+const SelectorColor = ({
+  color,
+  nombre,
+  alElegir,
+}: {
+  color: string
+  nombre: string
+  alElegir: (clave: string) => void
+}) => {
+  const [abierto, setAbierto] = useState(false)
+  const caja = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!abierto) return
+    const fuera = (e: MouseEvent) => {
+      if (!caja.current?.contains(e.target as Node)) setAbierto(false)
+    }
+    const escape = (e: KeyboardEvent) => e.key === 'Escape' && setAbierto(false)
+    document.addEventListener('mousedown', fuera)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('mousedown', fuera)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [abierto])
+
+  return (
+    <div className="paleta" ref={caja}>
+      <button
+        type="button"
+        className="paleta__punto"
+        style={{ background: colorDeGrupo(color) }}
+        aria-label={`${T.grupos.color}: ${nombre}`}
+        aria-expanded={abierto}
+        onClick={() => setAbierto(!abierto)}
+      />
+      {abierto && (
+        <div className="paleta__menu" role="group" aria-label={T.grupos.color}>
+          {COLORES_GRUPO.map((c) => (
+            <button
+              key={c.clave}
+              type="button"
+              className="paleta__opcion"
+              style={{ background: c.valor }}
+              aria-label={c.nombre}
+              aria-pressed={c.clave === color}
+              title={c.nombre}
+              onClick={() => {
+                alElegir(c.clave)
+                setAbierto(false)
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

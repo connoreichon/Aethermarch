@@ -84,7 +84,7 @@ export const App = () => {
       preferencias: { ...d.preferencias, presentado: true },
       accesos: [
         ...d.accesos,
-        ...elegidos.map((e) => ({ ...e, grupoId: d.grupos[0].id, usos: 0, ultimoUso: null })),
+        ...elegidos.map((e) => ({ ...e, icono: '', grupoId: d.grupos[0].id, usos: 0, ultimoUso: null })),
       ],
     }))
 
