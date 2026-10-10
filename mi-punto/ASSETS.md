@@ -6,10 +6,26 @@
 recorte de escritorio (2560×1440) y de móvil (1170×2200). Entre 11 y 16 kB cada
 uno.
 
-**No son fotografías.** Son imágenes construidas por código con Pillow:
-degradado vertical de cielo en tres tramos, luz lateral cálida junto al
-horizonte, un promontorio lejano de bajo contraste, filo de horizonte,
-viñeteado suave y grano fino para evitar bandas.
+**No son fotografías.** Son escenas construidas por código con numpy, scipy y
+Pillow. La primera versión sí eran cuatro degradados, y se notaba al mirarla a
+tamaño real: mar plano, costura recta en el horizonte y bandas. Lo que hace que
+la actual aguante al 100 %:
+
+- **Todo el mezclado va en luz lineal** y solo al final se pasa a sRGB. Mezclar
+  en sRGB es lo que ensucia los cielos.
+- **Nubes con ruido fBm** estirado en horizontal y comprimido hacia el
+  horizonte: eso es la perspectiva de un cielo real.
+- **Mar con olas** cuya frecuencia crece con la distancia, un camino de brillos
+  bajo el sol y oscurecimiento hacia el espectador.
+- **El horizonte no es una línea dibujada**, es bruma: lo que se ve de verdad.
+- **Tramado triangular** antes de cuantizar a 8 bits. Sin esto, un degradado tan
+  largo hace escalones por muy bien calculado que esté.
+- La altura del promontorio va con el **ancho** de la imagen, no con el alto: si
+  no, en el recorte vertical de móvil se convierte en un volcán.
+
+Comprobado recortando al 100 % el horizonte, la zona del titular y el primer
+plano, no mirando la imagen reducida. Contraste del texto claro sobre la zona
+del titular: **8,9:1** en el peor punto.
 
 - Fuente reproducible: `scripts/generar_fondo.py`. Se regeneran con
   `npm run fondos` (requiere Python con Pillow).
