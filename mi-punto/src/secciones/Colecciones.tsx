@@ -6,8 +6,9 @@ import { FichaSitio } from '../componentes/FichaSitio'
 import { Icono } from '../componentes/Iconos'
 import { Panel, Vista } from '../componentes/Marco'
 import { COLORES_GRUPO, MAX_FAVORITOS, colorDeGrupo } from '../config/ajustes'
+import { servicioDe } from '../config/servicios'
 import { T } from '../config/textos'
-import type { Acceso, Datos, Grupo, Retomar as Enlace } from '../datos/tipos'
+import type { Acceso, AccionGuardada, Datos, Grupo, Retomar as Enlace } from '../datos/tipos'
 import { dominio, fechaCorta, mismaUrl, normalizarUrl, nuevoId } from '../datos/util'
 
 interface Props {
@@ -392,7 +393,14 @@ const FilaEnlace = ({
 
 /* ------------------------------------------------------ formularios */
 
-type CamposAcceso = { nombre: string; url: string; icono: string; grupoId: string; favorito: boolean }
+type CamposAcceso = {
+  nombre: string
+  url: string
+  icono: string
+  grupoId: string
+  favorito: boolean
+  acciones: AccionGuardada[]
+}
 
 const FormularioAcceso = ({
   abierto,
@@ -414,6 +422,10 @@ const FormularioAcceso = ({
   const [nombre, setNombre] = useState('')
   const [url, setUrl] = useState('')
   const [icono, setIcono] = useState('')
+  const [acciones, setAcciones] = useState<AccionGuardada[]>([])
+  const [nuevaEtiqueta, setNuevaEtiqueta] = useState('')
+  const [nuevaPlantilla, setNuevaPlantilla] = useState('')
+  const [errorAccion, setErrorAccion] = useState<string>()
   const [grupoId, setGrupoId] = useState('')
   const [favorito, setFavorito] = useState(true)
   const [errores, setErrores] = useState<{ nombre?: string; url?: string; icono?: string }>({})
@@ -425,10 +437,16 @@ const FormularioAcceso = ({
     setNombre(acceso?.nombre ?? '')
     setUrl(acceso?.url ?? '')
     setIcono(acceso?.icono ?? '')
+    setAcciones(acceso?.acciones ?? [])
+    setNuevaEtiqueta('')
+    setNuevaPlantilla('')
+    setErrorAccion(undefined)
     setGrupoId(acceso?.grupoId ?? grupoSugerido ?? datos.grupos[0]?.id ?? '')
     setFavorito(acceso ? acceso.favorito : puedeFavorito)
     setErrores({})
   }
+
+  const delCatalogo = servicioDe(url)?.acciones.length ?? 0
 
   const enviar = () => {
     const limpio = nombre.trim()
@@ -448,6 +466,7 @@ const FormularioAcceso = ({
       icono: imagen ?? '',
       grupoId: grupoId || datos.grupos[0].id,
       favorito,
+      acciones,
     })
   }
 
@@ -511,6 +530,77 @@ const FormularioAcceso = ({
             {!favorito && !puedeFavorito && <span className="menor suave"> — {T.accesos.limiteFavoritos(MAX_FAVORITOS)}</span>}
           </span>
         </label>
+        <div className="campo">
+          <span className="campo__etiqueta">{T.accesos.acciones}</span>
+          <p className="campo__ayuda">{T.accesos.accionesAyuda}</p>
+          {delCatalogo > 0 && (
+            <p className="campo__ayuda">{T.accesos.accionesDelCatalogo(delCatalogo)}</p>
+          )}
+          {acciones.length > 0 && (
+            <ul className="acciones-lista">
+              {acciones.map((a) => (
+                <li key={a.id}>
+                  <span>
+                    <strong>{a.etiqueta}</strong>
+                    <small>{a.plantilla}</small>
+                  </span>
+                  <BotonIcono
+                    className="icono-boton--mini"
+                    icono="papelera"
+                    etiqueta={`${T.accesos.accionQuitar}: ${a.etiqueta}`}
+                    peligro
+                    onClick={() => setAcciones(acciones.filter((x) => x.id !== a.id))}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="acciones-nueva">
+            <input
+              className="campo__caja"
+              aria-label={T.accesos.accionEtiqueta}
+              placeholder={T.accesos.accionEtiqueta}
+              value={nuevaEtiqueta}
+              maxLength={60}
+              onChange={(e) => setNuevaEtiqueta(e.target.value)}
+            />
+            <input
+              className="campo__caja"
+              aria-label={T.accesos.accionPlantilla}
+              placeholder="https://sitio.com/buscar?q={q}"
+              value={nuevaPlantilla}
+              maxLength={2048}
+              onChange={(e) => setNuevaPlantilla(e.target.value)}
+            />
+            <Boton
+              tono="secundario"
+              compacto
+              icono="mas"
+              onClick={() => {
+                const etiqueta = nuevaEtiqueta.trim()
+                const plantilla = nuevaPlantilla.trim()
+                const valida = plantilla && normalizarUrl(plantilla.replace('{q}', 'x'))
+                if (!etiqueta || !valida) {
+                  setErrorAccion(T.accesos.errorAccion)
+                  return
+                }
+                setAcciones([...acciones, { id: nuevoId(), etiqueta, plantilla }])
+                setNuevaEtiqueta('')
+                setNuevaPlantilla('')
+                setErrorAccion(undefined)
+              }}
+            >
+              {T.accesos.accionAnadir}
+            </Boton>
+          </div>
+          {errorAccion && (
+            <p className="campo__error">
+              <Icono nombre="aviso" tamano={16} />
+              {errorAccion}
+            </p>
+          )}
+        </div>
+
         <button type="submit" className="oculto-visual">
           {T.accesos.guardar}
         </button>

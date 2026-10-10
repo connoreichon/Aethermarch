@@ -16,6 +16,21 @@ export const Ayuda = () => (
           </dd>
         </div>
         <div>
+          <dt style={{ fontWeight: 800 }}>Hacer cosas desde la barra</dt>
+          <dd style={{ margin: '4px 0 0', color: 'var(--txt-2)' }}>
+            La barra no solo busca: también <strong>hace</strong>. Escribe un correo y te ofrece
+            escribirle; un teléfono y te ofrece el WhatsApp; una dirección y te la abre; cualquier
+            otra cosa y te ofrece buscarla en tu correo, en tu Drive o en Google. Solo salen los
+            servicios que tú tienes guardados.
+            <br />
+            <br />
+            ¿Un sitio que no conoce? En <strong>Colecciones → editar el acceso → Acciones</strong>{' '}
+            creas la tuya: le pones nombre y la dirección con <code>{'{q}'}</code> donde quieras que
+            vaya lo que escribas. Por ejemplo{' '}
+            <code>https://www.milanuncios.com/anuncios/?s={'{q}'}</code>.
+          </dd>
+        </div>
+        <div>
           <dt style={{ fontWeight: 800 }}>Guardar algo para retomar</dt>
           <dd style={{ margin: '4px 0 0', color: 'var(--txt-2)' }}>
             En Colecciones, <strong>Guardar enlace</strong>. Pega la dirección y escribe por dónde ibas. Cuando lo

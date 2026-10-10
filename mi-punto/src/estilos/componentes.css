@@ -420,3 +420,53 @@
   background: var(--sup-hundida);
   flex: none;
 }
+
+/* -------------------------------------------------------- ACCIONES
+   Lo que se puede HACER con lo escrito. Van arriba del todo y con
+   mas peso que los resultados: es lo que normalmente se busca. */
+.accion { align-items: center; }
+.accion strong { font-weight: 700; display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+.accion__arg {
+  font-weight: 800;
+  color: var(--c-mandarina-texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.accion__flecha {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 6px;
+  background: var(--sup-hundida);
+  color: var(--txt-2);
+}
+.accion:hover .accion__flecha { background: var(--accion); color: var(--accion-txt); }
+
+/* --------------------------------------------- ACCIONES DEL ACCESO */
+.acciones-lista { list-style: none; margin: 0 0 var(--e2); padding: 0; display: grid; gap: 6px; }
+.acciones-lista li {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  padding: 6px 6px 6px var(--e3);
+  background: var(--sup-hundida);
+  border: 1px solid var(--sep);
+  border-radius: 10px;
+}
+.acciones-lista span { flex: 1; min-width: 0; display: grid; }
+.acciones-lista strong { font-size: var(--t-menor); }
+.acciones-lista small {
+  font-size: 12px;
+  color: var(--txt-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acciones-nueva { display: grid; gap: var(--e2); }
+.acciones-nueva input { padding: 10px var(--e3); min-height: 44px; }
+@media (min-width: 560px) {
+  .acciones-nueva { grid-template-columns: 1fr 1.4fr auto; align-items: center; }
+}

@@ -5,6 +5,8 @@ import type { Vista } from '../componentes/Marco'
 import { T } from '../config/textos'
 import type { Datos, Tarea } from '../datos/tipos'
 import { dominio, sinAcentos } from '../datos/util'
+import { accionesPara } from '../datos/acciones'
+import { Icono } from '../componentes/Iconos'
 
 interface Props {
   datos: Datos
@@ -27,17 +29,43 @@ export const Resultados = ({ datos, consulta, alAbrirAcceso, alAlternarTarea, al
     }
   }, [datos, q])
 
+  const acciones = useMemo(() => accionesPara(datos, consulta), [datos, consulta])
+
   const total =
     hallazgos.accesos.length + hallazgos.retomar.length + hallazgos.tareas.length + hallazgos.notas.length
 
+  const listaAcciones = acciones.length > 0 && (
+    <div className="tarjeta__lista">
+      <p className="tarjeta__vacio">{T.buscar.hacer(consulta.trim())}</p>
+      {acciones.map((a) => (
+        <a
+          key={a.clave}
+          className="tarjeta__fila accion"
+          href={a.url}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          <span className="accion__flecha" aria-hidden="true">
+            <Icono nombre="externo" tamano={15} />
+          </span>
+          <strong>
+            {a.etiqueta}
+            {a.argumento && <span className="accion__arg">{a.argumento}</span>}
+          </strong>
+          {a.servicio && <span className="tarjeta__dato">{a.servicio}</span>}
+        </a>
+      ))}
+    </div>
+  )
+
   if (total === 0) {
     return (
-      <div className="contexto contexto--unico">
-        <section className="tarjeta">
-          <div className="vacio" style={{ padding: 'var(--e5) var(--e2)' }}>
+      <div className="contexto contexto--unico" style={{ maxWidth: 'var(--ancho-buscar)' }}>
+        <section className="tarjeta" aria-live="polite">
+          {listaAcciones}
+          <div className="vacio" style={{ padding: 'var(--e4) var(--e2)' }}>
             <h3>{T.buscar.sinResultados(consulta.trim())}</h3>
             <p>{T.buscar.noEsInternet}</p>
-            <p>{T.buscar.pista}</p>
           </div>
         </section>
       </div>
@@ -47,7 +75,9 @@ export const Resultados = ({ datos, consulta, alAbrirAcceso, alAlternarTarea, al
   return (
     <div className="contexto contexto--unico" style={{ maxWidth: 'var(--ancho-buscar)' }}>
       <section className="tarjeta" aria-live="polite">
-        <h2 className="tarjeta__titulo">{T.buscar.titulo(total)}</h2>
+        {listaAcciones}
+
+        <h2 className="tarjeta__titulo">{T.buscar.tusCosas}</h2>
 
         {hallazgos.accesos.length > 0 && (
           <div className="tarjeta__lista">

@@ -40,6 +40,9 @@ export const T = {
     enRetomar: 'Para retomar',
     enTareas: 'Tareas',
     enNotas: 'Notas',
+    hacer: (q: string) => `Hacer algo con «${q}»`,
+    tusCosas: 'En lo tuyo',
+    pistaAcciones: 'Escribe para buscar en lo tuyo, o para hacer algo: un correo, una búsqueda en Drive, apuntar en el calendario...',
     soloAqui: 'Solo busca en lo tuyo, y no sale de este dispositivo.',
   },
 
@@ -74,6 +77,16 @@ export const T = {
     campoIconoAyuda:
       'Déjalo vacío y se busca en el propio sitio. Si ese sitio no publica ninguno, pega aquí la dirección de una imagen.',
     errorIcono: 'Esa no es una dirección de imagen válida.',
+    acciones: 'Acciones',
+    accionesAyuda:
+      'Atajos que abren este sitio en el punto exacto. Escribe {q} donde quieras que vaya lo que teclees en la barra.',
+    accionesDelCatalogo: (n: number) =>
+      n === 1 ? 'Ya trae 1 acción preparada.' : `Ya trae ${n} acciones preparadas.`,
+    accionEtiqueta: 'Qué hace',
+    accionPlantilla: 'Dirección',
+    accionAnadir: 'Añadir acción',
+    accionQuitar: 'Quitar acción',
+    errorAccion: 'Falta el nombre o la dirección no vale.',
     guardar: 'Guardar acceso',
     editar: 'Editar',
     borrar: 'Borrar',

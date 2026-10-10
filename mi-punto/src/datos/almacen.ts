@@ -6,7 +6,7 @@ import {
   COLORES_GRUPO,
 } from '../config/ajustes'
 import { PROPIETARIO_INVITADO } from './tipos'
-import type { Acceso, Datos, Grupo, Nota, Retomar, Tarea } from './tipos'
+import type { Acceso, AccionGuardada, Datos, Grupo, Nota, Retomar, Tarea } from './tipos'
 import { nuevoId, normalizarUrl } from './util'
 
 export const datosVacios = (): Datos => ({
@@ -48,6 +48,22 @@ const colorValido = (v: unknown): string => {
 }
 
 const lista = (v: unknown): unknown[] => (Array.isArray(v) ? v : [])
+
+/** Las plantillas de accion son direcciones que vienen de fuera: se
+ *  comprueban igual que cualquier otra, con {q} sustituido por algo
+ *  inocuo para poder validarlas. */
+const saneaAcciones = (v: unknown): AccionGuardada[] =>
+  lista(v)
+    .filter(esObjeto)
+    .map((a): AccionGuardada | null => {
+      const etiqueta = texto(a.etiqueta, 60).trim()
+      const plantilla = texto(a.plantilla, 2048).trim()
+      if (!etiqueta || !plantilla) return null
+      if (!normalizarUrl(plantilla.replace('{q}', 'x'))) return null
+      return { id: texto(a.id, 64) || nuevoId(), etiqueta, plantilla }
+    })
+    .filter((a): a is AccionGuardada => a !== null)
+    .slice(0, 12)
 
 /** v1 guardaba una sola nota como cadena suelta. */
 const migrarNotaUnica = (bruto: Record<string, unknown>): Nota[] => {
@@ -92,6 +108,7 @@ export const sanear = (bruto: unknown): Datos | null => {
         url,
         // El icono propio tambien es una URL que viene de fuera
         icono: normalizarUrl(texto(a.icono, 2048)) ?? '',
+        acciones: saneaAcciones(a.acciones),
         grupoId: idsGrupo.has(grupoId) ? grupoId : grupos[0].id,
         favorito: a.favorito === true,
         usos: typeof a.usos === 'number' && a.usos >= 0 ? Math.min(a.usos, 1e6) : 0,

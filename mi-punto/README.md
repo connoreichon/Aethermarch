@@ -36,7 +36,11 @@ autorización para subirlo.
 
 ## Alcance de esta versión
 
-**Hace:** accesos con grupos, favoritos, orden, color de grupo e icono propio;
+**Hace:** barra de comandos que no solo busca sino que **hace** (escribir un
+correo, buscar en Drive, apuntar en el calendario, mandar un WhatsApp…) sobre
+los servicios que tengas guardados, con catálogo de 20 servicios y acciones
+propias que creas tú; accesos con grupos, favoritos, orden, color de grupo e
+icono propio;
 enlaces guardados para retomar con nota y marca de terminado; notas con guardado
 automático; tareas con hasta tres prioridades; búsqueda interna; calculadora y
 porcentajes; copia de seguridad y restauración; primera visita con accesos
@@ -55,7 +59,9 @@ Un acceso a un correo abre ese correo. No hay ninguna cuenta conectada.
 
 ```
 src/
-  config/      tokens de configuración y TODO el texto visible (textos.ts)
+  config/      tokens, TODO el texto visible (textos.ts) y el catálogo de
+               servicios y sus acciones (servicios.ts), que son DATOS: añadir
+               un servicio es una fila, no una función
   datos/       modelo, validación, almacén, importación y exportación
   componentes/ piezas reutilizables (botón, campo, diálogo, ficha de sitio…)
   secciones/   una vista por archivo

@@ -29,6 +29,8 @@ cual.
 | 19 | Cadena de iconos | Pasa. De 8 accesos del ejemplo, 7 con icono real: El País y Wikipedia por `apple-touch-icon`, Drive, YouTube y Spotify por `favicon.ico`, Gmail y Calendario por el dominio raíz. Notion no publica ninguno y queda con su inicial. |
 | 20 | Icono propio por acceso | Pasa. Con texto que no es una dirección: «Esa no es una dirección de imagen válida». Con una URL buena: vista previa en el propio campo y guardado en disco. |
 | 21 | «Volver a buscar los iconos» | Pasa. Había 3 dominios recordados como fallidos; el aviso dice «Se volverán a buscar 3 sitios» y Gmail y Calendario pasan a mostrar icono. |
+| 24 | Barra de comandos | Pasa. Con un correo ofrece «Escribir un correo a» primero; con un teléfono, el WhatsApp; con un dominio, «Abrir la dirección»; con «doc», «Documento nuevo»; y «Buscarlo en Google» está siempre. |
+| 25 | Acciones propias | Pasa. Añadí Milanuncios (que no está en el catálogo), le creé «Buscar en Milanuncios» con plantilla `?s={q}` desde el formulario, se guardó en disco y sale la primera en la barra al escribir «bicicleta». |
 | 23 | Fondo a tamaño real | Pasa tras rehacerlo. Recortes 1:1 del horizonte, de la zona del titular y del primer plano: sin bandas, sin costura en el horizonte y con textura real en el agua. Contraste del texto claro, 8,9:1 medido sobre los píxeles del fondo. |
 | 22 | Color de grupo desde la web | Pasa. El punto abre las seis opciones, se elige una, el menú se cierra y el color cambia también en la ficha del inicio. |
 
@@ -51,6 +53,14 @@ cual.
 - **Con datos** mediante «Ver un ejemplo» (11 accesos, 4 enlaces, 2 notas,
   5 tareas). Entrar y salir del ejemplo no toca los datos reales: comprobado
   leyendo `localStorage` antes y después.
+
+### Fallos de la barra de comandos, encontrados probándola
+
+Las tres primeras salidas de la barra traían: «Escribir un correo a factura»
+(sinsentido), «Abrir la dirección» convirtiendo `ana@ejemplo.com` en
+`https://ana@ejemplo.com`, y «Buscarlo en Google» ausente por caerse del límite.
+Se corrigió haciendo que cada acción **declare qué tipo de dato admite**
+(correo, teléfono, dirección, texto o ninguno) y ordenando por tipo que encaja.
 
 ## Fallos encontrados y corregidos durante las pruebas
 

@@ -4,12 +4,22 @@ export interface Grupo {
   color: string
 }
 
+export interface AccionGuardada {
+  id: string
+  etiqueta: string
+  /** Direccion con {q} opcional donde va lo que se escriba. */
+  plantilla: string
+}
+
 export interface Acceso {
   id: string
   nombre: string
   url: string
   /** Icono puesto a mano. Vacio = se busca en el propio sitio. */
   icono: string
+  /** Acciones que la persona ha anadido a mano para este sitio.
+   *  Las del catalogo salen solas y no se guardan aqui. */
+  acciones: AccionGuardada[]
   grupoId: string
   favorito: boolean
   usos: number
